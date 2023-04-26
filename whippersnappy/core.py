@@ -22,7 +22,7 @@ import numpy as np
 from OpenGL.GL import *
 from PIL import Image, ImageDraw, ImageFont
 
-from .read_geometry import read_geometry, read_morph_data
+from .read_geometry import read_geometry, read_morph_data, read_mgh_data
 
 
 def normalize_mesh(v, scale=1.0):
@@ -295,7 +295,12 @@ def prepare_geometry(surfpath, overlaypath=None, curvpath=None, labelpath=None,
         sulcmap = 0.5 * np.ones(vertices.shape,dtype=np.float32)
     # read map (stats etc)
     if overlaypath:
-        mapdata = read_morph_data(overlaypath)
+        _, file_extension = os.path.splitext(overlaypath)
+
+        if file_extension == '.mgh':
+            mapdata = read_mgh_data(overlaypath)
+        else:
+            mapdata = read_morph_data(overlaypath)
         mapdata, fmin, fmax, neg = rescale_overlay(mapdata, minval, maxval)
         # mask map with label
         mapdata = mask_label(mapdata,labelpath)
