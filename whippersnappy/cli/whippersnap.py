@@ -159,11 +159,13 @@ def run():
     parser.add_argument('--fthresh', type=float, default=2.0)
     parser.add_argument('-i', '--interactive', dest='interactive', action='store_true',
                         help='Start an interactive session.')
+    parser.add_argument('--invert', dest='invert', action='store_true',
+                        help='Invert the color scale.')
     args = parser.parse_args()
 
     if not args.interactive:
         snap4(args.lh_overlay, args.rh_overlay, sdir=args.sdir, caption=args.caption, surfname=args.surf_name,
-              fthresh=args.fthresh, fmax=args.fmax, invert=True, colorbar=True, outpath=args.output_path)
+              fthresh=args.fthresh, fmax=args.fmax, invert=args.invert, colorbar=True, outpath=args.output_path)
     else:
         current_fthresh_ = args.fthresh
         current_fmax_ = args.fmax
