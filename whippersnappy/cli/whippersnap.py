@@ -153,7 +153,7 @@ def run():
     parser.add_argument('-o', '--output_path', type=str, default='/tmp/whippersnappy_snap.png',
                         help='Absolute path to the output file (snapshot image), '
                              'if not running interactive mode.')
-    parser.add_argument('-c', '--caption', type=str, default='Super cool WhipperSnapPy 2.0',
+    parser.add_argument('-c', '--caption', type=str, default='',
                         help='Caption to place on the figure')
     parser.add_argument('--fmax', type=float, default=4.0)
     parser.add_argument('--fthresh', type=float, default=2.0)
