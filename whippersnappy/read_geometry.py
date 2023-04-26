@@ -1,6 +1,7 @@
 # IMPORTS
 from collections import OrderedDict
 import numpy as np
+import nibabel as nib
 import warnings
 
 """
@@ -174,3 +175,23 @@ def read_morph_data(filepath):
             _fread3(fobj)
             curv = np.fromfile(fobj, '>i2', vnum) / 100
     return curv
+
+def read_mgh_data(filepath):
+    """Read an MGH image file and return its data array.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to mgh file
+
+    Returns
+    -------
+    data_array : numpy array
+        Image data array
+    """
+    data_array = np.array(nib.load(filepath).dataobj)
+
+    assert len(data_array.shape) == 3 and data_array.shape[1] == 1 and data_array.shape[2] == 1, \
+           'Expected data array to have shape Nx1x1. Instead, got {}'.format(data_array.shape)
+
+    return data_array.squeeze()
