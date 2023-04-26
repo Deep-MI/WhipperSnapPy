@@ -163,7 +163,7 @@ def run():
 
     if not args.interactive:
         snap4(args.lh_overlay, args.rh_overlay, sdir=args.sdir, caption=args.caption, surfname=args.surf_name,
-              fthresh=args.fthresh, fmax=args.fmax, invert=False, colorbar=True, outpath=args.output_path)
+              fthresh=args.fthresh, fmax=args.fmax, invert=True, colorbar=True, outpath=args.output_path)
     else:
         current_fthresh_ = args.fthresh
         current_fmax_ = args.fmax
