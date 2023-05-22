@@ -11,16 +11,15 @@ Dependencies:
 
 """
 
-from PyQt5.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QSlider,
-    QLineEdit,
-    QGroupBox,
-)
-
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QGroupBox,
+    QHBoxLayout,
+    QLineEdit,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class ConfigWindow(QWidget):

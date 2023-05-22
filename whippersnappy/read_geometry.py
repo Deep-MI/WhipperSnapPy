@@ -1,8 +1,9 @@
 # IMPORTS
-from collections import OrderedDict
-import numpy as np
-import nibabel as nib
 import warnings
+from collections import OrderedDict
+
+import nibabel as nib
+import numpy as np
 
 """
 Read FreeSurfer geometry (fix for dev, ll 126-128);

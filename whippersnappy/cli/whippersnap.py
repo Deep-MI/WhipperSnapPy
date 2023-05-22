@@ -19,27 +19,26 @@ Usage:
 
 """
 
-import os
-import math
-import sys
-import signal
 import argparse
+import math
+import os
+import signal
+import sys
 import threading
 
 import glfw
-import pyrr
 import OpenGL.GL as gl
+import pyrr
 from PyQt5.QtWidgets import QApplication
 
+from whippersnappy.config_app import ConfigWindow
 from whippersnappy.core import (
-    init_window,
     get_surf_name,
+    init_window,
     prepare_geometry,
     setup_shader,
     snap4,
 )
-from whippersnappy.config_app import ConfigWindow
-
 
 # Global variables for config app configuration state:
 current_fthresh_ = None

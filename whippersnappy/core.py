@@ -9,17 +9,17 @@ Dependencies:
 
 """
 
+import math
 import os
 import sys
-import math
 
 import glfw
-import pyrr
 import numpy as np
 import OpenGL.GL as gl
+import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
-from .read_geometry import read_geometry, read_morph_data, read_mgh_data
+from .read_geometry import read_geometry, read_mgh_data, read_morph_data
 
 
 def normalize_mesh(v, scale=1.0):
