@@ -15,14 +15,12 @@ from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QMessageBox,
     QSlider,
     QLineEdit,
     QGroupBox,
 )
 
 from PyQt5.QtCore import Qt
-
 
 class ConfigWindow(QWidget):
     """

@@ -15,14 +15,11 @@ import math
 
 import glfw
 import pyrr
-import OpenGL.GL.shaders
 import numpy as np
-
-from OpenGL.GL import *
+import OpenGL.GL as gl
 from PIL import Image, ImageDraw, ImageFont
 
 from .read_geometry import read_geometry, read_morph_data, read_mgh_data
-
 
 def normalize_mesh(v, scale=1.0):
     """
@@ -81,7 +78,7 @@ def vertex_normals(v, t):
     v2mv1 = v2 - v1
     v0mv2 = v0 - v2
     # Compute cross product at every vertex
-    # will all point in the same direction but have different lengths depending on spanned area
+    # will point into the same direction with lengths depending on spanned area
     cr0 = np.cross(v1mv0, -v0mv2)
     cr1 = np.cross(v2mv1, -v1mv0)
     cr2 = np.cross(v0mv2, -v2mv1)
@@ -377,9 +374,9 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     window = glfw.create_window(width, height, title, None, None)
     if not window:
         glfw.terminate()
-        return false
+        return False
     # Enable key events
-    glfw.set_input_mode(window, glfw.STICKY_KEYS, GL_TRUE)
+    glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
     # Enable key event callback
     # glfw.set_key_callback(window,key_event)
     glfw.make_context_current(window)
@@ -416,41 +413,42 @@ def setup_shader(meshdata, triangles, width, height):
     """
 
     VERTEX_SHADER = """
- 
+
         #version 330
 
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aNormal;
         layout (location = 2) in vec3 aColor;
-        
+
         out vec3 FragPos;
         out vec3 Normal;
         out vec3 Color;
-        
-        uniform mat4 transform; 
+
+        uniform mat4 transform;
         uniform mat4 model;
         uniform mat4 view;
         uniform mat4 projection;
- 
+
         void main()
         {
           gl_Position = projection * view * model * transform * vec4(aPos, 1.0f);
           FragPos = vec3(model * transform * vec4(aPos, 1.0));
-          Normal = mat3(transpose(inverse(view * model * transform))) * aNormal; // normal matrix should be computed outside and passed!
+	  // normal matrix should be computed outside and passed!
+          Normal = mat3(transpose(inverse(view * model * transform))) * aNormal;
           Color = aColor;
         }
- 
+
     """
 
     FRAGMENT_SHADER = """
         #version 330
- 
+
         in vec3 Normal;
         in vec3 FragPos;
-        in vec3 Color; 
-
+        in vec3 Color;
+	
         out vec4 FragColor;
- 
+
         uniform vec3 lightColor;
 
         void main()
@@ -492,65 +490,67 @@ def setup_shader(meshdata, triangles, width, height):
           diffuse = diffuse + 0.52 * key * diff * lightColor;
 
 
-          // specular 
+          // specular
           float specularStrength = 0.5;
-          vec3 viewDir = normalize(-FragPos); // the viewer is always at (0,0,0) in view-space, so viewDir is (0,0,0) - Position => -Position
-          vec3 reflectDir = reflect(ohlightDir, norm);  
+	  // the viewer is always at (0,0,0) in view-space, 
+	  // so viewDir is (0,0,0) - Position => -Position
+          vec3 viewDir = normalize(-FragPos);
+          vec3 reflectDir = reflect(ohlightDir, norm);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-          vec3 specular = specularStrength * spec * lightColor; 
+          vec3 specular = specularStrength * spec * lightColor;
 
           // final color
           vec3 result = (ambient + diffuse + specular) * Color;
           //vec3 result = (ambient + diffuse) * Color;
           FragColor = vec4(result, 1.0);
         }
- 
+
     """
 
     # Create Vertex Buffer object in gpu
-    VBO = glGenBuffers(1)
+    VBO = gl.glGenBuffers(1)
     # Bind the buffer
-    glBindBuffer(GL_ARRAY_BUFFER, VBO)
-    glBufferData(GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, GL_STATIC_DRAW)
+    gl.glBindBuffer(gl.GL_ARRAY_BUFFER, VBO)
+    gl.glBufferData(gl.GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, gl.GL_STATIC_DRAW)
 
     # Create Vertex Array object
-    VAO = glGenVertexArrays(1)
+    VAO = gl.glGenVertexArrays(1)
     # Bind array
-    glBindVertexArray(VAO)
-    glBufferData(GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, GL_STATIC_DRAW)
+    gl.glBindVertexArray(VAO)
+    gl.glBufferData(gl.GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, gl.GL_STATIC_DRAW)
 
     # Create Element Buffer Object
-    EBO = glGenBuffers(1)
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles, GL_STATIC_DRAW)
+    EBO = gl.glGenBuffers(1)
+    gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, EBO)
+    gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles, gl.GL_STATIC_DRAW)
 
     # Compile The Program and shaders
-    shader = OpenGL.GL.shaders.compileProgram(
-        OpenGL.GL.shaders.compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
-        OpenGL.GL.shaders.compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER),
+    shader = gl.shaders.compileProgram(
+        gl.shaders.compileShader(VERTEX_SHADER, gl.GL_VERTEX_SHADER),
+        gl.shaders.compileShader(FRAGMENT_SHADER, gl.GL_FRAGMENT_SHADER),
     )
 
     # get the position from shader
-    position = glGetAttribLocation(shader, "aPos")
-    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(0))
-    glEnableVertexAttribArray(position)
+    position = gl.glGetAttribLocation(shader, "aPos")
+    gl.glVertexAttribPointer(position, 3, gl.GL_FLOAT, gl.GL_FALSE, 9 * 4, gl.ctypes.c_void_p(0))
+    gl.glEnableVertexAttribArray(position)
 
-    vnormalpos = glGetAttribLocation(shader, "aNormal")
-    glVertexAttribPointer(
-        vnormalpos, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(3 * 4)
+    vnormalpos = gl.glGetAttribLocation(shader, "aNormal")
+    gl.glVertexAttribPointer(
+        vnormalpos, 3, gl.GL_FLOAT, gl.GL_FALSE, 9 * 4, gl.ctypes.c_void_p(3 * 4)
     )
-    glEnableVertexAttribArray(vnormalpos)
+    gl.glEnableVertexAttribArray(vnormalpos)
 
-    colorpos = glGetAttribLocation(shader, "aColor")
-    glVertexAttribPointer(
-        colorpos, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(6 * 4)
+    colorpos = gl.glGetAttribLocation(shader, "aColor")
+    gl.glVertexAttribPointer(
+        colorpos, 3, gl.GL_FLOAT, gl.GL_FALSE, 9 * 4, gl.ctypes.c_void_p(6 * 4)
     )
-    glEnableVertexAttribArray(colorpos)
+    gl.glEnableVertexAttribArray(colorpos)
 
-    glUseProgram(shader)
+    gl.glUseProgram(shader)
 
-    glClearColor(0.0, 0.0, 0.0, 1.0)
-    glEnable(GL_DEPTH_TEST)
+    gl.glClearColor(0.0, 0.0, 0.0, 1.0)
+    gl.glEnable(GL_DEPTH_TEST)
 
     # Creating Projection Matrix
     view = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0, 0.0, -5.0]))
@@ -559,17 +559,17 @@ def setup_shader(meshdata, triangles, width, height):
     )
     model = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0, 0.0, 0.0]))
 
-    view_loc = glGetUniformLocation(shader, "view")
-    proj_loc = glGetUniformLocation(shader, "projection")
-    model_loc = glGetUniformLocation(shader, "model")
+    view_loc = gl.glGetUniformLocation(shader, "view")
+    proj_loc = gl.glGetUniformLocation(shader, "projection")
+    model_loc = gl.glGetUniformLocation(shader, "model")
 
-    glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
-    glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
-    glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
+    gl.glUniformMatrix4fv(view_loc, 1, gl.GL_FALSE, view)
+    gl.glUniformMatrix4fv(proj_loc, 1, gl.GL_FALSE, projection)
+    gl.glUniformMatrix4fv(model_loc, 1, gl.GL_FALSE, model)
 
     # setup light color
-    lightColor_loc = glGetUniformLocation(shader, "lightColor")
-    glUniform3f(lightColor_loc, 1.0, 1.0, 1.0)
+    lightColor_loc = gl.glGetUniformLocation(shader, "lightColor")
+    gl.glUniform3f(lightColor_loc, 1.0, 1.0, 1.0)
 
     return shader
 
@@ -594,8 +594,8 @@ def capture_window(width, height):
         # not sure why on mac the drawing area is 4 times as large (2x2):
         width = 2 * width
         height = 2 * height
-    glPixelStorei(GL_PACK_ALIGNMENT, 1)  # may not be needed
-    img_buf = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
+    gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)  # may not be needed
+    img_buf = gl.glReadPixels(0, 0, width, height, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
     image = Image.frombytes("RGB", (width, height), img_buf)
     image = image.transpose(Image.FLIP_TOP_BOTTOM)
     if sys.platform == "darwin":
@@ -628,7 +628,7 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     """
     cwidth = 200
     cheight = 30
-    img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
+    # img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
     values = np.nan * np.ones((cwidth))
     gapspace = 0
     if fmin > 0.01:
@@ -755,8 +755,8 @@ def snap4(
     font_file: str
         Path to the file describing the font to be used in captions
     """
-
-    # setup window (keep this aspect ratio, as the mesh scale and distances are set accordingly)
+    # setup window
+    # (keep aspect ratio, as the mesh scale and distances are set accordingly)
     wwidth = 540
     wheight = 450
     visible = False
@@ -781,7 +781,7 @@ def snap4(
             found_surfname = get_surf_name(sdir, hemi)
             if found_surfname is None:
                 print(
-                    "[ERROR] Could not find a valid surf file in {} for hemi: {}!".format(
+                    "[ERROR] Could not find valid surf file in {} for hemi: {}!".format(
                         sdir, hemi
                     )
                 )
@@ -809,23 +809,23 @@ def snap4(
         shader = setup_shader(meshdata, triangles, wwidth, wheight)
 
         # draw
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        transformLoc = glGetUniformLocation(shader, "transform")
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        transformLoc = gl.glGetUniformLocation(shader, "transform")
         viewmat = viewLeft
         if hemi == "lh":
             viewmat = transl * viewmat
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, viewmat)
-        glDrawElements(GL_TRIANGLES, triangles.size, GL_UNSIGNED_INT, None)
+        gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
+        gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
         im1 = capture_window(wwidth, wheight)
 
         glfw.swap_buffers(window)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         viewmat = viewRight
         if hemi == "rh":
             viewmat = transl * viewmat
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, viewmat)
-        glDrawElements(GL_TRIANGLES, triangles.size, GL_UNSIGNED_INT, None)
+        gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
+        gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
         im2 = capture_window(wwidth, wheight)
 

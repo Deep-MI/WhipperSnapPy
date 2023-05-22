@@ -28,7 +28,7 @@ import threading
 
 import glfw
 import pyrr
-from OpenGL.GL import *
+import OpenGL.GL as gl
 from PyQt5.QtWidgets import QApplication
 
 from whippersnappy.core import (
@@ -87,7 +87,7 @@ def show_window(
 
     wwidth = 720
     wheight = 600
-    window = init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible=True)
+    window = init_window(wwidth, wheight, "WhipperSnapPy", visible=True)
     if not window:
         return False
 
@@ -116,8 +116,8 @@ def show_window(
     rot_z = pyrr.Matrix44.from_z_rotation(-0.5 * math.pi)
     rot_x = pyrr.Matrix44.from_x_rotation(0.5 * math.pi)
     viewLeft = rot_x * rot_z
-    rot_y = pyrr.Matrix44.from_y_rotation(math.pi)
-    viewRight = rot_y * viewLeft
+    # rot_y = pyrr.Matrix44.from_y_rotation(math.pi)
+    # viewRight = rot_y * viewLeft
     rot_y = pyrr.Matrix44.from_y_rotation(0)
 
     print()
@@ -132,7 +132,7 @@ def show_window(
     ) != glfw.PRESS and not glfw.window_should_close(window):
         glfw.poll_events()
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
         if app_window_ is not None:
             current_fthresh_ = app_window_.get_fthresh_value()
@@ -142,8 +142,8 @@ def show_window(
         )
         shader = setup_shader(meshdata, triangles, wwidth, wheight)
 
-        transformLoc = glGetUniformLocation(shader, "transform")
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, rot_y * viewLeft)
+        transformLoc = gl.glGetUniformLocation(shader, "transform")
+        gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewLeft)
 
         if glfw.get_key(window, glfw.KEY_RIGHT) == glfw.PRESS:
             ypos = ypos + 0.0004
@@ -152,7 +152,7 @@ def show_window(
         rot_y = pyrr.Matrix44.from_y_rotation(ypos)
 
         # Draw
-        glDrawElements(GL_TRIANGLES, triangles.size, GL_UNSIGNED_INT, None)
+        gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
         glfw.swap_buffers(window)
 
@@ -182,7 +182,7 @@ def run():
         "--sdir",
         type=str,
         required=True,
-        help="Absolute path to the subject directory from which surfaces will be loaded. "
+        help="Absolute path to subject directory from which surfaces will be loaded."
         "This is assumed to contain the surface files in a surf/ sub-directory.",
     )
     parser.add_argument(
@@ -267,7 +267,8 @@ def run():
 
 
 # headless docker test using xvfb:
-# Note, xvfb is a display server implemening the X11 protocol, performing all graphics on memory
+# Note, xvfb is a display server implemening the X11 protocol, and performing
+# all graphics on memory.
 # glfw needs a windows to render even if that is invisible, so above code
 # will not work via ssh or on a headless server. xvfb can solve this by wrapping:
 # docker run --name headless_test -ti -v$(pwd):/test ubuntu /bin/bash
@@ -275,8 +276,8 @@ def run():
 # pip3 install pyopengl glfw pillow numpy pyrr
 # xvfb-run python3 test4.py
 
-# instead of the above one could really do headless off screen rendering via EGL (preferred)
-# or OSMesa. The latter looks doable. EGL looks tricky.
+# instead of the above one could really do headless off screen rendering via
+# EGL (preferred) or OSMesa. The latter looks doable. EGL looks tricky.
 # EGL is part of any modern NVIDIA driver
 # OSMesa needs to be installed, but should work almost everywhere
 
