@@ -1,4 +1,3 @@
-
 """Contains the configuration application.
 
 The config app enables adjusting parameters of the whippersnappy program
@@ -12,8 +11,15 @@ Dependencies:
 
 """
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, \
-                            QMessageBox, QSlider, QLineEdit, QGroupBox
+from PyQt5.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QMessageBox,
+    QSlider,
+    QLineEdit,
+    QGroupBox,
+)
 
 from PyQt5.QtCore import Qt
 
@@ -31,8 +37,14 @@ class ConfigWindow(QWidget):
         Integers specifyings screen dims in pixels; used to always position
         the window in the top-right corner, if given
     """
-    def __init__(self, parent=None, screen_dims=None, initial_fthresh_value=2.0,
-                 initial_fmax_value=4.0):
+
+    def __init__(
+        self,
+        parent=None,
+        screen_dims=None,
+        initial_fthresh_value=2.0,
+        initial_fmax_value=4.0,
+    ):
         super(ConfigWindow, self).__init__(parent)
 
         self.current_fthresh_value = initial_fthresh_value
@@ -48,15 +60,29 @@ class ConfigWindow(QWidget):
         self.fthresh_slider = QSlider(Qt.Horizontal)
         self.fthresh_slider.setMinimum(int(self.fthresh_slider_tick_limits[0]))
         self.fthresh_slider.setMaximum(int(self.fthresh_slider_tick_limits[1]))
-        self.fthresh_slider.setValue(int(self.convert_value_to_range(self.current_fthresh_value, 
-                                                                  self.fthresh_slider_value_limits,
-                                                                  self.fthresh_slider_tick_limits)))
+        self.fthresh_slider.setValue(
+            int(
+                self.convert_value_to_range(
+                    self.current_fthresh_value,
+                    self.fthresh_slider_value_limits,
+                    self.fthresh_slider_tick_limits,
+                )
+            )
+        )
         self.fthresh_slider.setTickPosition(QSlider.TicksBelow)
-        self.fthresh_slider.setTickInterval(int((self.fthresh_slider_tick_limits[1] - self.fthresh_slider_tick_limits[0]) / 20.))
+        self.fthresh_slider.setTickInterval(
+            int(
+                (
+                    self.fthresh_slider_tick_limits[1]
+                    - self.fthresh_slider_tick_limits[0]
+                )
+                / 20.0
+            )
+        )
         self.fthresh_slider.valueChanged.connect(self.fthresh_slider_value_cb)
 
         # fthresh value input box:
-        self.fthresh_value_box = QLineEdit('Threshold')
+        self.fthresh_value_box = QLineEdit("Threshold")
         self.fthresh_value_box.setText(str(self.current_fthresh_value))
         self.fthresh_value_box.textChanged.connect(self.fthresh_value_cb)
 
@@ -66,34 +92,45 @@ class ConfigWindow(QWidget):
         self.fmax_slider = QSlider(Qt.Horizontal)
         self.fmax_slider.setMinimum(int(self.fmax_slider_tick_limits[0]))
         self.fmax_slider.setMaximum(int(self.fmax_slider_tick_limits[1]))
-        self.fmax_slider.setValue(int(self.convert_value_to_range(self.current_fmax_value, 
-                                                                  self.fmax_slider_value_limits, 
-                                                                  self.fmax_slider_tick_limits)))
+        self.fmax_slider.setValue(
+            int(
+                self.convert_value_to_range(
+                    self.current_fmax_value,
+                    self.fmax_slider_value_limits,
+                    self.fmax_slider_tick_limits,
+                )
+            )
+        )
         self.fmax_slider.setTickPosition(QSlider.TicksBelow)
-        self.fmax_slider.setTickInterval(int((self.fmax_slider_tick_limits[1] - self.fmax_slider_tick_limits[0]) / 20.))
+        self.fmax_slider.setTickInterval(
+            int(
+                (self.fmax_slider_tick_limits[1] - self.fmax_slider_tick_limits[0])
+                / 20.0
+            )
+        )
         self.fmax_slider.valueChanged.connect(self.fmax_slider_value_cb)
 
         # fmax value input box:
-        self.fmax_value_box = QLineEdit('Threshold')
+        self.fmax_value_box = QLineEdit("Threshold")
         self.fmax_value_box.setText(str(self.current_fmax_value))
         self.fmax_value_box.textChanged.connect(self.fmax_value_cb)
 
         # Group boxes and widget layout:
-        fthresh_box = QGroupBox('Thresh')
+        fthresh_box = QGroupBox("Thresh")
         fthresh_box_layout = QVBoxLayout()
         fthresh_box_layout.addWidget(self.fthresh_slider)
         fthresh_box_layout.addWidget(self.fthresh_value_box)
         fthresh_box.setLayout(fthresh_box_layout)
-        fthresh_box.setStyleSheet('QGroupBox  {color: blue;}')
+        fthresh_box.setStyleSheet("QGroupBox  {color: blue;}")
 
-        fmax_box = QGroupBox('Max')
+        fmax_box = QGroupBox("Max")
         fmax_box_layout = QVBoxLayout()
         fmax_box_layout.addWidget(self.fmax_slider)
         fmax_box_layout.addWidget(self.fmax_value_box)
         fmax_box.setLayout(fmax_box_layout)
-        fmax_box.setStyleSheet('QGroupBox  {color: green;}')
+        fmax_box.setStyleSheet("QGroupBox  {color: green;}")
 
-        thresholds_box = QGroupBox('Thresholds')
+        thresholds_box = QGroupBox("Thresholds")
         thresholds_box_layout = QHBoxLayout()
         thresholds_box_layout.addWidget(fthresh_box)
         thresholds_box_layout.addWidget(fmax_box)
@@ -102,12 +139,15 @@ class ConfigWindow(QWidget):
         layout.addWidget(thresholds_box)
 
         # Main window configurations:
-        self.setWindowTitle('WhipperSnapPy Configuration')
+        self.setWindowTitle("WhipperSnapPy Configuration")
         self.setLayout(layout)
         if self.screen_dims is not None:
-            self.setGeometry(screen_dims[0] - int(screen_dims[0] / 5), 
-                             int(screen_dims[1] / 8), self.window_size[0], 
-                             self.window_size[1])
+            self.setGeometry(
+                screen_dims[0] - int(screen_dims[0] / 5),
+                int(screen_dims[1] / 8),
+                self.window_size[0],
+                self.window_size[1],
+            )
         else:
             self.setGeometry(0, 0, self.window_size[0], self.window_size[1])
 
@@ -117,9 +157,11 @@ class ConfigWindow(QWidget):
         the user. It stores the selected value and updates the corresponding
         user input box.
         """
-        self.current_fthresh_value = self.convert_value_to_range(self.fthresh_slider.value(),
-                                                                 self.fthresh_slider_tick_limits, 
-                                                                 self.fthresh_slider_value_limits)
+        self.current_fthresh_value = self.convert_value_to_range(
+            self.fthresh_slider.value(),
+            self.fthresh_slider_tick_limits,
+            self.fthresh_slider_value_limits,
+        )
         self.fthresh_value_box.setText(str(self.current_fthresh_value))
 
     def fthresh_value_cb(self, new_value):
@@ -135,9 +177,11 @@ class ConfigWindow(QWidget):
 
         self.current_fthresh_value = float(new_value)
 
-        slider_fthresh_value = self.convert_value_to_range(self.current_fthresh_value,
-                                                           self.fthresh_slider_value_limits, 
-                                                           self.fthresh_slider_tick_limits)
+        slider_fthresh_value = self.convert_value_to_range(
+            self.current_fthresh_value,
+            self.fthresh_slider_value_limits,
+            self.fthresh_slider_tick_limits,
+        )
         self.fthresh_slider.setValue(int(slider_fthresh_value))
 
     def fmax_slider_value_cb(self):
@@ -146,9 +190,11 @@ class ConfigWindow(QWidget):
         the user. It stores the selected value and updates the corresponding
         user input box.
         """
-        self.current_fmax_value = self.convert_value_to_range(self.fmax_slider.value(),
-                                                              self.fmax_slider_tick_limits, 
-                                                              self.fmax_slider_value_limits)
+        self.current_fmax_value = self.convert_value_to_range(
+            self.fmax_slider.value(),
+            self.fmax_slider_tick_limits,
+            self.fmax_slider_value_limits,
+        )
         self.fmax_value_box.setText(str(self.current_fmax_value))
 
     def fmax_value_cb(self, new_value):
@@ -164,15 +210,17 @@ class ConfigWindow(QWidget):
 
         self.current_fmax_value = float(new_value)
 
-        slider_fmax_value = self.convert_value_to_range(self.current_fmax_value,
-                                                        self.fmax_slider_value_limits, 
-                                                        self.fmax_slider_tick_limits)
+        slider_fmax_value = self.convert_value_to_range(
+            self.current_fmax_value,
+            self.fmax_slider_value_limits,
+            self.fmax_slider_tick_limits,
+        )
         self.fmax_slider.setValue(int(slider_fmax_value))
 
     def convert_value_to_range(self, value, old_limits, new_limits):
         """
         Converts a given number from one range to another.
-        This is useful for transforming values from the original range to that 
+        This is useful for transforming values from the original range to that
         of the slider widget tick range and vice-versa.
 
         Parameters

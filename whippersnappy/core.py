@@ -1,4 +1,3 @@
-
 """Contains the core functionalities of WhipperSnapPy.
 
 Dependencies:
@@ -45,21 +44,22 @@ def normalize_mesh(v, scale=1.0):
     """
     # center bounding box at origin
     # scale longest side to scale (default 1)
-    bbmax=np.max(v,axis=0)
-    bbmin=np.min(v,axis=0)
-    v = v - 0.5*(bbmax+bbmin)
-    v = scale * v / np.max(bbmax-bbmin)
+    bbmax = np.max(v, axis=0)
+    bbmin = np.min(v, axis=0)
+    v = v - 0.5 * (bbmax + bbmin)
+    v = scale * v / np.max(bbmax - bbmin)
     return v
 
+
 # adopted from lapy
-def vertex_normals(v,t):
+def vertex_normals(v, t):
     """
     Computes vertex normals.
 
-    Triangle normals around each vertex are averaged, weighted by the angle 
+    Triangle normals around each vertex are averaged, weighted by the angle
     that they contribute.
-    Vertex ordering is important in t: counterclockwise when looking at the 
-    triangle from above, so that normals point outwards. 
+    Vertex ordering is important in t: counterclockwise when looking at the
+    triangle from above, so that normals point outwards.
 
     Parameters
     ----------
@@ -97,13 +97,13 @@ def vertex_normals(v,t):
     return n
 
 
-def heat_color(values,invert=False):
+def heat_color(values, invert=False):
     """
-    Converts an array of float values into RBG heat color values. 
+    Converts an array of float values into RBG heat color values.
     Only values between -1 and 1 will receive gradient and colors will
     max-out at -1 and 1. Negative values will be blue and positive
-    red (unless invert is passed to flip the heatmap). Masked values 
-    (nan) will map to masked colors (nan,nan,nan). 
+    red (unless invert is passed to flip the heatmap). Masked values
+    (nan) will map to masked colors (nan,nan,nan).
 
     Parameters
     ----------
@@ -121,28 +121,29 @@ def heat_color(values,invert=False):
     # nan will return (nan,nan,nan)
     # returns colors (r,g,b)  as n x 3 array
     if invert:
-        values=-1.0*values
+        values = -1.0 * values
     vabs = np.abs(values)
-    colors = np.zeros((vabs.size,3),dtype=np.float32)
+    colors = np.zeros((vabs.size, 3), dtype=np.float32)
     crb = 0.5625 + 3 * 0.4375 * vabs
-    cg = 1.5 * (vabs - (1.0/3.0))
+    cg = 1.5 * (vabs - (1.0 / 3.0))
     n1 = values < -1.0
-    nm = (values >= -1.0) & (values < -(1.0/3.0))
-    n0 = (values >= -(1.0/3.0)) & (values < 0)
-    p0 = (values >= 0) & (values < (1.0/3.0))
-    pm = (values >= (1.0/3.0)) & (values < 1.0)
+    nm = (values >= -1.0) & (values < -(1.0 / 3.0))
+    n0 = (values >= -(1.0 / 3.0)) & (values < 0)
+    p0 = (values >= 0) & (values < (1.0 / 3.0))
+    pm = (values >= (1.0 / 3.0)) & (values < 1.0)
     p1 = values >= 1.0
     # fill in colors for the 5 blocks
-    colors[n1,1:3] = 1.0       # bright blue
-    colors[nm,1] = cg[nm]      # cg incresing green channel
-    colors[nm,2] = 1.0         # and keeping blue on full
-    colors[n0,2] = crb[n0]     # crb incresing blue channel
-    colors[p0,0] = crb[p0]     # crb incresing red channel
-    colors[pm,1] = cg[pm]      # cg incresing green channel
-    colors[pm,0] = 1.0         # and keeping red on full
-    colors[p1,0:2] = 1.0       # yellow
-    colors[np.isnan(values),:] = np.nan
+    colors[n1, 1:3] = 1.0  # bright blue
+    colors[nm, 1] = cg[nm]  # cg incresing green channel
+    colors[nm, 2] = 1.0  # and keeping blue on full
+    colors[n0, 2] = crb[n0]  # crb incresing blue channel
+    colors[p0, 0] = crb[p0]  # crb incresing red channel
+    colors[pm, 1] = cg[pm]  # cg incresing green channel
+    colors[pm, 0] = 1.0  # and keeping red on full
+    colors[p1, 0:2] = 1.0  # yellow
+    colors[np.isnan(values), :] = np.nan
     return colors
+
 
 def rescale_overlay(values, minval=None, maxval=None):
     """
@@ -176,7 +177,7 @@ def rescale_overlay(values, minval=None, maxval=None):
     valabs = np.abs(values)
     realmin = np.min(values)
     if maxval is None:
-        maxval=np.max(valabs)
+        maxval = np.max(valabs)
     if minval is None:
         minval = max(0.0, np.min(valabs))
     if maxval < 0 or minval < 0:
@@ -184,17 +185,18 @@ def rescale_overlay(values, minval=None, maxval=None):
         exit(1)
     # print("Using min {:.2f} and max {:.2f}".format(minval,maxval))
     # rescale map symetrically to -1 .. 1 (keeping minval at 0)
-    # mask values below minval 
-    values[valabs<minval] = np.nan
+    # mask values below minval
+    values[valabs < minval] = np.nan
     # shift towards 0 from both sides
     values = values - valsign * minval
     # rescale so that former maxval is at 1 (and -1 for negative values)
     values = values / (maxval - minval)
-    return values, minval, maxval, (realmin<0 and realmin < - minval)
+    return values, minval, maxval, (realmin < 0 and realmin < -minval)
+
 
 def binary_color(values, thres, color_low, color_high):
     """
-    Creates a binary colormap where values below thres are color_low, 
+    Creates a binary colormap where values below thres are color_low,
     the others color_high.
     color_low and color_high can be float (gray scale), or 1x3 array of RGB.
 
@@ -215,15 +217,16 @@ def binary_color(values, thres, color_low, color_high):
         Binary colormap
     """
     if np.isscalar(color_low):
-        color_low = np.array((color_low,color_low,color_low),dtype=np.float32)
+        color_low = np.array((color_low, color_low, color_low), dtype=np.float32)
     if np.isscalar(color_high):
-        color_high = np.array((color_high,color_high,color_high),dtype=np.float32)
-    colors=np.empty((values.size,3),dtype=np.float32)
-    colors[values<thres,:] = color_low
-    colors[values>=thres,:] = color_high
-    return colors 
+        color_high = np.array((color_high, color_high, color_high), dtype=np.float32)
+    colors = np.empty((values.size, 3), dtype=np.float32)
+    colors[values < thres, :] = color_low
+    colors[values >= thres, :] = color_high
+    return colors
 
-def mask_label(values,labelpath=None):
+
+def mask_label(values, labelpath=None):
     """
     Applies a labelfile as mask
     Labelfile freesurfer format has indices of values that should be kept;
@@ -245,19 +248,27 @@ def mask_label(values,labelpath=None):
         return values
     # this is the mask of vertices to keep, e.g. cortex labels
     maskvids = np.loadtxt(labelpath, dtype=int, skiprows=2, usecols=[0])
-    imask = np.ones(values.shape,dtype=bool)
+    imask = np.ones(values.shape, dtype=bool)
     imask[maskvids] = False
-    values[imask] = np.nan    
+    values[imask] = np.nan
     return values
 
-def prepare_geometry(surfpath, overlaypath=None, curvpath=None, labelpath=None, 
-                     minval=None, maxval=None, invert=False):
+
+def prepare_geometry(
+    surfpath,
+    overlaypath=None,
+    curvpath=None,
+    labelpath=None,
+    minval=None,
+    maxval=None,
+    invert=False,
+):
     """
-    Prepare meshdata for upload to GPU. 
+    Prepare meshdata for upload to GPU.
     Vertex coordinates, vertex normals and color values are concatenated into
     large vertexdata array. Also returns trianges, minium and maximum overlay
-    values as well as whether negative values are present or not. 
-    triangles 
+    values as well as whether negative values are present or not.
+    triangles
 
     Parameters
     ----------
@@ -293,48 +304,47 @@ def prepare_geometry(surfpath, overlaypath=None, curvpath=None, labelpath=None,
 
     # read vertices and triangels
     surf = read_geometry(surfpath, read_metadata=False)
-    vertices = normalize_mesh(np.array(surf[0], dtype=np.float32),1.85)
+    vertices = normalize_mesh(np.array(surf[0], dtype=np.float32), 1.85)
     triangles = np.array(surf[1], dtype=np.uint32)
     # compute vertex normals
-    vnormals = np.array(vertex_normals(vertices,triangles), dtype=np.float32)
+    vnormals = np.array(vertex_normals(vertices, triangles), dtype=np.float32)
     # read curvature
     if curvpath:
         curv = read_morph_data(curvpath)
-        sulcmap = binary_color(curv,0.0,color_low=0.5,color_high=0.33)
+        sulcmap = binary_color(curv, 0.0, color_low=0.5, color_high=0.33)
     else:
         # if no curv pattern, color mesh in mid-gray
-        sulcmap = 0.5 * np.ones(vertices.shape,dtype=np.float32)
+        sulcmap = 0.5 * np.ones(vertices.shape, dtype=np.float32)
     # read map (stats etc)
     if overlaypath:
         _, file_extension = os.path.splitext(overlaypath)
 
-        if file_extension == '.mgh':
+        if file_extension == ".mgh":
             mapdata = read_mgh_data(overlaypath)
         else:
             mapdata = read_morph_data(overlaypath)
         mapdata, fmin, fmax, neg = rescale_overlay(mapdata, minval, maxval)
         # mask map with label
-        mapdata = mask_label(mapdata,labelpath)
+        mapdata = mask_label(mapdata, labelpath)
         # compute color
         colors = heat_color(mapdata, invert)
         missing = np.isnan(mapdata)
-        colors[missing,:] = sulcmap[missing,:]
+        colors[missing, :] = sulcmap[missing, :]
     else:
-        colors=sulcmap
+        colors = sulcmap
     # concatenate matrices
-    vertexdata = np.concatenate((vertices,vnormals,colors),axis=1)
+    vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
     return vertexdata, triangles, fmin, fmax, neg
 
 
-
-#def key_event(window,key,scancode,action,mods):
+# def key_event(window,key,scancode,action,mods):
 #    """ Handle keyboard events
 #    """
 #    if action == glfw.PRESS and key == glfw.KEY_RIGHT:
 #        print("right")
 
 
-def init_window(width,height,title="PyOpenGL",visible=True):
+def init_window(width, height, title="PyOpenGL", visible=True):
     """
     Create window with width, height, title.
     If visible False, hide window.
@@ -357,7 +367,7 @@ def init_window(width,height,title="PyOpenGL",visible=True):
     """
     if not glfw.init():
         return False
- 
+
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
@@ -369,9 +379,9 @@ def init_window(width,height,title="PyOpenGL",visible=True):
         glfw.terminate()
         return false
     # Enable key events
-    glfw.set_input_mode(window,glfw.STICKY_KEYS,GL_TRUE) 
+    glfw.set_input_mode(window, glfw.STICKY_KEYS, GL_TRUE)
     # Enable key event callback
-    #glfw.set_key_callback(window,key_event)
+    # glfw.set_key_callback(window,key_event)
     glfw.make_context_current(window)
     # vsync and glfw do not play nice.  when vsync is enabled mouse movement is jittery.
     glfw.swap_interval(0)
@@ -431,7 +441,7 @@ def setup_shader(meshdata, triangles, width, height):
         }
  
     """
- 
+
     FRAGMENT_SHADER = """
         #version 330
  
@@ -496,67 +506,75 @@ def setup_shader(meshdata, triangles, width, height):
         }
  
     """
-  
- 
+
     # Create Vertex Buffer object in gpu
     VBO = glGenBuffers(1)
     # Bind the buffer
     glBindBuffer(GL_ARRAY_BUFFER, VBO)
-    glBufferData(GL_ARRAY_BUFFER, meshdata.nbytes , meshdata, GL_STATIC_DRAW)
+    glBufferData(GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, GL_STATIC_DRAW)
 
     # Create Vertex Array object
     VAO = glGenVertexArrays(1)
     # Bind array
     glBindVertexArray(VAO)
-    glBufferData(GL_ARRAY_BUFFER, meshdata.nbytes , meshdata, GL_STATIC_DRAW)
+    glBufferData(GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, GL_STATIC_DRAW)
 
-    #Create Element Buffer Object
+    # Create Element Buffer Object
     EBO = glGenBuffers(1)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles, GL_STATIC_DRAW)
- 
+
     # Compile The Program and shaders
-    shader = OpenGL.GL.shaders.compileProgram(OpenGL.GL.shaders.compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
-                                              OpenGL.GL.shaders.compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER))
+    shader = OpenGL.GL.shaders.compileProgram(
+        OpenGL.GL.shaders.compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
+        OpenGL.GL.shaders.compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER),
+    )
 
     # get the position from shader
-    position = glGetAttribLocation(shader, 'aPos')
-    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 9*4, ctypes.c_void_p(0))
+    position = glGetAttribLocation(shader, "aPos")
+    glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(0))
     glEnableVertexAttribArray(position)
 
-    vnormalpos = glGetAttribLocation(shader, 'aNormal')
-    glVertexAttribPointer(vnormalpos, 3, GL_FLOAT, GL_FALSE, 9*4, ctypes.c_void_p(3*4))
+    vnormalpos = glGetAttribLocation(shader, "aNormal")
+    glVertexAttribPointer(
+        vnormalpos, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(3 * 4)
+    )
     glEnableVertexAttribArray(vnormalpos)
 
-    colorpos = glGetAttribLocation(shader, 'aColor')
-    glVertexAttribPointer(colorpos, 3, GL_FLOAT, GL_FALSE, 9*4, ctypes.c_void_p(6*4))
+    colorpos = glGetAttribLocation(shader, "aColor")
+    glVertexAttribPointer(
+        colorpos, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(6 * 4)
+    )
     glEnableVertexAttribArray(colorpos)
- 
+
     glUseProgram(shader)
- 
+
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glEnable(GL_DEPTH_TEST)
 
-    #Creating Projection Matrix
-    view = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0,0.0,-5.0] ))
-    projection = pyrr.matrix44.create_perspective_projection(20.0, width/height, 0.1, 100.0)
-    model = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0,0.0,0.0]))
- 
+    # Creating Projection Matrix
+    view = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0, 0.0, -5.0]))
+    projection = pyrr.matrix44.create_perspective_projection(
+        20.0, width / height, 0.1, 100.0
+    )
+    model = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0, 0.0, 0.0]))
+
     view_loc = glGetUniformLocation(shader, "view")
     proj_loc = glGetUniformLocation(shader, "projection")
     model_loc = glGetUniformLocation(shader, "model")
- 
+
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
     glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
 
     # setup light color
     lightColor_loc = glGetUniformLocation(shader, "lightColor")
-    glUniform3f(lightColor_loc, 1.0,1.0,1.0)
+    glUniform3f(lightColor_loc, 1.0, 1.0, 1.0)
 
     return shader
 
-def capture_window(width,height):
+
+def capture_window(width, height):
     """
     Captures GL region (0,0) .. (width,height) into PIL Image.
 
@@ -576,18 +594,19 @@ def capture_window(width,height):
         # not sure why on mac the drawing area is 4 times as large (2x2):
         width = 2 * width
         height = 2 * height
-    glPixelStorei(GL_PACK_ALIGNMENT, 1) # may not be needed
+    glPixelStorei(GL_PACK_ALIGNMENT, 1)  # may not be needed
     img_buf = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
     image = Image.frombytes("RGB", (width, height), img_buf)
     image = image.transpose(Image.FLIP_TOP_BOTTOM)
     if sys.platform == "darwin":
-        image.thumbnail((0.5*width,0.5*height), Image.Resampling.LANCZOS)
+        image.thumbnail((0.5 * width, 0.5 * height), Image.Resampling.LANCZOS)
     return image
 
-def create_colorbar(fmin,fmax,invert,neg=True,font_file=None):
+
+def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     """
     Create colorbar into an image with text describing min and max
-    values. 
+    values.
 
     Parameters
     ----------
@@ -607,78 +626,104 @@ def create_colorbar(fmin,fmax,invert,neg=True,font_file=None):
     image: PIL.Image.Image
         Colorbar image
     """
-    cwidth=200
-    cheight=30
-    img = Image.new('RGB', (cwidth, cheight), color = (90,90,90))
+    cwidth = 200
+    cheight = 30
+    img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
     values = np.nan * np.ones((cwidth))
     gapspace = 0
-    if fmin > 0.01: 
+    if fmin > 0.01:
         # leave gray gap
-        num=int(0.42*cwidth)
-        gapspace = 0.08*cwidth
+        num = int(0.42 * cwidth)
+        gapspace = 0.08 * cwidth
     else:
-        num=int(0.5*cwidth)
+        num = int(0.5 * cwidth)
     if not neg:
         num = num * 2
         gapspace = gapspace * 2
-    vals = np.linspace(0.01,1,num)
+    vals = np.linspace(0.01, 1, num)
     if not neg:
-        values[-vals.size:] = vals
+        values[-vals.size :] = vals
     else:
-        values[:vals.size] = -1.0*np.flip(vals)
-        values[-vals.size:] = vals
+        values[: vals.size] = -1.0 * np.flip(vals)
+        values[-vals.size :] = vals
 
-    colors = heat_color(values,invert)
-    colors[np.isnan(values),:] = 0.33*np.ones((1,3))
-    img_bar = np.uint8(np.tile(colors,(cheight,1,1))*255)
+    colors = heat_color(values, invert)
+    colors[np.isnan(values), :] = 0.33 * np.ones((1, 3))
+    img_bar = np.uint8(np.tile(colors, (cheight, 1, 1)) * 255)
     # pad with black
-    img_buf = np.zeros((cheight+20,cwidth+20,3),dtype=np.uint8)
-    img_buf[3:cheight+3,10:cwidth+10,:] = img_bar
+    img_buf = np.zeros((cheight + 20, cwidth + 20, 3), dtype=np.uint8)
+    img_buf[3 : cheight + 3, 10 : cwidth + 10, :] = img_bar
     image = Image.fromarray(img_buf)
 
     if font_file is None:
-        script_dir = '/'.join(str(__file__).split('/')[:-1])
-        font_file = os.path.join(script_dir, 'Roboto-Regular.ttf')
+        script_dir = "/".join(str(__file__).split("/")[:-1])
+        font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
     font = ImageFont.truetype(font_file, 12)
     if neg:
         # Left
-        caption=" <{:.2f}".format(-fmax)
-        xpos = 0 #10- 0.5*(font.getlength(caption))
-        ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
+        caption = " <{:.2f}".format(-fmax)
+        xpos = 0  # 10- 0.5*(font.getlength(caption))
+        ImageDraw.Draw(image).text(
+            (xpos, image.height - 17), caption, (220, 220, 220), font=font
+        )
         # Right
-        caption=">{:.2f} ".format(fmax)
+        caption = ">{:.2f} ".format(fmax)
         xpos = image.width - (font.getlength(caption))
-        ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
+        ImageDraw.Draw(image).text(
+            (xpos, image.height - 17), caption, (220, 220, 220), font=font
+        )
         if gapspace == 0:
-            caption="0"
+            caption = "0"
             xpos = 0.5 * image.width - 0.5 * font.getlength(caption)
-            ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
+            ImageDraw.Draw(image).text(
+                (xpos, image.height - 17), caption, (220, 220, 220), font=font
+            )
         else:
-            caption="{:.2f}".format(-fmin)
+            caption = "{:.2f}".format(-fmin)
             xpos = 0.5 * image.width - 0.5 * font.getlength(caption) - gapspace - 5
-            ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
-            caption="{:.2f}".format(fmin)
+            ImageDraw.Draw(image).text(
+                (xpos, image.height - 17), caption, (220, 220, 220), font=font
+            )
+            caption = "{:.2f}".format(fmin)
             xpos = 0.5 * image.width - 0.5 * font.getlength(caption) + gapspace + 5
-            ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
+            ImageDraw.Draw(image).text(
+                (xpos, image.height - 17), caption, (220, 220, 220), font=font
+            )
     else:
         # Right
-        caption=">{:.2f} ".format(fmax)
+        caption = ">{:.2f} ".format(fmax)
         xpos = image.width - (font.getlength(caption))
-        ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
+        ImageDraw.Draw(image).text(
+            (xpos, image.height - 17), caption, (220, 220, 220), font=font
+        )
         # Left
-        caption=" {:.2f}".format(fmin)
+        caption = " {:.2f}".format(fmin)
         xpos = gapspace
         if gapspace == 0:
-            caption=" 0"
+            caption = " 0"
             xpos = 5
-        ImageDraw.Draw(image).text((xpos, image.height-17), caption, (220,220,220), font=font)
+        ImageDraw.Draw(image).text(
+            (xpos, image.height - 17), caption, (220, 220, 220), font=font
+        )
 
     return image
 
 
-def snap4(lhoverlaypath, rhoverlaypath, fthresh=None, fmax=None, sdir=None,
-           caption=None, invert=False, labelname="cortex.label", surfname=None,
-           curvname="curv", colorbar=True, outpath=None, font_file=None):
+def snap4(
+    lhoverlaypath,
+    rhoverlaypath,
+    fthresh=None,
+    fmax=None,
+    sdir=None,
+    caption=None,
+    invert=False,
+    labelname="cortex.label",
+    surfname=None,
+    curvname="curv",
+    colorbar=True,
+    outpath=None,
+    font_file=None,
+):
     """
     Snaps four views (front and back for left and right) and saves an image that
     includes the views and a color bar.
@@ -712,46 +757,54 @@ def snap4(lhoverlaypath, rhoverlaypath, fthresh=None, fmax=None, sdir=None,
     """
 
     # setup window (keep this aspect ratio, as the mesh scale and distances are set accordingly)
-    wwidth=540
-    wheight=450
-    visible=False
-    window = init_window(wwidth,wheight,"WhipperSnapPy 2.0",visible)
+    wwidth = 540
+    wheight = 450
+    visible = False
+    window = init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible)
     if not window:
-        return False # need raise error here in future
+        return False  # need raise error here in future
 
     # set up matrices to show object left and right side:
     rot_z = pyrr.Matrix44.from_z_rotation(-0.5 * math.pi)
     rot_x = pyrr.Matrix44.from_x_rotation(0.5 * math.pi)
-    #rot_y = pyrr.Matrix44.from_y_rotation(math.pi/6)
+    # rot_y = pyrr.Matrix44.from_y_rotation(math.pi/6)
     viewLeft = rot_x * rot_z
     rot_y = pyrr.Matrix44.from_y_rotation(math.pi)
     viewRight = rot_y * viewLeft
-    transl = pyrr.Matrix44.from_translation((0,0,0.4))
+    transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
-    for hemi in ("lh","rh"):
+    for hemi in ("lh", "rh"):
         if surfname is None:
-            print("[INFO] No surf_name provided. Looking for options in surf directory...")
+            print(
+                "[INFO] No surf_name provided. Looking for options in surf directory..."
+            )
             found_surfname = get_surf_name(sdir, hemi)
             if found_surfname is None:
-                print("[ERROR] Could not find a valid surf file in {} for hemi: {}!".format(sdir, hemi))
+                print(
+                    "[ERROR] Could not find a valid surf file in {} for hemi: {}!".format(
+                        sdir, hemi
+                    )
+                )
                 sys.exit(0)
-            meshpath = os.path.join(sdir,"surf",hemi+"."+found_surfname)
+            meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
         else:
-            meshpath = os.path.join(sdir,"surf",hemi+"."+surfname)
+            meshpath = os.path.join(sdir, "surf", hemi + "." + surfname)
 
         curvpath = None
         if curvname:
-            curvpath = os.path.join(sdir,"surf",hemi+"."+curvname)
+            curvpath = os.path.join(sdir, "surf", hemi + "." + curvname)
         labelpath = None
         if labelname:
-            labelpath = os.path.join(sdir,"label",hemi+"."+labelname)
-        if hemi=="lh":
-            overlaypath=lhoverlaypath
+            labelpath = os.path.join(sdir, "label", hemi + "." + labelname)
+        if hemi == "lh":
+            overlaypath = lhoverlaypath
         else:
-            overlaypath=rhoverlaypath
+            overlaypath = rhoverlaypath
 
         # load and colorzie data
-        meshdata, triangles, fthresh, fmax, neg = prepare_geometry(meshpath, overlaypath, curvpath, labelpath, fthresh, fmax, invert)
+        meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
+            meshpath, overlaypath, curvpath, labelpath, fthresh, fmax, invert
+        )
         # upload to GPU and compile shaders
         shader = setup_shader(meshdata, triangles, wwidth, wheight)
 
@@ -759,49 +812,51 @@ def snap4(lhoverlaypath, rhoverlaypath, fthresh=None, fmax=None, sdir=None,
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         transformLoc = glGetUniformLocation(shader, "transform")
         viewmat = viewLeft
-        if hemi=="lh":
-            viewmat=transl*viewmat
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, viewmat )
-        glDrawElements(GL_TRIANGLES,triangles.size, GL_UNSIGNED_INT,  None)
-        
-        im1 = capture_window(wwidth,wheight)
+        if hemi == "lh":
+            viewmat = transl * viewmat
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, viewmat)
+        glDrawElements(GL_TRIANGLES, triangles.size, GL_UNSIGNED_INT, None)
+
+        im1 = capture_window(wwidth, wheight)
 
         glfw.swap_buffers(window)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         viewmat = viewRight
-        if hemi=="rh":
-            viewmat=transl*viewmat
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, viewmat )
-        glDrawElements(GL_TRIANGLES,triangles.size, GL_UNSIGNED_INT,  None)
+        if hemi == "rh":
+            viewmat = transl * viewmat
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, viewmat)
+        glDrawElements(GL_TRIANGLES, triangles.size, GL_UNSIGNED_INT, None)
 
-        im2 = capture_window(wwidth,wheight)
+        im2 = capture_window(wwidth, wheight)
 
-        if hemi=="lh":
-            lhimg = Image.new('RGB', (im1.width, im1.height + im2.height))
+        if hemi == "lh":
+            lhimg = Image.new("RGB", (im1.width, im1.height + im2.height))
             lhimg.paste(im1, (0, 0))
             lhimg.paste(im2, (0, im1.height))
         else:
-            rhimg = Image.new('RGB', (im1.width, im1.height + im2.height))
+            rhimg = Image.new("RGB", (im1.width, im1.height + im2.height))
             rhimg.paste(im2, (0, 0))
             rhimg.paste(im1, (0, im2.height))
 
-    image = Image.new('RGB', (lhimg.width + rhimg.width, lhimg.height))
-    image.paste(lhimg, (0,0))
+    image = Image.new("RGB", (lhimg.width + rhimg.width, lhimg.height))
+    image.paste(lhimg, (0, 0))
     image.paste(rhimg, (im1.width, 0))
 
     if caption:
         if font_file is None:
-            script_dir = '/'.join(str(__file__).split('/')[:-1])
-            font_file = os.path.join(script_dir, 'Roboto-Regular.ttf')
+            script_dir = "/".join(str(__file__).split("/")[:-1])
+            font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
         font = ImageFont.truetype(font_file, 20)
-        xpos = 0.5*(image.width-font.getlength(caption))
-        ImageDraw.Draw(image).text((xpos, image.height-40), caption, (220,220,220), font=font)
+        xpos = 0.5 * (image.width - font.getlength(caption))
+        ImageDraw.Draw(image).text(
+            (xpos, image.height - 40), caption, (220, 220, 220), font=font
+        )
 
     if colorbar:
-        bar = create_colorbar(fthresh,fmax,invert,neg)
-        xpos = int(0.5*(image.width-bar.width))
-        ypos = int(0.5*(image.height-bar.height))
-        image.paste(bar,(xpos,ypos))
+        bar = create_colorbar(fthresh, fmax, invert, neg)
+        xpos = int(0.5 * (image.width - bar.width))
+        ypos = int(0.5 * (image.height - bar.height))
+        image.paste(bar, (xpos, ypos))
 
     if outpath:
         print("[INFO] Saving snapshot to {}".format(outpath))
@@ -827,11 +882,11 @@ def get_surf_name(sdir, hemi):
     surfname: str
         Valid and existing surf file's name; otherwise, None.
     """
-    for surf_name_option in ['pial_semi_inflated', 'white', 'inflated']:
-        if os.path.exists(os.path.join(sdir, "surf", hemi+"."+surf_name_option)):
-            print("[INFO] Found {}".format(hemi+"."+surf_name_option))
+    for surf_name_option in ["pial_semi_inflated", "white", "inflated"]:
+        if os.path.exists(os.path.join(sdir, "surf", hemi + "." + surf_name_option)):
+            print("[INFO] Found {}".format(hemi + "." + surf_name_option))
             return surf_name_option
         else:
-            print("[INFO] No {} file found".format(hemi+"."+surf_name_option))
+            print("[INFO] No {} file found".format(hemi + "." + surf_name_option))
     else:
         return None
