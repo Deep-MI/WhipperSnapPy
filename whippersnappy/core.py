@@ -132,11 +132,11 @@ def heat_color(values, invert=False):
     p1 = values >= 1.0
     # fill in colors for the 5 blocks
     colors[n1, 1:3] = 1.0  # bright blue
-    colors[nm, 1] = cg[nm]  # cg incresing green channel
+    colors[nm, 1] = cg[nm]  # cg increasing green channel
     colors[nm, 2] = 1.0  # and keeping blue on full
-    colors[n0, 2] = crb[n0]  # crb incresing blue channel
-    colors[p0, 0] = crb[p0]  # crb incresing red channel
-    colors[pm, 1] = cg[pm]  # cg incresing green channel
+    colors[n0, 2] = crb[n0]  # crb increasing blue channel
+    colors[p0, 0] = crb[p0]  # crb increasing red channel
+    colors[pm, 1] = cg[pm]  # cg increasing green channel
     colors[pm, 0] = 1.0  # and keeping red on full
     colors[p1, 0:2] = 1.0  # yellow
     colors[np.isnan(values), :] = np.nan
@@ -182,7 +182,7 @@ def rescale_overlay(values, minval=None, maxval=None):
         print("resacle_overlay ERROR: min and maxval should both be positive!")
         exit(1)
     # print("Using min {:.2f} and max {:.2f}".format(minval,maxval))
-    # rescale map symetrically to -1 .. 1 (keeping minval at 0)
+    # rescale map symmetrically to -1 .. 1 (keeping minval at 0)
     # mask values below minval
     values[valabs < minval] = np.nan
     # shift towards 0 from both sides
@@ -264,7 +264,7 @@ def prepare_geometry(
     """
     Prepare meshdata for upload to GPU.
     Vertex coordinates, vertex normals and color values are concatenated into
-    large vertexdata array. Also returns trianges, minium and maximum overlay
+    large vertexdata array. Also returns trianges, minimum and maximum overlay
     values as well as whether negative values are present or not.
     triangles
 
@@ -300,7 +300,7 @@ def prepare_geometry(
         Whether negative values are there after rescale/cropping
     """
 
-    # read vertices and triangels
+    # read vertices and triangles
     surf = read_geometry(surfpath, read_metadata=False)
     vertices = normalize_mesh(np.array(surf[0], dtype=np.float32), 1.85)
     triangles = np.array(surf[1], dtype=np.uint32)
