@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (
 
 from PyQt5.QtCore import Qt
 
+
 class ConfigWindow(QWidget):
     """
     Encapsulates the Qt widget that implements the parameter configuration

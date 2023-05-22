@@ -21,6 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from .read_geometry import read_geometry, read_morph_data, read_mgh_data
 
+
 def normalize_mesh(v, scale=1.0):
     """
     Normalizes mesh vertex coordinates, so that their bounding box
@@ -433,7 +434,7 @@ def setup_shader(meshdata, triangles, width, height):
         {
           gl_Position = projection * view * model * transform * vec4(aPos, 1.0f);
           FragPos = vec3(model * transform * vec4(aPos, 1.0));
-	  // normal matrix should be computed outside and passed!
+          // normal matrix should be computed outside and passed!
           Normal = mat3(transpose(inverse(view * model * transform))) * aNormal;
           Color = aColor;
         }
@@ -446,7 +447,7 @@ def setup_shader(meshdata, triangles, width, height):
         in vec3 Normal;
         in vec3 FragPos;
         in vec3 Color;
-	
+
         out vec4 FragColor;
 
         uniform vec3 lightColor;
@@ -492,8 +493,8 @@ def setup_shader(meshdata, triangles, width, height):
 
           // specular
           float specularStrength = 0.5;
-	  // the viewer is always at (0,0,0) in view-space, 
-	  // so viewDir is (0,0,0) - Position => -Position
+          // the viewer is always at (0,0,0) in view-space,
+          // so viewDir is (0,0,0) - Position => -Position
           vec3 viewDir = normalize(-FragPos);
           vec3 reflectDir = reflect(ohlightDir, norm);
           float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
@@ -522,7 +523,9 @@ def setup_shader(meshdata, triangles, width, height):
     # Create Element Buffer Object
     EBO = gl.glGenBuffers(1)
     gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, EBO)
-    gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles, gl.GL_STATIC_DRAW)
+    gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles,
+        gl.GL_STATIC_DRAW
+    )
 
     # Compile The Program and shaders
     shader = gl.shaders.compileProgram(
@@ -532,7 +535,9 @@ def setup_shader(meshdata, triangles, width, height):
 
     # get the position from shader
     position = gl.glGetAttribLocation(shader, "aPos")
-    gl.glVertexAttribPointer(position, 3, gl.GL_FLOAT, gl.GL_FALSE, 9 * 4, gl.ctypes.c_void_p(0))
+    gl.glVertexAttribPointer(position, 3, gl.GL_FLOAT, gl.GL_FALSE,
+        9 * 4, gl.ctypes.c_void_p(0)
+    )
     gl.glEnableVertexAttribArray(position)
 
     vnormalpos = gl.glGetAttribLocation(shader, "aNormal")
@@ -550,7 +555,7 @@ def setup_shader(meshdata, triangles, width, height):
     gl.glUseProgram(shader)
 
     gl.glClearColor(0.0, 0.0, 0.0, 1.0)
-    gl.glEnable(GL_DEPTH_TEST)
+    gl.glEnable(gl.GL_DEPTH_TEST)
 
     # Creating Projection Matrix
     view = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0, 0.0, -5.0]))
