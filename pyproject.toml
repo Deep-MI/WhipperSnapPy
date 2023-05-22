@@ -41,7 +41,8 @@ dependencies = [
     'pillow',
     'pyopengl',
     'nibabel',
-    'PyQt5'
+    'PyQt5',
+    'psutil'
 ]
 
 [project.optional-dependencies]
