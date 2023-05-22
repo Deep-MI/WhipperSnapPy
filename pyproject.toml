@@ -81,6 +81,7 @@ tracker = 'https://github.com/Deep-MI/WhipperSnapPy/issues'
 
 [project.scripts]
 whippersnap = 'whippersnappy.cli:run'
+whippersnappy-sys_info = 'whippersnappy.commands.sys_info:run'
 
 [tool.setuptools]
 include-package-data = false
