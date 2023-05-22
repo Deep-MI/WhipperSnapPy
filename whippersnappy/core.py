@@ -523,18 +523,21 @@ def setup_shader(meshdata, triangles, width, height):
     # Create Element Buffer Object
     EBO = gl.glGenBuffers(1)
     gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, EBO)
-    gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles,
-                    gl.GL_STATIC_DRAW)
+    gl.glBufferData(
+        gl.GL_ELEMENT_ARRAY_BUFFER, triangles.nbytes, triangles, gl.GL_STATIC_DRAW
+    )
 
     # Compile The Program and shaders
     shader = gl.shaders.compileProgram(
         gl.shaders.compileShader(VERTEX_SHADER, gl.GL_VERTEX_SHADER),
-        gl.shaders.compileShader(FRAGMENT_SHADER, gl.GL_FRAGMENT_SHADER))
+        gl.shaders.compileShader(FRAGMENT_SHADER, gl.GL_FRAGMENT_SHADER),
+    )
 
     # get the position from shader
     position = gl.glGetAttribLocation(shader, "aPos")
-    gl.glVertexAttribPointer(position, 3, gl.GL_FLOAT, gl.GL_FALSE,
-                             9 * 4, gl.ctypes.c_void_p(0))
+    gl.glVertexAttribPointer(
+        position, 3, gl.GL_FLOAT, gl.GL_FALSE, 9 * 4, gl.ctypes.c_void_p(0)
+    )
     gl.glEnableVertexAttribArray(position)
 
     vnormalpos = gl.glGetAttribLocation(shader, "aNormal")
