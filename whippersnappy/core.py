@@ -445,7 +445,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
         out vec4 FragColor;
 
         uniform vec3 lightColor;
-	uniform bool doSpecular;
+        uniform bool doSpecular;
 
         void main()
         {
@@ -486,10 +486,10 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
           diffuse = diffuse + 0.52 * key * diff * lightColor;
 
           // specular
-	  vec3 result;
+          vec3 result;
           if (doSpecular)
-	  {
-	    float specularStrength = 0.5;
+          {
+            float specularStrength = 0.5;
             // the viewer is always at (0,0,0) in view-space,
             // so viewDir is (0,0,0) - Position => -Position
             vec3 viewDir = normalize(-FragPos);
@@ -498,12 +498,12 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
             vec3 specular = specularStrength * spec * lightColor;
             // final color
             result = (ambient + diffuse + specular) * Color;
-	  }
-	  else 
-	  {
-	    // final color no specular
-	    result = (ambient + diffuse) * Color;
-	  }
+          }
+          else 
+          {
+            // final color no specular
+            result = (ambient + diffuse) * Color;
+          }
           FragColor = vec4(result, 1.0);
         }
 
