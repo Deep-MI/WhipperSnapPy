@@ -55,6 +55,7 @@ def show_window(
     labelname="cortex.label",
     surfname=None,
     curvname="curv",
+    specular=True,
 ):
     """
     Starts an interactive window in which an overlay can be viewed.
@@ -139,7 +140,7 @@ def show_window(
         meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
             meshpath, overlaypath, curvpath, labelpath, current_fthresh_, current_fmax_
         )
-        shader = setup_shader(meshdata, triangles, wwidth, wheight)
+        shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
         transformLoc = gl.glGetUniformLocation(shader, "transform")
         gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewLeft)
@@ -209,11 +210,19 @@ def run():
         "--interactive",
         dest="interactive",
         action="store_true",
-        help="Start an interactive session.",
+        help="Start an interactive GUI session.",
     )
     parser.add_argument(
         "--invert", dest="invert", action="store_true", help="Invert the color scale."
     )
+    parser.add_argument(
+        "--diffuse",
+	dest="specular",
+	action="store_false",
+	default=True,
+	help="Diffuse surface reflection (switch-off specular)."
+    )
+    
     args = parser.parse_args()
 
     if not args.interactive:
@@ -228,6 +237,7 @@ def run():
             invert=args.invert,
             colorbar=True,
             outpath=args.output_path,
+	    specular=args.specular,
         )
     else:
         current_fthresh_ = args.fthresh
@@ -245,6 +255,7 @@ def run():
                 "cortex.label",
                 args.surf_name,
                 "curv",
+		args.specular,
             ),
         )
         thread.start()

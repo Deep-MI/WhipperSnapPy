@@ -16,6 +16,7 @@ import sys
 import glfw
 import numpy as np
 import OpenGL.GL as gl
+import OpenGL.GL.shaders as shaders
 import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
@@ -335,13 +336,6 @@ def prepare_geometry(
     return vertexdata, triangles, fmin, fmax, neg
 
 
-# def key_event(window,key,scancode,action,mods):
-#    """ Handle keyboard events
-#    """
-#    if action == glfw.PRESS and key == glfw.KEY_RIGHT:
-#        print("right")
-
-
 def init_window(width, height, title="PyOpenGL", visible=True):
     """
     Create window with width, height, title.
@@ -386,7 +380,7 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     return window
 
 
-def setup_shader(meshdata, triangles, width, height):
+def setup_shader(meshdata, triangles, width, height, specular=True):
     """
     Creates vertex and fragment shaders and sets up data and parameters
     (such as the initial view matrix) on the GPU
@@ -451,6 +445,7 @@ def setup_shader(meshdata, triangles, width, height):
         out vec4 FragColor;
 
         uniform vec3 lightColor;
+	uniform bool doSpecular;
 
         void main()
         {
@@ -490,19 +485,25 @@ def setup_shader(meshdata, triangles, width, height):
           diff = max(dot(norm, lightDir), 0.0);
           diffuse = diffuse + 0.52 * key * diff * lightColor;
 
-
           // specular
-          float specularStrength = 0.5;
-          // the viewer is always at (0,0,0) in view-space,
-          // so viewDir is (0,0,0) - Position => -Position
-          vec3 viewDir = normalize(-FragPos);
-          vec3 reflectDir = reflect(ohlightDir, norm);
-          float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-          vec3 specular = specularStrength * spec * lightColor;
-
-          // final color
-          vec3 result = (ambient + diffuse + specular) * Color;
-          //vec3 result = (ambient + diffuse) * Color;
+	  vec3 result;
+          if (doSpecular)
+	  {
+	    float specularStrength = 0.5;
+            // the viewer is always at (0,0,0) in view-space,
+            // so viewDir is (0,0,0) - Position => -Position
+            vec3 viewDir = normalize(-FragPos);
+            vec3 reflectDir = reflect(ohlightDir, norm);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+            vec3 specular = specularStrength * spec * lightColor;
+            // final color
+            result = (ambient + diffuse + specular) * Color;
+	  }
+	  else 
+	  {
+	    // final color no specular
+	    result = (ambient + diffuse) * Color;
+	  }
           FragColor = vec4(result, 1.0);
         }
 
@@ -529,8 +530,8 @@ def setup_shader(meshdata, triangles, width, height):
 
     # Compile The Program and shaders
     shader = gl.shaders.compileProgram(
-        gl.shaders.compileShader(VERTEX_SHADER, gl.GL_VERTEX_SHADER),
-        gl.shaders.compileShader(FRAGMENT_SHADER, gl.GL_FRAGMENT_SHADER),
+        shaders.compileShader(VERTEX_SHADER, gl.GL_VERTEX_SHADER),
+        shaders.compileShader(FRAGMENT_SHADER, gl.GL_FRAGMENT_SHADER),
     )
 
     # get the position from shader
@@ -564,15 +565,19 @@ def setup_shader(meshdata, triangles, width, height):
     )
     model = pyrr.matrix44.create_from_translation(pyrr.Vector3([0.0, 0.0, 0.0]))
 
+    # Set matrices in vertex shader
     view_loc = gl.glGetUniformLocation(shader, "view")
     proj_loc = gl.glGetUniformLocation(shader, "projection")
     model_loc = gl.glGetUniformLocation(shader, "model")
-
     gl.glUniformMatrix4fv(view_loc, 1, gl.GL_FALSE, view)
     gl.glUniformMatrix4fv(proj_loc, 1, gl.GL_FALSE, projection)
     gl.glUniformMatrix4fv(model_loc, 1, gl.GL_FALSE, model)
+    
+    # setup doSpecular in fragment shader
+    specular_loc = gl.glGetUniformLocation(shader, "doSpecular")
+    gl.glUniform1i(specular_loc, specular)
 
-    # setup light color
+    # setup light color in fragment shader
     lightColor_loc = gl.glGetUniformLocation(shader, "lightColor")
     gl.glUniform3f(lightColor_loc, 1.0, 1.0, 1.0)
 
@@ -728,6 +733,7 @@ def snap4(
     colorbar=True,
     outpath=None,
     font_file=None,
+    specular=True,
 ):
     """
     Snaps four views (front and back for left and right) and saves an image that
@@ -811,7 +817,7 @@ def snap4(
             meshpath, overlaypath, curvpath, labelpath, fthresh, fmax, invert
         )
         # upload to GPU and compile shaders
-        shader = setup_shader(meshdata, triangles, wwidth, wheight)
+        shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
         # draw
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
