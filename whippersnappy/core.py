@@ -499,7 +499,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
             // final color
             result = (ambient + diffuse + specular) * Color;
           }
-          else 
+          else
           {
             // final color no specular
             result = (ambient + diffuse) * Color;
