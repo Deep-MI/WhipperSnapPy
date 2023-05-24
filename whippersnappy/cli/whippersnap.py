@@ -217,12 +217,12 @@ def run():
     )
     parser.add_argument(
         "--diffuse",
-	dest="specular",
-	action="store_false",
-	default=True,
-	help="Diffuse surface reflection (switch-off specular)."
+        dest="specular",
+        action="store_false",
+        default=True,
+        help="Diffuse surface reflection (switch-off specular).",
     )
-    
+
     args = parser.parse_args()
 
     if not args.interactive:
@@ -237,7 +237,7 @@ def run():
             invert=args.invert,
             colorbar=True,
             outpath=args.output_path,
-	    specular=args.specular,
+            specular=args.specular,
         )
     else:
         current_fthresh_ = args.fthresh
@@ -255,7 +255,7 @@ def run():
                 "cortex.label",
                 args.surf_name,
                 "curv",
-		args.specular,
+                args.specular,
             ),
         )
         thread.start()

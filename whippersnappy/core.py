@@ -572,7 +572,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
     gl.glUniformMatrix4fv(view_loc, 1, gl.GL_FALSE, view)
     gl.glUniformMatrix4fv(proj_loc, 1, gl.GL_FALSE, projection)
     gl.glUniformMatrix4fv(model_loc, 1, gl.GL_FALSE, model)
-    
+
     # setup doSpecular in fragment shader
     specular_loc = gl.glGetUniformLocation(shader, "doSpecular")
     gl.glUniform1i(specular_loc, specular)
