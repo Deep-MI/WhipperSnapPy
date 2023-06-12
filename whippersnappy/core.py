@@ -794,8 +794,8 @@ def snap4(
                 sdir = os.environ.get("SUBJECTS_DIR")
                 if not sdir:
                     print(
-                        "[INFO] No surf_name or subjects directory (sdir) provided, \
-can not find surf file")
+                        "[INFO] No surf_name or subjects directory (sdir) provided, can not find surf file"
+                    )
                     sys.exit(1)
 
             found_surfname = get_surf_name(sdir, hemi)
