@@ -789,7 +789,7 @@ def snap4(
             print(
                 "[INFO] No surf_name provided. Looking for options in surf directory..."
             )
-            
+
             if sdir is None:
                 sdir = os.environ.get("SUBJECTS_DIR")
                 if not sdir:
@@ -797,9 +797,9 @@ def snap4(
                         "[INFO] No surf_name or subjects directory (sdir) provided, \
 can not find surf file")
                     sys.exit(1)
-            
+
             found_surfname = get_surf_name(sdir, hemi)
-            
+
             if found_surfname is None:
                 print(
                     "[ERROR] Could not find valid surf file in {} for hemi: {}!".format(
