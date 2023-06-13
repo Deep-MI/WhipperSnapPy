@@ -140,13 +140,23 @@ def show_window(
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
         if app_window_ is not None:
-            if app_window_.get_fthresh_value() != current_fthresh_ or app_window_.get_fmax_value() != current_fmax_:
+            if (
+                app_window_.get_fthresh_value() != current_fthresh_
+                or app_window_.get_fmax_value() != current_fmax_
+            ):
                 current_fthresh_ = app_window_.get_fthresh_value()
                 current_fmax_ = app_window_.get_fmax_value()
                 meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-                    meshpath, overlaypath, curvpath, labelpath, current_fthresh_, current_fmax_
+                    meshpath,
+                    overlaypath,
+                    curvpath,
+                    labelpath,
+                    current_fthresh_,
+                    current_fmax_,
                 )
-                shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
+                shader = setup_shader(
+                    meshdata, triangles, wwidth, wheight, specular=specular
+                )
 
         transformLoc = gl.glGetUniformLocation(shader, "transform")
         gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewLeft)
@@ -274,7 +284,7 @@ def run():
         app_window_ = ConfigWindow(
             screen_dims=(screen_geometry.width(), screen_geometry.height()),
             initial_fthresh_value=current_fthresh_,
-            initial_fmax_value=current_fmax_
+            initial_fmax_value=current_fmax_,
         )
 
         # The following is a way to allow CTRL+C termination of the app:
