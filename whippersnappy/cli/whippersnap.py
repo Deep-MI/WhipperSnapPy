@@ -132,7 +132,6 @@ def show_window(
     while glfw.get_key(
         window, glfw.KEY_ESCAPE
     ) != glfw.PRESS and not glfw.window_should_close(window):
-
         # Terminate if config app window was closed:
         if app_window_closed_:
             break
