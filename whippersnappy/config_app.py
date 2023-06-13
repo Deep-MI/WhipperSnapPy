@@ -262,3 +262,10 @@ class ConfigWindow(QWidget):
             Current fmax value
         """
         return self.current_fmax_value
+
+    def keyPressEvent(self, event):
+        """
+        Closes the window when ESC is pressed.
+        """
+        if event.key() == Qt.Key_Escape:
+            self.close()
