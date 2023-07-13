@@ -44,11 +44,14 @@ THE SOFTWARE.
 
 
 def _fread3(fobj):
-    """Read a 3-byte int from an open binary file object
+    """
+    Read a 3-byte int from an open binary file object
+
     Parameters
     ----------
     fobj : file
         File descriptor
+
     Returns
     -------
     n : int
@@ -96,25 +99,38 @@ def _read_volume_info(fobj):
 
 
 def read_geometry(filepath, read_metadata=False, read_stamp=False):
-    """Read a triangular format Freesurfer surface mesh.
+    """
+    Read a triangular format Freesurfer surface mesh.
+
     Parameters
     ----------
     filepath : str
         Path to surface file.
     read_metadata : bool, optional
         If True, read and return metadata as key-value pairs.
+        
         Valid keys:
+
         * 'head' : array of int
+
         * 'valid' : str
+
         * 'filename' : str
+
         * 'volume' : array of int, shape (3,)
+
         * 'voxelsize' : array of float, shape (3,)
+
         * 'xras' : array of float, shape (3,)
+
         * 'yras' : array of float, shape (3,)
+
         * 'zras' : array of float, shape (3,)
+
         * 'cras' : array of float, shape (3,)
     read_stamp : bool, optional
         Return the comment from the file
+
     Returns
     -------
     coords : numpy array
@@ -166,15 +182,18 @@ def read_geometry(filepath, read_metadata=False, read_stamp=False):
 
 
 def read_morph_data(filepath):
-    """Read a Freesurfer morphometry data file.
+    """
+    Read a Freesurfer morphometry data file.
     This function reads in what Freesurfer internally calls "curv" file types,
     (e.g. ?h. curv, ?h.thickness), but as that has the potential to cause
     confusion where "curv" also refers to the surface curvature values,
     we refer to these files as "morphometry" files with PySurfer.
+
     Parameters
     ----------
     filepath : str
         Path to morphometry file
+
     Returns
     -------
     curv : numpy array
@@ -193,7 +212,8 @@ def read_morph_data(filepath):
 
 
 def read_mgh_data(filepath):
-    """Read an MGH image file and return its data array.
+    """
+    Read an MGH image file and return its data array.
 
     Parameters
     ----------

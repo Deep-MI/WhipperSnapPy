@@ -12,9 +12,10 @@ from datetime import date
 from importlib import import_module
 from typing import Dict, Optional
 
+import whippersnappy
+
 # from sphinx_gallery.sorting import FileNameSortKey
 
-import whippersnappy
 
 project = 'whippersnappy'
 author = 'Martin Reuter'
@@ -52,12 +53,18 @@ extensions = ["sphinx.ext.autodoc",
               "numpydoc",
     ]
 
+# numpydoc_show_class_members = False 
+
+# Whether to create a Sphinx table of contents for the lists of class methods and attributes. If a table of contents is made, 
+# Sphinx expects each entry to have a separate page. True by default.
+numpydoc_class_members_toctree = False
+
 
 # Napoleon settings
 # I added these two lines because i added sphinx.ext.napolon in the extension after 
 # Commenting out sphinxcontrib.napoleon in the extension 
-napoleon_google_docstring = False
-napoleon_numpy_docstring = True
+# napoleon_google_docstring = False
+# napoleon_numpy_docstring = True
 
 templates_path = ['_templates']
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints", "tutorials/examples/README.rst"]
@@ -108,7 +115,7 @@ autosummary_generate = True
 # -- autodoc -----------------------------------------------------------------
 autodoc_typehints = "none"
 autodoc_member_order = "groupwise"
-autodoc_warningiserror = False
+autodoc_warningiserror = True
 autoclass_content = "class"
 
 
@@ -203,9 +210,10 @@ sphinx_gallery_conf = {
 
 
 
+import os
+
 # -- make sure pandoc gets installed -----------------------------------------
 from inspect import getsourcefile
-import os
 
 # Get path to directory containing this file, conf.py.
 DOCS_DIRECTORY = os.path.dirname(os.path.abspath(getsourcefile(lambda: 0)))

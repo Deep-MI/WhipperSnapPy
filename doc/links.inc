@@ -14,7 +14,7 @@
 .. _project conda: https://anaconda.org/conda-forge/lapy
 .. _project github: https://github.com/Deep-MI/WhipperSnapPy
 .. _project license: https://github.com/Deep-MI/WhipperSnapPy/blob/main/LICENSE
-.. _project brainprint: https://pypi.org/project/whippersnapper/
+.. _project whippersnapper: https://pypi.org/project/whippersnapper/
 
 .. license
 

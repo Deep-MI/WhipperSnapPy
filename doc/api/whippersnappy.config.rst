@@ -1,5 +1,5 @@
-Meshes
-======
+Classes
+=======
 
 .. currentmodule:: whippersnappy
 

@@ -15,7 +15,7 @@ FreeSurfer and FastSurfer surface models and color overlays and generate screen 
 License
 -------
 
-``whippersnappy`` is licensed under the `MIT license`_.
+`Whippersnappy <project whippersnapper_>`_ is licensed under the `MIT license`_.
 A full copy of the license can be found `on GitHub <project license_>`_.
 
 
