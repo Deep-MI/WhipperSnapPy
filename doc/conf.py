@@ -14,7 +14,7 @@ from typing import Dict, Optional
 
 import whippersnappy
 
-# from sphinx_gallery.sorting import FileNameSortKey
+from sphinx_gallery.sorting import FileNameSortKey
 
 
 project = 'whippersnappy'
@@ -43,21 +43,25 @@ extensions = ["sphinx.ext.autodoc",
               "sphinx.ext.autosummary",
               "sphinx.ext.intersphinx",
               "sphinx.ext.linkcode",
-              "sphinxcontrib.napoleon",
               "sphinxcontrib.bibtex",
               "sphinx_copybutton",
               "sphinx_design",
               "sphinx_gallery.gen_gallery",
               "IPython.sphinxext.ipython_console_highlighting",
-            #   "sphinx.ext.napoleon",
               "numpydoc",
     ]
 
-# numpydoc_show_class_members = False 
+# Backup extensions
+# "sphinxcontrib.napoleon",
+#   "sphinx.ext.napoleon",
+
+
+
+numpydoc_show_class_members = False 
 
 # Whether to create a Sphinx table of contents for the lists of class methods and attributes. If a table of contents is made, 
 # Sphinx expects each entry to have a separate page. True by default.
-numpydoc_class_members_toctree = False
+# numpydoc_class_members_toctree = False
 
 
 # Napoleon settings
@@ -194,18 +198,18 @@ def linkcode_resolve(domain: str, info: Dict[str, str]) -> Optional[str]:
 
 # -- sphinx-gallery ----------------------------------------------------------
 sphinx_gallery_conf = {
-    "backreferences_dir": "/home/ashrafo/WhipperSnappy_devops/doc/generated/backreferences",
+    "backreferences_dir": "generated/backreferences",
     "doc_module": (f"{package}",),
-    "examples_dirs": ["/home/ashrafo/WhipperSnappy_devops/doc/generated/examples"],
+    "examples_dirs": ["generated/examples"],
     "exclude_implicit_doc": {},  # set
     "filename_pattern": r"\d{2}_",
-    "gallery_dirs": ["/home/ashrafo/WhipperSnappy_devops/doc/generated/examples"],
+    "gallery_dirs": ["generated/examples"],
     "line_numbers": False,
     "plot_gallery": True,
     "reference_url": {f"{package}": None},
     "remove_config_comments": True,
     "show_memory": True,
-    # "within_subsection_order": FileNameSortKey,
+    "within_subsection_order": FileNameSortKey,
 }
 
 
@@ -235,3 +239,21 @@ def ensure_pandoc_installed(_):
 
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
+
+
+
+# def autodoc_skip_member(app, what, name, obj, skip, options):
+#     # List of method names to skip
+#     methods_to_skip = [
+#         'actions',
+#         # Add other method names to skip here
+#     ]
+
+#     print("autodoc_skip_member called with:", what, name)
+
+#     # Check if the member is a method and in the list of methods to skip
+#     if what == 'method' and name in methods_to_skip:
+#         print("Skipping method:", name)
+#         return True
+
+#     return None

@@ -4,7 +4,10 @@
 
 .. autoclass:: {{ objname }}
    :members:
-   :inherited-members:
+   
 
-.. minigallery:: {{ fullname }}
-    :add-heading:
+
+
+
+
+

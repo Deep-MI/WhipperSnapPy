@@ -2,9 +2,13 @@ API References
 ==============
 
 
-.. toctree::
-    :maxdepth: 2
+.. currentmodule:: whippersnappy
 
-    whippersnappy.modules.rst
-    whippersnappy.config.rst
+.. autosummary::
+    :toctree: generated/
+
+
+    config_app.ConfigWindow
+    core
+    cli.whippersnap
  

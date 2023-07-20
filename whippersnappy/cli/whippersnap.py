@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
-"""Executes the whippersnappy program in an interactive or non-interactive mode.
+"""
+Executes the whippersnappy program in an interactive or non-interactive mode.
 
 The non-interactive mode (the default) creates an image that contains four
 views of the surface, a color bar, and a configurable caption.
+
 The interactive mode (--interactive) opens a simple GUI with a controllable
 view of one of the hemispheres. In addition, the view through a separate
 configuration app which allows adjusting thresholds, etc. during runtime.
@@ -11,12 +13,12 @@ configuration app which allows adjusting thresholds, etc. during runtime.
 Usage:
     $ python3 whippersnap.py -lh $LH_OVERLAY_FILE -rh $RH_OVERLAY_FILE \
                              -sd $SURF_SUBJECT_DIR -o $OUTPUT_PATH
+                             
 (See help for full list of arguments.)
 
 @Author1    : Martin Reuter
 @Author2    : Ahmed Faisal Abdelrahman
 @Created    : 16.03.2022
-
 """
 
 import argparse
