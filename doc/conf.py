@@ -46,7 +46,6 @@ extensions = ["sphinx.ext.autodoc",
               "sphinxcontrib.bibtex",
               "sphinx_copybutton",
               "sphinx_design",
-              "sphinx_gallery.gen_gallery",
               "IPython.sphinxext.ipython_console_highlighting",
               "numpydoc",
     ]
@@ -54,6 +53,7 @@ extensions = ["sphinx.ext.autodoc",
 # Backup extensions
 # "sphinxcontrib.napoleon",
 #   "sphinx.ext.napoleon",
+#  "sphinx_gallery.gen_gallery",
 
 
 
@@ -196,21 +196,21 @@ def linkcode_resolve(domain: str, info: Dict[str, str]) -> Optional[str]:
 
 
 
-# -- sphinx-gallery ----------------------------------------------------------
-sphinx_gallery_conf = {
-    "backreferences_dir": "generated/backreferences",
-    "doc_module": (f"{package}",),
-    "examples_dirs": ["generated/examples"],
-    "exclude_implicit_doc": {},  # set
-    "filename_pattern": r"\d{2}_",
-    "gallery_dirs": ["generated/examples"],
-    "line_numbers": False,
-    "plot_gallery": True,
-    "reference_url": {f"{package}": None},
-    "remove_config_comments": True,
-    "show_memory": True,
-    "within_subsection_order": FileNameSortKey,
-}
+# # -- sphinx-gallery ----------------------------------------------------------
+# sphinx_gallery_conf = {
+#     "backreferences_dir": "generated/backreferences",
+#     "doc_module": (f"{package}",),
+#     "examples_dirs": ["generated/examples"],
+#     "exclude_implicit_doc": {},  # set
+#     "filename_pattern": r"\d{2}_",
+#     "gallery_dirs": ["generated/examples"],
+#     "line_numbers": False,
+#     "plot_gallery": True,
+#     "reference_url": {f"{package}": None},
+#     "remove_config_comments": True,
+#     "show_memory": True,
+#     "within_subsection_order": FileNameSortKey,
+# }
 
 
 
