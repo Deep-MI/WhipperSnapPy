@@ -18,8 +18,8 @@ License
 `Whippersnappy <project whippersnapper_>`_ is licensed under the `MIT license`_.
 A full copy of the license can be found `on GitHub <project license_>`_.
 
-Contents:
----------
+Contents
+--------
 
 - Capture 4x4 surface plots (front & back, left and right)
 - OpenGL window for interactive visualization
@@ -33,8 +33,8 @@ Note, that currently no off-screen rendering is supported. Even in snap mode an 
    pip3 install .
    xvfb-run whippersnap ...
 
-Installation:
--------------
+Installation
+------------
 
 The `Whippersnappy <project whippersnapper_>`_ package can be installed from this repository using:
 
@@ -42,11 +42,11 @@ The `Whippersnappy <project whippersnapper_>`_ package can be installed from thi
 
    python3 -m pip install .
 
-Usage:
-------
+Usage
+-----
 
-Local:
-''''''
+Local
+'''''
 
 After installing the Python package, the whippersnap program can be run using the installed command line tool such as in the following example:
 
@@ -59,8 +59,8 @@ After installing the Python package, the whippersnap program can be run using th
 
 Note that adding the `--interactive` flag will start an interactive GUI that includes a visualization of one hemisphere side and a simple application through which color threshold values can be configured.
 
-Docker:
-'''''''
+Docker
+''''''
 
 the whippersnap program can be run within a docker container to capture a snapshot by building the provided Docker image and running a container as follows:
 
@@ -83,8 +83,8 @@ In this example: `$SURF_SUBJECT_DIR` contains the surface files, `$OVERLAY_DIR` 
 
 **Note:** The `--init` flag is needed for the `xvfb-run` tool to be used correctly.
 
-Links:
-------
+Links
+-----
 
 We also invite you to check out our lab webpage at https://deep-mi.org
 
