@@ -14,11 +14,11 @@ from typing import Dict, Optional
 
 import whippersnappy
 
-from sphinx_gallery.sorting import FileNameSortKey
+# from sphinx_gallery.sorting import FileNameSortKey
 
 
-project = 'whippersnappy'
-author = 'Martin Reuter'
+project = "whippersnappy"
+author = "Martin Reuter"
 copyright = f"{date.today().year}, {author}"
 release = whippersnappy.__version__
 package = whippersnappy.__name__
@@ -38,17 +38,18 @@ root_doc = "index"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc",
-              "sphinx.ext.autosectionlabel",
-              "sphinx.ext.autosummary",
-              "sphinx.ext.intersphinx",
-              "sphinx.ext.linkcode",
-              "sphinxcontrib.bibtex",
-              "sphinx_copybutton",
-              "sphinx_design",
-              "IPython.sphinxext.ipython_console_highlighting",
-              "numpydoc",
-    ]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosectionlabel",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.linkcode",
+    "sphinxcontrib.bibtex",
+    "sphinx_copybutton",
+    "sphinx_design",
+    "IPython.sphinxext.ipython_console_highlighting",
+    "numpydoc",
+]
 
 # Backup extensions
 # "sphinxcontrib.napoleon",
@@ -56,25 +57,30 @@ extensions = ["sphinx.ext.autodoc",
 #  "sphinx_gallery.gen_gallery",
 
 
+numpydoc_show_class_members = False
 
-numpydoc_show_class_members = False 
-
-# Whether to create a Sphinx table of contents for the lists of class methods and attributes. If a table of contents is made, 
+# Whether to create a Sphinx table of contents for the lists of class methods and attributes. If a table of contents is made,
 # Sphinx expects each entry to have a separate page. True by default.
 # numpydoc_class_members_toctree = False
 
 
 # Napoleon settings
-# I added these two lines because i added sphinx.ext.napolon in the extension after 
-# Commenting out sphinxcontrib.napoleon in the extension 
+# I added these two lines because i added sphinx.ext.napolon in the extension after
+# Commenting out sphinxcontrib.napoleon in the extension
 # napoleon_google_docstring = False
 # napoleon_numpy_docstring = True
 
-templates_path = ['_templates']
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints", "tutorials/examples/README.rst"]
+templates_path = ["_templates"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "**.ipynb_checkpoints",
+    "tutorials/examples/README.rst",
+]
 
 # Sphinx will warn about all references where the target cannot be found.
-#nitpicky = True
+# nitpicky = True
 nitpicky = False
 nitpick_ignore = []
 
@@ -89,8 +95,8 @@ default_role = "py:obj"
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'furo'
-html_static_path = ['_static']
+html_theme = "furo"
+html_static_path = ["_static"]
 html_title = project
 html_show_sphinx = False
 
@@ -121,7 +127,6 @@ autodoc_typehints = "none"
 autodoc_member_order = "groupwise"
 autodoc_warningiserror = True
 autoclass_content = "class"
-
 
 
 # -- intersphinx -------------------------------------------------------------
@@ -195,7 +200,6 @@ def linkcode_resolve(domain: str, info: Dict[str, str]) -> Optional[str]:
     return url
 
 
-
 # # -- sphinx-gallery ----------------------------------------------------------
 # sphinx_gallery_conf = {
 #     "backreferences_dir": "generated/backreferences",
@@ -213,7 +217,6 @@ def linkcode_resolve(domain: str, info: Dict[str, str]) -> Optional[str]:
 # }
 
 
-
 import os
 
 # -- make sure pandoc gets installed -----------------------------------------
@@ -221,6 +224,7 @@ from inspect import getsourcefile
 
 # Get path to directory containing this file, conf.py.
 DOCS_DIRECTORY = os.path.dirname(os.path.abspath(getsourcefile(lambda: 0)))
+
 
 def ensure_pandoc_installed(_):
     import pypandoc
@@ -237,9 +241,9 @@ def ensure_pandoc_installed(_):
         delete_installer=True,
     )
 
+
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
-
 
 
 # def autodoc_skip_member(app, what, name, obj, skip, options):
