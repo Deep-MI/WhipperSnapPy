@@ -202,7 +202,7 @@ class ConfigWindow(QWidget):
     def fmax_slider_value_cb(self):
         """
         Callback function for user-modified fmax slider.
-        
+
         This function is triggered when the user modifies the fmax slider. It
         stores the selected value and updates the corresponding user input box.
         """
@@ -266,7 +266,7 @@ class ConfigWindow(QWidget):
         -------
         new_value : float
             Converted value.
-        """ 
+        """
         old_range = old_limits[1] - old_limits[0]
         new_range = new_limits[1] - new_limits[0]
         new_value = (((value - old_limits[0]) * new_range) / old_range) + new_limits[0]

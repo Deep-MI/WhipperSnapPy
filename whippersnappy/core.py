@@ -26,7 +26,7 @@ from .read_geometry import read_geometry, read_mgh_data, read_morph_data
 def normalize_mesh(v, scale=1.0):
     """
     Normalize mesh vertex coordinates.
-    
+
     - Center their bounding box at the origin.
     - Ensure that the longest side-length is equal to the scale variable (default 1).
 
@@ -199,8 +199,8 @@ def rescale_overlay(values, minval=None, maxval=None):
 def binary_color(values, thres, color_low, color_high):
     """
     Create a binary colormap based on a threshold value.
-    
-    This function assigns colors to input values based on whether they are 
+
+    This function assigns colors to input values based on whether they are
     below or equal to the threshold (thres) or greater than the threshold.
 
     Values below thres are color_low, others are color_high.
