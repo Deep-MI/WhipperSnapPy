@@ -257,16 +257,3 @@ def ensure_pandoc_installed(_):
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
 
-
-# def autodoc_skip_member(app, what, name, obj, skip, options):
-#     # List of method names to skip
-#     methods_to_skip = [
-#         'actions',
-#         # Add other method names to skip here
-#     ]
-#     print("autodoc_skip_member called with:", what, name)
-#     # Check if the member is a method and in the list of methods to skip
-#     if what == 'method' and name in methods_to_skip:
-#         print("Skipping method:", name)
-#         return True
-#     return None

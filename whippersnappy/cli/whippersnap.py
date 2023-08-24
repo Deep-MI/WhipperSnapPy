@@ -62,30 +62,33 @@ def show_window(
     specular=True,
 ):
     """
-    Starts an interactive window in which an overlay can be viewed.
+    Start an interactive window in which an overlay can be viewed.
 
     Parameters
     ----------
-    hemi: str
-        Hemisphere; one of: ['lh', 'rh']
-    overlaypath: str
-        Path to the overlay file for the specified hemi (FreeSurfer format)
-    sdir: str
-       Subject dir containing surf files
-    caption: str
-       Caption text to be placed on the image
-    invert: bool
-       Invert color (blue positive, red negative)
-    labelname: str
-       Label for masking, usually cortex.label
-    surfname: str
-       Surface to display values on, usually pial_semi_inflated from fsaverage
-    curvname: str
-       Curvature file for texture in non-colored regions (default curv)
+    hemi : str
+        Hemisphere; one of: ['lh', 'rh'].
+    overlaypath : str
+        Path to the overlay file for the specified hemi (FreeSurfer format).
+    sdir : str
+       Subject dir containing surf files.
+    caption : str
+       Caption text to be placed on the image.
+    invert : bool
+       Invert color (blue positive, red negative).
+    labelname : str
+       Label for masking, usually cortex.label.
+    surfname : str
+       Surface to display values on, usually pial_semi_inflated from fsaverage.
+    curvname : str
+       Curvature file for texture in non-colored regions (default curv).
+    specular : bool, optional
+       If True, enable specular.
 
     Returns
     -------
     None
+        This function does not return any value.
     """
     global current_fthresh_, current_fmax_, app_, app_window_, app_window_closed_
 

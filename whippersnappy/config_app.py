@@ -24,16 +24,19 @@ from PyQt5.QtWidgets import (
 
 class ConfigWindow(QWidget):
     """
-    Encapsulates the Qt widget that implements the parameter configuration
-    application.
+    Encapsulates the Qt widget for the parameter configuration.
 
     Parameters
     ----------
-    parent: QWidget
-        This widget's parent, if any (usually none)
-    screen_dims: tuple
+    parent : QWidget
+        This widget's parent, if any (usually none).
+    screen_dims : tuple
         Integers specifyings screen dims in pixels; used to always position
-        the window in the top-right corner, if given
+        the window in the top-right corner, if given.
+    initial_fthresh_value : float
+        Initial fthreshold value is 2.0.
+    initial_fmax_value : float
+        Initial fmax value is 4.0.
     """
 
     def __init__(
@@ -151,9 +154,10 @@ class ConfigWindow(QWidget):
 
     def fthresh_slider_value_cb(self):
         """
-        Callback function that triggers when the fthresh slider is modified by
-        the user. It stores the selected value and updates the corresponding
-        user input box.
+        Callback function for user-modified fthresh slider.
+
+        This function is triggered when the user modifies the fthresh slider. It
+        stores the selected value and updates the corresponding user input box.
         """
         self.current_fthresh_value = self.convert_value_to_range(
             self.fthresh_slider.value(),
@@ -164,8 +168,21 @@ class ConfigWindow(QWidget):
 
     def fthresh_value_cb(self, new_value):
         """
-        Callback function that triggers when the user inputs a value for fthresh.
-        It stores the selected value and updates the corresponding slider.
+        Callback function for user input of fthresh value.
+
+        This function is triggered when the user inputs a value for fthresh. It
+        stores the selected value and updates the corresponding slider.
+
+        Parameters
+        ----------
+        new_value : float or str
+            The new value input by the user. It can be a float or a string that
+            can be converted to a float.
+
+        Returns
+        -------
+        None
+            This function does not return any value.
         """
         # Do not react to invalid values:
         try:
@@ -184,9 +201,10 @@ class ConfigWindow(QWidget):
 
     def fmax_slider_value_cb(self):
         """
-        Callback function that triggers when the fmax slider is modified by
-        the user. It stores the selected value and updates the corresponding
-        user input box.
+        Callback function for user-modified fmax slider.
+        
+        This function is triggered when the user modifies the fmax slider. It
+        stores the selected value and updates the corresponding user input box.
         """
         self.current_fmax_value = self.convert_value_to_range(
             self.fmax_slider.value(),
@@ -197,8 +215,21 @@ class ConfigWindow(QWidget):
 
     def fmax_value_cb(self, new_value):
         """
-        Callback function that triggers when the user inputs a value for fmax.
-        It stores the selected value and updates the corresponding slider.
+        Callback function for user input of fmax value.
+
+        This function is triggered when the user inputs a value for fmax. It
+        stores the selected value and updates the corresponding slider.
+
+        Parameters
+        ----------
+        new_value : float or str
+            The new value input by the user. It can be a float or a string that
+            can be converted to a float.
+
+        Returns
+        -------
+            None
+                This function does not return any value.
         """
         # Do not react to invalid values:
         try:
@@ -217,24 +248,25 @@ class ConfigWindow(QWidget):
 
     def convert_value_to_range(self, value, old_limits, new_limits):
         """
-        Converts a given number from one range to another.
+        Convert a given number from one range to another.
+
         This is useful for transforming values from the original range to that
         of the slider widget tick range and vice-versa.
 
         Parameters
         ----------
-        value: float
-            Value to be converted
-        old_limits: tuple
-            Minimum and maximum values that define the source range
-        new_limits: tuple
-            Minimum and maximum values that define the target range
+        value : float
+            Value to be converted.
+        old_limits : tuple
+            Minimum and maximum values that define the source range.
+        new_limits : tuple
+            Minimum and maximum values that define the target range.
 
         Returns
         -------
-        new_value: float
-            Converted value
-        """
+        new_value : float
+            Converted value.
+        """ 
         old_range = old_limits[1] - old_limits[0]
         new_range = new_limits[1] - new_limits[0]
         new_value = (((value - old_limits[0]) * new_range) / old_range) + new_limits[0]
@@ -243,29 +275,39 @@ class ConfigWindow(QWidget):
 
     def get_fthresh_value(self):
         """
-        Returns the current stores value for fthresh.
+        Return the current stores value for fthresh.
 
         Returns
         -------
         current_fthresh_value: float
-            Current fthresh value
+            Current fthresh value.
         """
         return self.current_fthresh_value
 
     def get_fmax_value(self):
         """
-        Returns the current stores value for fmax.
+        Return the current stores value for fmax.
 
         Returns
         -------
-        current_fmax_value: float
-            Current fmax value
+        current_fmax_value : float
+            Current fmax value.
         """
         return self.current_fmax_value
 
     def keyPressEvent(self, event):
         """
-        Closes the window when ESC is pressed.
+        Close the window when the ESC key is pressed.
+
+        Parameters
+        ----------
+        event : QKeyEvent
+            The key event object representing the key press.
+
+        Returns
+        -------
+        None
+            This function return None.
         """
         if event.key() == Qt.Key_Escape:
             self.close()

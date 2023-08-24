@@ -25,21 +25,22 @@ from .read_geometry import read_geometry, read_mgh_data, read_morph_data
 
 def normalize_mesh(v, scale=1.0):
     """
-    Normalizes mesh vertex coordinates, so that their bounding box
-    is centered at the origin and its longest side-length is equal
-    to the scale variable (default 1).
+    Normalize mesh vertex coordinates.
+    
+    - Center their bounding box at the origin.
+    - Ensure that the longest side-length is equal to the scale variable (default 1).
 
     Parameters
     ----------
-    v: numpy.ndarray
-        Vertex array (Nvert X 3)
-    scale: float
-        Scaling constant
+    v : numpy.ndarray
+        Vertex array (Nvert X 3).
+    scale : float
+        Scaling constant.
 
     Returns
     -------
     v: numpy.ndarray
-        Normalized vertex array (Nvert X 3)
+        Normalized vertex array (Nvert X 3).
     """
     # center bounding box at origin
     # scale longest side to scale (default 1)
@@ -53,7 +54,7 @@ def normalize_mesh(v, scale=1.0):
 # adopted from lapy
 def vertex_normals(v, t):
     """
-    Computes vertex normals.
+    Compute vertex normals.
 
     Triangle normals around each vertex are averaged, weighted by the angle
     that they contribute.
@@ -62,15 +63,15 @@ def vertex_normals(v, t):
 
     Parameters
     ----------
-    v: numpy.ndarray
-        Vertex array (Nvert X 3)
-    t: numpy.ndarray
-        Triangle array (Ntria X 3)
+    v : numpy.ndarray
+        Vertex array (Nvert X 3).
+    t : numpy.ndarray
+        Triangle array (Ntria X 3).
 
     Returns
     -------
     normals: numpy.ndarray
-        Normals array: n - normals (Nvert X 3)
+        Normals array: n - normals (Nvert X 3).
     """
     # Compute vertex coordinates and a difference vector for each triangle:
     v0 = v[t[:, 0], :]
@@ -98,7 +99,8 @@ def vertex_normals(v, t):
 
 def heat_color(values, invert=False):
     """
-    Converts an array of float values into RBG heat color values.
+    Convert an array of float values into RBG heat color values.
+
     Only values between -1 and 1 will receive gradient and colors will
     max-out at -1 and 1. Negative values will be blue and positive
     red (unless invert is passed to flip the heatmap). Masked values
@@ -106,15 +108,15 @@ def heat_color(values, invert=False):
 
     Parameters
     ----------
-    values: numpy.ndarray
-        float values of function on the surface mesh (length Nvert)
-    invert: bool
-        whether to invert the heat map (blue is positive and red negative)
+    values : numpy.ndarray
+        Float values of function on the surface mesh (length Nvert).
+    invert : bool
+        Whether to invert the heat map (blue is positive and red negative).
 
     Returns
     -------
     colors: numpy.ndarray
-        (Nvert x 3) array of RGB of heat map as 0.0 .. 1.0 floats
+        (Nvert x 3) array of RGB of heat map as 0.0 .. 1.0 floats.
     """
     # values (1 dim array length n) will receive gradient between -1 and 1
     # nan will return (nan,nan,nan)
@@ -146,7 +148,8 @@ def heat_color(values, invert=False):
 
 def rescale_overlay(values, minval=None, maxval=None):
     """
-    Rescales values for color map computation.
+    Rescale values for color map computation.
+
     minval and maxval are two positive floats (maxval>minval).
     Values between -minval and minval will be masked (np.nan);
     others will be shifted towards zero (from both sides)
@@ -154,23 +157,23 @@ def rescale_overlay(values, minval=None, maxval=None):
 
     Parameters
     ----------
-    values: numpy.ndarray
-        float values of function on the surface (length Nvert)
-    minval: float
-        Minimum value
-    maxval: float
-        Maximum value
+    values : numpy.ndarray
+        Float values of function on the surface (length Nvert).
+    minval : float
+        Minimum value.
+    maxval : float
+        Maximum value.
 
     Returns
     -------
     values: numpy.ndarray
-        float array of input function on mesh (length Nvert)
+        Float array of input function on mesh (length Nvert).
     minval: float
-        positive minimum value (crop values whose absolute value is below)
+        Positive minimum value (crop values whose absolute value is below).
     maxval: float
-        positive maximum value (saturate color at maxval and -maxval)
+        Positive maximum value (saturate color at maxval and -maxval).
     neg: bool
-        whether negative values are present at all after cropping
+        Whether negative values are present at all after cropping.
     """
     valsign = np.sign(values)
     valabs = np.abs(values)
@@ -195,25 +198,29 @@ def rescale_overlay(values, minval=None, maxval=None):
 
 def binary_color(values, thres, color_low, color_high):
     """
-    Creates a binary colormap where values below thres are color_low,
-    the others color_high.
+    Create a binary colormap based on a threshold value.
+    
+    This function assigns colors to input values based on whether they are 
+    below or equal to the threshold (thres) or greater than the threshold.
+
+    Values below thres are color_low, others are color_high.
     color_low and color_high can be float (gray scale), or 1x3 array of RGB.
 
     Parameters
     ----------
-    values: numpy.ndarray
-        input vertex function as float array (length Nvert)
-    thres: float
-        Threshold value
-    color_low: float or numpy.ndarray
-        Lower color value(s)
-    color_high: float or numpy.ndarray
-        Higher color value(s)
+    values : numpy.ndarray
+        Input vertex function as float array (length Nvert).
+    thres : float
+        Threshold value.
+    color_low : float or numpy.ndarray
+        Lower color value(s).
+    color_high : float or numpy.ndarray
+        Higher color value(s).
 
     Returns
     -------
-    colors: numpy.ndarray
-        Binary colormap
+    colors : numpy.ndarray
+        Binary colormap.
     """
     if np.isscalar(color_low):
         color_low = np.array((color_low, color_low, color_low), dtype=np.float32)
@@ -227,21 +234,22 @@ def binary_color(values, thres, color_low, color_high):
 
 def mask_label(values, labelpath=None):
     """
-    Applies a labelfile as mask
+    Apply a labelfile as a mask.
+
     Labelfile freesurfer format has indices of values that should be kept;
     all other values will be set to np.nan.
 
     Parameters
     ----------
-    values: numpy.ndarray
-        float values of function defined at vertices (a 1-dim array)
-    labelpath: str
-        Absolute path to label file
+    values : numpy.ndarray
+        Float values of function defined at vertices (a 1-dim array).
+    labelpath : str
+        Absolute path to label file.
 
     Returns
     -------
     values: numpy.ndarray
-        masked surface function values
+        Masked surface function values.
     """
     if not labelpath:
         return values
@@ -264,41 +272,41 @@ def prepare_geometry(
 ):
     """
     Prepare meshdata for upload to GPU.
+
     Vertex coordinates, vertex normals and color values are concatenated into
     large vertexdata array. Also returns trianges, minimum and maximum overlay
-    values as well as whether negative values are present or not.
-    triangles
+    values as well as whether negative values are present or not in triangles.
 
     Parameters
     ----------
-    surfpath: str
-        Path to surface file (usually lh or rh.pial_semi_inflated)
-    overlaypath: str
-        Path to overlay file
-    curvpath: str
-        Path to curvature file (usually lh or rh.curv)
-    labelpath: str
-        Path to label file (mask; usually cortex.label)
-    minval: float
-        Minimum threshold to stop coloring (-minval used for neg values)
-    maxval: float
-        Maximum value to saturate (-maxval used for negative values)
-    invert: bool
-       Invert color map
+    surfpath : str
+        Path to surface file (usually lh or rh.pial_semi_inflated).
+    overlaypath : str
+        Path to overlay file.
+    curvpath : str
+        Path to curvature file (usually lh or rh.curv).
+    labelpath : str
+        Path to label file (mask; usually cortex.label).
+    minval : float
+        Minimum threshold to stop coloring (-minval used for neg values).
+    maxval : float
+        Maximum value to saturate (-maxval used for negative values).
+    invert : bool
+        Invert color map.
 
     Returns
     -------
     vertexdata: numpy.ndarray
         Concatenated array with vertex coords, vertex normals and colors
-        as a (Nvert X 9) float32 array
+        as a (Nvert X 9) float32 array.
     triangles: numpy.ndarray
-        triangle array as a (Ntria X 3) uint32 array
+        Triangle array as a (Ntria X 3) uint32 array.
     fmin: float
-        Minimum value of overlay function after rescale
+        Minimum value of overlay function after rescale.
     fmax: float
-        Maximum value of overlay function after rescale
+        Maximum value of overlay function after rescale.
     neg: bool
-        Whether negative values are there after rescale/cropping
+        Whether negative values are there after rescale/cropping.
     """
 
     # read vertices and triangles
@@ -339,23 +347,24 @@ def prepare_geometry(
 def init_window(width, height, title="PyOpenGL", visible=True):
     """
     Create window with width, height, title.
+
     If visible False, hide window.
 
     Parameters
     ----------
-    width: int
-        Window width
-    height: int
-        Window height
-    title: str
-        Window title
-    visible: bool
-       Window visibility
+    width : int
+        Window width.
+    height : int
+        Window height.
+    title : str
+        Window title.
+    visible : bool
+       Window visibility.
 
     Returns
     -------
     window: glfw.LP__GLFWwindow
-        GUI window
+        GUI window.
     """
     if not glfw.init():
         return False
@@ -382,8 +391,9 @@ def init_window(width, height, title="PyOpenGL", visible=True):
 
 def setup_shader(meshdata, triangles, width, height, specular=True):
     """
-    Creates vertex and fragment shaders and sets up data and parameters
-    (such as the initial view matrix) on the GPU
+    Create vertex and fragment shaders.
+
+    Set up data and parameters (such as the initial view matrix) on the GPU.
 
     In meshdata:
       - the first 3 columns are the vertex coordinates
@@ -392,19 +402,21 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
 
     Parameters
     ----------
-    meshdata: numpy.ndarray
-        Mesh array (shape: n x 9, dtype: np.float32)
-    triangles: bool
-       Triangle indices array (shape: m x 3)
-    width: int
-        Window width (to set perspective projection)
-    height: int
-        Window height (to set perspective projection)
+    meshdata : numpy.ndarray
+        Mesh array (shape: n x 9, dtype: np.float32).
+    triangles : bool
+       Triangle indices array (shape: m x 3).
+    width : int
+        Window width (to set perspective projection).
+    height : int
+        Window height (to set perspective projection).
+    specular : Boolean
+        By default specular is set as True.
 
     Returns
     -------
     shader: ShaderProgram
-        Compiled OpenGL shader program
+        Compiled OpenGL shader program.
     """
 
     VERTEX_SHADER = """
@@ -586,19 +598,19 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
 
 def capture_window(width, height):
     """
-    Captures GL region (0,0) .. (width,height) into PIL Image.
+    Capture the GL region (0,0) .. (width,height) into PIL Image.
 
     Parameters
     ----------
-    width: int
-        Window width
-    height: int
-        Window height
+    width : int
+        Window width.
+    height : int
+        Window height.
 
     Returns
     -------
     image: PIL.Image.Image
-        Captured image
+        Captured image.
     """
     if sys.platform == "darwin":
         # not sure why on mac the drawing area is 4 times as large (2x2):
@@ -615,26 +627,25 @@ def capture_window(width, height):
 
 def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     """
-    Create colorbar into an image with text describing min and max
-    values.
+    Create colorbar image with text indicating min and max values.
 
     Parameters
     ----------
-    fmin: int
-        Absolute min value that receives color (threshold)
-    fmax: int
-        Absolute max value where color saturates
-    invert: bool
-        Color invert
-    neg: bool
-        Show negative axis
-    font_file: str
-        Path to the file describing the font to be used
+    fmin : int
+        Absolute min value that receives color (threshold).
+    fmax : int
+        Absolute max value where color saturates.
+    invert : bool
+        Color invert.
+    neg : bool
+        Show negative axis.
+    font_file : str
+        Path to the file describing the font to be used.
 
     Returns
     -------
     image: PIL.Image.Image
-        Colorbar image
+        Colorbar image.
     """
     cwidth = 200
     cheight = 30
@@ -736,35 +747,45 @@ def snap4(
     specular=True,
 ):
     """
-    Snaps four views (front and back for left and right) and saves an image that
-    includes the views and a color bar.
+    Snap four views (front and back for left and right hemispheres).
+
+    Save an image that includes the views and a color bar.
 
     Parameters
     ----------
-    lhoverlaypath/rhoverlaypath: str
-        Path to the overlay files for left and right hemi (FreeSurfer format)
-    fthresh: float
-        Pos absolute value under which no color is shown
-    fmax: float
-        Pos absolute value above which color is saturated
-    sdir: str
-       Subject dir containing surf files
-    caption: str
-       Caption text to be placed on the image
-    invert: bool
-       Invert color (blue positive, red negative)
-    labelname: str
-       Label for masking, usually cortex.label
-    surfname: str
-       Surface to display values on, usually pial_semi_inflated from fsaverage
-    curvname: str
-       Curvature file for texture in non-colored regions (default curv)
-    colorbar: bool
-       Show colorbar on image
-    outpath: str
-        Path to the output image file
-    font_file: str
-        Path to the file describing the font to be used in captions
+    lhoverlaypath : str
+        Path to the overlay files for left hemi (FreeSurfer format).
+    rhoverlaypath : str
+        Path to the overlay files for right hemi (FreeSurfer format).
+    fthresh : float
+        Pos absolute value under which no color is shown.
+    fmax : float
+        Pos absolute value above which color is saturated.
+    sdir : str
+       Subject dir containing surf files.
+    caption : str
+       Caption text to be placed on the image.
+    invert : bool
+       Invert color (blue positive, red negative).
+    labelname : str
+       Label for masking, usually cortex.label.
+    surfname : str
+       Surface to display values on, usually pial_semi_inflated from fsaverage.
+    curvname : str
+       Curvature file for texture in non-colored regions (default curv).
+    colorbar : bool
+       Show colorbar on image.
+    outpath : str
+        Path to the output image file.
+    font_file : str
+        Path to the file describing the font to be used in captions.
+    specular : bool
+        Specular is by default set as True.
+
+    Returns
+    -------
+    None
+        This function returns None.
     """
     # setup window
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
@@ -887,17 +908,16 @@ provided, can not find surf file"
 
 def get_surf_name(sdir, hemi):
     """
-    Looks for a surface file from a list of valid file names in the specified
-    subject directory,
+    Find a valid surface file in the specified subject directory.
 
     A valid file can be one of: ['pial_semi_inflated', 'white', 'inflated'].
 
     Parameters
     ----------
-    sdir: str
-        Subject directory
-    hemi: str
-        Hemisphere; one of: ['lh', 'rh']
+    sdir : str
+        Subject directory.
+    hemi : str
+        Hemisphere; one of: ['lh', 'rh'].
 
     Returns
     -------
