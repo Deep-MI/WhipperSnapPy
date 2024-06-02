@@ -21,8 +21,8 @@ and capture the contents to an image. In order to run this on a headless
 server, inside Docker, or via ssh we recommend to install xvfb and run
 
 ```
-sudo apt update && apt install -y python3 python3-pip xvfb
-pip3 install pyopengl glfw pillow numpy pyrr PyQt5==5.15.6
+sudo apt update && apt install -y python3 python3-pip xvfb libxcb-xinerama0
+pip3 install pyopengl glfw pillow numpy pyrr PyQt6
 pip3 install whippersnappy
 xvfb-run whippersnap ...
 ```

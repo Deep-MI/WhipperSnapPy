@@ -41,7 +41,7 @@ dependencies = [
     'pillow',
     'pyopengl==3.1.6',
     'nibabel',
-    'PyQt5',
+    'PyQt6',
     'psutil'
 ]
 

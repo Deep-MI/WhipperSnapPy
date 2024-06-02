@@ -13,7 +13,7 @@ configuration app which allows adjusting thresholds, etc. during runtime.
 Usage:
     $ python3 whippersnap.py -lh $LH_OVERLAY_FILE -rh $RH_OVERLAY_FILE \
                              -sd $SURF_SUBJECT_DIR -o $OUTPUT_PATH
-                             
+
 (See help for full list of arguments.)
 
 @Author1    : Martin Reuter
@@ -31,7 +31,7 @@ import threading
 import glfw
 import OpenGL.GL as gl
 import pyrr
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication
 
 from whippersnappy.config_app import ConfigWindow
 from whippersnappy.core import (
@@ -296,7 +296,7 @@ def run():
         # Setting up and running config app window (must be main thread):
         app_ = QApplication([])
         app_.setStyle("Fusion")  # the default
-        app_.aboutToQuit.connect(config_app_exit_handler)
+        app_.signals.aboutToQuit.connect(config_app_exit_handler)
 
         screen_geometry = app_.primaryScreen().availableGeometry()
         app_window_ = ConfigWindow(

@@ -4,15 +4,15 @@ The config app enables adjusting parameters of the whippersnappy program
 during runtime using a simple GUI window.
 
 Dependencies:
-    PyQt5
+    PyQt6
 
 @Author    : Ahmed Faisal Abdelrahman
 @Created   : 20.03.2022
 
 """
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLineEdit,
@@ -31,7 +31,7 @@ class ConfigWindow(QWidget):
     parent : QWidget
         This widget's parent, if any (usually none).
     screen_dims : tuple
-        Integers specifyings screen dims in pixels; used to always position
+        Integers specifying screen dims in pixels; used to always position
         the window in the top-right corner, if given.
     initial_fthresh_value : float
         Initial fthreshold value is 2.0.
@@ -58,7 +58,7 @@ class ConfigWindow(QWidget):
         # fthresh slider:
         self.fthresh_slider_tick_limits = (0.0, 1000.0)
         self.fthresh_slider_value_limits = (0.0, 10.0)
-        self.fthresh_slider = QSlider(Qt.Horizontal)
+        self.fthresh_slider = QSlider(Qt.Orientation.Horizontal)
         self.fthresh_slider.setMinimum(int(self.fthresh_slider_tick_limits[0]))
         self.fthresh_slider.setMaximum(int(self.fthresh_slider_tick_limits[1]))
         self.fthresh_slider.setValue(
@@ -70,7 +70,7 @@ class ConfigWindow(QWidget):
                 )
             )
         )
-        self.fthresh_slider.setTickPosition(QSlider.TicksBelow)
+        self.fthresh_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.fthresh_slider.setTickInterval(
             int(
                 (
@@ -90,7 +90,7 @@ class ConfigWindow(QWidget):
         # fmax slider:
         self.fmax_slider_tick_limits = (0.0, 1000.0)
         self.fmax_slider_value_limits = (0.0, 10.0)
-        self.fmax_slider = QSlider(Qt.Horizontal)
+        self.fmax_slider = QSlider(Qt.Orientation.Horizontal)
         self.fmax_slider.setMinimum(int(self.fmax_slider_tick_limits[0]))
         self.fmax_slider.setMaximum(int(self.fmax_slider_tick_limits[1]))
         self.fmax_slider.setValue(
@@ -102,7 +102,7 @@ class ConfigWindow(QWidget):
                 )
             )
         )
-        self.fmax_slider.setTickPosition(QSlider.TicksBelow)
+        self.fmax_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.fmax_slider.setTickInterval(
             int(
                 (self.fmax_slider_tick_limits[1] - self.fmax_slider_tick_limits[0])
@@ -309,5 +309,5 @@ class ConfigWindow(QWidget):
         None
             This function return None.
         """
-        if event.key() == Qt.Key_Escape:
+        if event.key() == Qt.Key.Escape:
             self.close()
