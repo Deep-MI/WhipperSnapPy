@@ -46,7 +46,7 @@ class ConfigWindow(QWidget):
         initial_fthresh_value=2.0,
         initial_fmax_value=4.0,
     ):
-        super(ConfigWindow, self).__init__(parent)
+        super().__init__(parent)
 
         self.current_fthresh_value = initial_fthresh_value
         self.current_fmax_value = initial_fmax_value

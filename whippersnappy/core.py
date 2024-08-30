@@ -650,7 +650,7 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     cwidth = 200
     cheight = 30
     # img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
-    values = np.nan * np.ones((cwidth))
+    values = np.nan * np.ones(cwidth)
     gapspace = 0
     if fmin > 0.01:
         # leave gray gap
@@ -682,13 +682,13 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     font = ImageFont.truetype(font_file, 12)
     if neg:
         # Left
-        caption = " <{:.2f}".format(-fmax)
+        caption = f" <{-fmax:.2f}"
         xpos = 0  # 10- 0.5*(font.getlength(caption))
         ImageDraw.Draw(image).text(
             (xpos, image.height - 17), caption, (220, 220, 220), font=font
         )
         # Right
-        caption = ">{:.2f} ".format(fmax)
+        caption = f">{fmax:.2f} "
         xpos = image.width - (font.getlength(caption))
         ImageDraw.Draw(image).text(
             (xpos, image.height - 17), caption, (220, 220, 220), font=font
@@ -700,25 +700,25 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
                 (xpos, image.height - 17), caption, (220, 220, 220), font=font
             )
         else:
-            caption = "{:.2f}".format(-fmin)
+            caption = f"{-fmin:.2f}"
             xpos = 0.5 * image.width - 0.5 * font.getlength(caption) - gapspace - 5
             ImageDraw.Draw(image).text(
                 (xpos, image.height - 17), caption, (220, 220, 220), font=font
             )
-            caption = "{:.2f}".format(fmin)
+            caption = f"{fmin:.2f}"
             xpos = 0.5 * image.width - 0.5 * font.getlength(caption) + gapspace + 5
             ImageDraw.Draw(image).text(
                 (xpos, image.height - 17), caption, (220, 220, 220), font=font
             )
     else:
         # Right
-        caption = ">{:.2f} ".format(fmax)
+        caption = f">{fmax:.2f} "
         xpos = image.width - (font.getlength(caption))
         ImageDraw.Draw(image).text(
             (xpos, image.height - 17), caption, (220, 220, 220), font=font
         )
         # Left
-        caption = " {:.2f}".format(fmin)
+        caption = f" {fmin:.2f}"
         xpos = gapspace
         if gapspace == 0:
             caption = " 0"
@@ -824,9 +824,7 @@ provided, can not find surf file"
 
             if found_surfname is None:
                 print(
-                    "[ERROR] Could not find valid surf file in {} for hemi: {}!".format(
-                        sdir, hemi
-                    )
+                    f"[ERROR] Could not find valid surface in {sdir} for hemi: {hemi}!"
                 )
                 sys.exit(1)
             meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
@@ -902,7 +900,7 @@ provided, can not find surf file"
         image.paste(bar, (xpos, ypos))
 
     if outpath:
-        print("[INFO] Saving snapshot to {}".format(outpath))
+        print(f"[INFO] Saving snapshot to {outpath}")
         image.save(outpath)
 
 

@@ -1,16 +1,7 @@
-# IMPORTS
-import warnings
-from collections import OrderedDict
-
-import nibabel as nib
-import numpy as np
-
-"""
-Read FreeSurfer geometry (fix for dev, ll 126-128);
+"""Read FreeSurfer geometry (fix for dev, ll 126-128);
 
 Code was taken from nibabel.freesurfer package
 (https://github.com/nipy/nibabel/blob/master/nibabel/freesurfer/io.py).
-
 This software is licensed under the following license:
 
 The MIT License
@@ -42,10 +33,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+import warnings
+from collections import OrderedDict
+
+import nibabel as nib
+import numpy as np
+
 
 def _fread3(fobj):
-    """
-    Read a 3-byte int from an open binary file object
+    """Read a 3-byte int from an open binary file object.
 
     Parameters
     ----------
@@ -62,7 +58,18 @@ def _fread3(fobj):
 
 
 def _read_volume_info(fobj):
-    """Helper for reading the footer from a surface file."""
+    """Read the footer from a surface file.
+
+    Parameters
+    ----------
+    fobj : file
+        File descriptor
+
+    Returns
+    -------
+    volume_info : array
+        Key-value pairs found in the file.
+    """
     volume_info = OrderedDict()
     head = np.fromfile(fobj, ">i4", 1)
     if not np.array_equal(head, [20]):  # Read two bytes more
@@ -70,7 +77,7 @@ def _read_volume_info(fobj):
         if not np.array_equal(head, [2, 0, 20]) and not np.array_equal(
             head, [2, 1, 20]
         ):
-            warnings.warn("Unknown extension code.")
+            warnings.warn("Unknown extension code.", stacklevel=2)
             return volume_info
         head = [2, 0, 20]
 
@@ -87,7 +94,7 @@ def _read_volume_info(fobj):
     ]:
         pair = fobj.readline().decode("utf-8").split("=")
         if pair[0].strip() != key or len(pair) != 2:
-            raise IOError("Error parsing volume info.")
+            raise OSError("Error parsing volume info.")
         if key in ("valid", "filename"):
             volume_info[key] = pair[1].strip()
         elif key == "volume":
@@ -99,8 +106,7 @@ def _read_volume_info(fobj):
 
 
 def read_geometry(filepath, read_metadata=False, read_stamp=False):
-    """
-    Read a triangular format Freesurfer surface mesh.
+    """Read a triangular format Freesurfer surface mesh.
 
     Parameters
     ----------
@@ -108,25 +114,15 @@ def read_geometry(filepath, read_metadata=False, read_stamp=False):
         Path to surface file.
     read_metadata : bool, optional
         If True, read and return metadata as key-value pairs.
-        
         Valid keys:
-
         * 'head' : array of int
-
         * 'valid' : str
-
         * 'filename' : str
-
         * 'volume' : array of int, shape (3,)
-
         * 'voxelsize' : array of float, shape (3,)
-
         * 'xras' : array of float, shape (3,)
-
         * 'yras' : array of float, shape (3,)
-
         * 'zras' : array of float, shape (3,)
-
         * 'cras' : array of float, shape (3,)
     read_stamp : bool, optional
         Return the comment from the file
@@ -173,7 +169,7 @@ def read_geometry(filepath, read_metadata=False, read_stamp=False):
     ret = (coords, faces)
     if read_metadata:
         if len(volume_info) == 0:
-            warnings.warn("No volume information contained in the file")
+            warnings.warn("No volume information contained in the file", stacklevel=2)
         ret += (volume_info,)
     if read_stamp:
         ret += (create_stamp,)
@@ -182,8 +178,8 @@ def read_geometry(filepath, read_metadata=False, read_stamp=False):
 
 
 def read_morph_data(filepath):
-    """
-    Read a Freesurfer morphometry data file.
+    """Read a Freesurfer morphometry data file.
+
     This function reads in what Freesurfer internally calls "curv" file types,
     (e.g. ?h. curv, ?h.thickness), but as that has the potential to cause
     confusion where "curv" also refers to the surface curvature values,
@@ -212,8 +208,7 @@ def read_morph_data(filepath):
 
 
 def read_mgh_data(filepath):
-    """
-    Read an MGH image file and return its data array.
+    """Read an MGH image file and return its data array.
 
     Parameters
     ----------
@@ -231,8 +226,6 @@ def read_mgh_data(filepath):
         len(data_array.shape) == 3
         and data_array.shape[1] == 1
         and data_array.shape[2] == 1
-    ), "Expected data array to have shape Nx1x1. Instead, got {}".format(
-        data_array.shape
-    )
+    ), f"Expected data array to have shape Nx1x1. Instead, got {data_array.shape}"
 
     return data_array.squeeze()

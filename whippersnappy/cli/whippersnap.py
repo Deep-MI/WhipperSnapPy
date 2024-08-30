@@ -103,9 +103,7 @@ def show_window(
         found_surfname = get_surf_name(sdir, hemi)
         if found_surfname is None:
             print(
-                "[ERROR] Could not find a valid surf file in {} for hemi: {}!".format(
-                    sdir, hemi
-                )
+                f"[ERROR] Could not find a valid surf file in {sdir} for hemi: {hemi}!"
             )
             sys.exit(0)
         meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
