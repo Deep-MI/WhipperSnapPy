@@ -161,7 +161,7 @@ def read_geometry(filepath, read_metadata=False, read_stamp=False):
                 volume_info = _read_volume_info(fobj)
         else:
             raise ValueError(
-               f "File {file path} does not appear to be a Freesurfer surface (triangle file)"
+                f"File {file path} does not appear to be a Freesurfer surface (triangle file)"
             )
 
     coords = coords.astype(float)  # XXX: due to mayavi bug on mac 32bits
