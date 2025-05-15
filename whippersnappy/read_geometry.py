@@ -53,7 +53,7 @@ def _fread3(fobj):
     n : int
         A 3 byte int
     """
-    b1, b2, b3 = np.fromfile(fobj, ">u1", 3)
+    b1, b2, b3 = np.fromfile(fobj, ">u1", 3).astype(np.int64)
     return (b1 << 16) + (b2 << 8) + b3
 
 
@@ -161,7 +161,7 @@ def read_geometry(filepath, read_metadata=False, read_stamp=False):
                 volume_info = _read_volume_info(fobj)
         else:
             raise ValueError(
-                "File does not appear to be a Freesurfer surface (triangle file)"
+                "File {} does not appear to be a Freesurfer surface (triangle file)".format(filepath)
             )
 
     coords = coords.astype(float)  # XXX: due to mayavi bug on mac 32bits
