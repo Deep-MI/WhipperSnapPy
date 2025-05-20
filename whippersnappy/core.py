@@ -791,7 +791,7 @@ def snap4(
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
     wwidth = 540
     weight = 450
-    visible = False
+    visible = True
     window = init_window(wwidth, weight, "WhipperSnapPy 2.0", visible)
     if not window:
         return False  # need raise error here in future
