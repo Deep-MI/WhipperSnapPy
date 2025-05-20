@@ -251,7 +251,7 @@
 <h1>whippersnappy.config_app.ConfigWindow<a class="headerlink" href="#whippersnappy-config-app-configwindow" title="Link to this heading">¶</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">whippersnappy.config_app.</span></span><span class="sig-name descname"><span class="pre">ConfigWindow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">screen_dims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_fthresh_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_fmax_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4.0</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L25-L313"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">whippersnappy.config_app.</span></span><span class="sig-name descname"><span class="pre">ConfigWindow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">screen_dims</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_fthresh_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_fmax_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow" title="Link to this definition">¶</a></dt>
 <dd><p>Encapsulates the Qt widget for the parameter configuration.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -270,7 +270,7 @@ the window in the top-right corner, if given.</p>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.convert_value_to_range">
-<span class="sig-name descname"><span class="pre">convert_value_to_range</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">old_limits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_limits</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L249-L274"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.convert_value_to_range" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">convert_value_to_range</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">old_limits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_limits</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.convert_value_to_range" title="Link to this definition">¶</a></dt>
 <dd><p>Convert a given number from one range to another.</p>
 <p>This is useful for transforming values from the original range to that
 of the slider widget tick range and vice-versa.</p>
@@ -296,7 +296,7 @@ of the slider widget tick range and vice-versa.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.fmax_slider_value_cb">
-<span class="sig-name descname"><span class="pre">fmax_slider_value_cb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L202-L214"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fmax_slider_value_cb" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">fmax_slider_value_cb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fmax_slider_value_cb" title="Link to this definition">¶</a></dt>
 <dd><p>Callback function for user-modified fmax slider.</p>
 <p>This function is triggered when the user modifies the fmax slider. It
 stores the selected value and updates the corresponding user input box.</p>
@@ -304,7 +304,7 @@ stores the selected value and updates the corresponding user input box.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.fmax_value_cb">
-<span class="sig-name descname"><span class="pre">fmax_value_cb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_value</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L216-L247"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fmax_value_cb" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">fmax_value_cb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fmax_value_cb" title="Link to this definition">¶</a></dt>
 <dd><p>Callback function for user input of fmax value.</p>
 <p>This function is triggered when the user inputs a value for fmax. It
 stores the selected value and updates the corresponding slider.</p>
@@ -327,7 +327,7 @@ can be converted to a float.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.fthresh_slider_value_cb">
-<span class="sig-name descname"><span class="pre">fthresh_slider_value_cb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L155-L167"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fthresh_slider_value_cb" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">fthresh_slider_value_cb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fthresh_slider_value_cb" title="Link to this definition">¶</a></dt>
 <dd><p>Callback function for user-modified fthresh slider.</p>
 <p>This function is triggered when the user modifies the fthresh slider. It
 stores the selected value and updates the corresponding user input box.</p>
@@ -335,7 +335,7 @@ stores the selected value and updates the corresponding user input box.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.fthresh_value_cb">
-<span class="sig-name descname"><span class="pre">fthresh_value_cb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_value</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L169-L200"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fthresh_value_cb" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">fthresh_value_cb</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.fthresh_value_cb" title="Link to this definition">¶</a></dt>
 <dd><p>Callback function for user input of fthresh value.</p>
 <p>This function is triggered when the user inputs a value for fthresh. It
 stores the selected value and updates the corresponding slider.</p>
@@ -358,7 +358,7 @@ can be converted to a float.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.get_fmax_value">
-<span class="sig-name descname"><span class="pre">get_fmax_value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L287-L296"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.get_fmax_value" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_fmax_value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.get_fmax_value" title="Link to this definition">¶</a></dt>
 <dd><p>Return the current stores value for fmax.</p>
 <dl class="field-list">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -372,7 +372,7 @@ can be converted to a float.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.get_fthresh_value">
-<span class="sig-name descname"><span class="pre">get_fthresh_value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L276-L285"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.get_fthresh_value" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">get_fthresh_value</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.get_fthresh_value" title="Link to this definition">¶</a></dt>
 <dd><p>Return the current stores value for fthresh.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -386,7 +386,7 @@ can be converted to a float.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="whippersnappy.config_app.ConfigWindow.keyPressEvent">
-<span class="sig-name descname"><span class="pre">keyPressEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/whippersnappy/config_app.py#L298-L313"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.keyPressEvent" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">keyPressEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#whippersnappy.config_app.ConfigWindow.keyPressEvent" title="Link to this definition">¶</a></dt>
 <dd><p>Close the window when the ESC key is pressed.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -492,7 +492,7 @@ can be converted to a float.</p>
       
     </aside>
   </div>
-</div><script src="../../_static/documentation_options.js?v=9912e11f"></script>
+</div><script src="../../_static/documentation_options.js?v=6efca38a"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/furo.js?v=5fa4622c"></script>
