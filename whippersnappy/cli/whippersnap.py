@@ -230,7 +230,7 @@ def run():
         "--sdir",
         type=str,
         required=True,
-        help="Absolute path to subject directory from which surfaces will be loaded."
+        help="Absolute path to subject directory from which surfaces will be loaded. "
         "This is assumed to contain the surface files in a surf/ sub-directory.",
     )
     parser.add_argument(
@@ -289,9 +289,6 @@ def run():
     elif (args.lh_overlay is None and args.rh_overlay is not None) or (args.lh_overlay is not None and args.rh_overlay is None) or (args.lh_annot is None and args.rh_annot is not None) or (args.lh_annot is not None and args.rh_annot is None):
         print("If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa).")
         return
-    # set colorbar to False for annotation plots
-    if args.lh_annot is not None:
-        args.no_colorbar = True
 
     #
     if not args.interactive:
