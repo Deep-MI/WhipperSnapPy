@@ -4,7 +4,7 @@
 Executes the whippersnappy program in an interactive or non-interactive mode.
 
 The non-interactive mode (the default) creates an image that contains four
-views of the surface, a color bar, and a configurable caption.
+views of the surface, an optional color bar, and a configurable caption.
 
 The interactive mode (--interactive) opens a simple GUI with a controllable
 view of one of the hemispheres. In addition, the view through a separate
@@ -52,7 +52,8 @@ app_window_closed_ = False
 
 def show_window(
     hemi,
-    overlaypath,
+    overlaypath=None,
+    annotpath=None,
     sdir=None,
     caption=None,
     invert=False,
@@ -126,7 +127,7 @@ def show_window(
     rot_y = pyrr.Matrix44.from_y_rotation(0)
 
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, curvpath, labelpath, current_fthresh_, current_fmax_
+        meshpath, overlaypath, annotpath, curvpath, labelpath, current_fthresh_, current_fmax_
     )
     shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
 
@@ -198,15 +199,31 @@ def run():
         "-lh",
         "--lh_overlay",
         type=str,
-        required=True,
+        default=None,
+        required=False,
         help="Absolute path to the lh overlay file.",
     )
     parser.add_argument(
         "-rh",
         "--rh_overlay",
         type=str,
-        required=True,
+        default=None,
+        required=False,
         help="Absolute path to the rh overlay file.",
+    )
+    parser.add_argument(
+        "--lh_annot",
+        type=str,
+        default=None,
+        required=False,
+        help="Absolute path to the lh annotation file.",
+    )
+    parser.add_argument(
+        "--rh_annot",
+        type=str,
+        default=None,
+        required=False,
+        help="Absolute path to the rh annotation file.",
     )
     parser.add_argument(
         "-sd",
@@ -234,6 +251,12 @@ def run():
     parser.add_argument(
         "-c", "--caption", type=str, default="", help="Caption to place on the figure"
     )
+    parser.add_argument(
+        "--no-colorbar",
+        dest="no_colorbar",
+        action="store_true",
+        default=False,
+        help="Switch off colorbar.")
     parser.add_argument("--fmax", type=float, default=4.0)
     parser.add_argument("--fthresh", type=float, default=2.0)
     parser.add_argument(
@@ -256,17 +279,34 @@ def run():
 
     args = parser.parse_args()
 
+    # check for mutually exclusive arguments, if at least one variant is present, if both hemis are present
+    if (args.lh_overlay or args.rh_overlay) and (args.lh_annot or args.rh_annot):
+        print("Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time.")
+        return
+    elif args.lh_overlay is None and args.rh_overlay is None and args.lh_annot is None and args.rh_annot is None:
+        print("Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present.")
+        return
+    elif (args.lh_overlay is None and args.rh_overlay is not None) or (args.lh_overlay is not None and args.rh_overlay is None) or (args.lh_annot is None and args.rh_annot is not None) or (args.lh_annot is not None and args.rh_annot is None):
+        print("If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa).")
+        return
+    # set colorbar to False for annotation plots
+    if args.lh_annot is not None:
+        args.no_colorbar = True
+
+    #
     if not args.interactive:
         snap4(
-            args.lh_overlay,
-            args.rh_overlay,
+            lhoverlaypath=args.lh_overlay,
+            rhoverlaypath=args.rh_overlay,
+            lhannotpath=args.lh_annot,
+            rhannotpath=args.rh_annot,
             sdir=args.sdir,
             caption=args.caption,
             surfname=args.surf_name,
             fthresh=args.fthresh,
             fmax=args.fmax,
             invert=args.invert,
-            colorbar=True,
+            colorbar=not(args.no_colorbar),
             outpath=args.output_path,
             specular=args.specular,
         )
@@ -280,6 +320,7 @@ def run():
             args=(
                 "lh",
                 args.lh_overlay,
+                args.lh_annot,
                 args.sdir,
                 None,
                 False,

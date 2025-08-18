@@ -207,6 +207,27 @@ def read_morph_data(filepath):
             curv = np.fromfile(fobj, ">i2", vnum) / 100
     return curv
 
+def read_annot_data(filepath):
+    """Read a Freesurfer annotation file.
+
+    This function reads a Freesurfer annotation file.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to annotation file
+
+    Returns
+    -------
+    annot : annotation array
+        Vector representation of surface annotation values
+    ctab : array
+        Colortable
+    names: list
+        Names
+    """
+    annot, ctab, names = nib.freesurfer.io.read_annot(filepath)
+    return annot, ctab, names
 
 def read_mgh_data(filepath):
     """Read an MGH image file and return its data array.

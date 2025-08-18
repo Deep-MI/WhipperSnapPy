@@ -20,7 +20,7 @@ import OpenGL.GL.shaders as shaders
 import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
-from .read_geometry import read_geometry, read_mgh_data, read_morph_data
+from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 
 
 def normalize_mesh(v, scale=1.0):
@@ -264,6 +264,7 @@ def mask_label(values, labelpath=None):
 def prepare_geometry(
     surfpath,
     overlaypath=None,
+    annotpath=None,
     curvpath=None,
     labelpath=None,
     minval=None,
@@ -283,6 +284,8 @@ def prepare_geometry(
         Path to surface file (usually lh or rh.pial_semi_inflated).
     overlaypath : str
         Path to overlay file.
+    annotpath : str
+        Path to annotation file.
     curvpath : str
         Path to curvature file (usually lh or rh.curv).
     labelpath : str
@@ -322,7 +325,7 @@ def prepare_geometry(
     else:
         # if no curv pattern, color mesh in mid-gray
         sulcmap = 0.5 * np.ones(vertices.shape, dtype=np.float32)
-    # read map (stats etc)
+    # read map (stats etc) or annotation
     if overlaypath:
         _, file_extension = os.path.splitext(overlaypath)
 
@@ -337,6 +340,18 @@ def prepare_geometry(
         colors = heat_color(mapdata, invert)
         missing = np.isnan(mapdata)
         colors[missing, :] = sulcmap[missing, :]
+    elif annotpath:
+        annot, ctab, names = read_annot_data(annotpath)
+        # compute color
+        colors = ctab[annot, 0:3] / np.max(ctab[:, 0:3])
+        # annot can contain -1 indices; these indicate non-annotated
+        # regions, but are valid indices in Python; need to recode
+        # them as missing
+        colors[annot==-1,:] = sulcmap[annot==-1,:]
+        colors = colors.astype(np.float32)
+        fmin = None
+        fmax = None
+        neg = False
     else:
         colors = sulcmap
     # concatenate matrices
@@ -729,10 +744,11 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
 
     return image
 
-
 def snap4(
-    lhoverlaypath,
-    rhoverlaypath,
+    lhoverlaypath=None,
+    rhoverlaypath=None,
+    lhannotpath=None,
+    rhannotpath=None,
     fthresh=None,
     fmax=None,
     sdir=None,
@@ -757,6 +773,10 @@ def snap4(
         Path to the overlay files for left hemi (FreeSurfer format).
     rhoverlaypath : str
         Path to the overlay files for right hemi (FreeSurfer format).
+    lhannotpath : str
+        Path to the annotation files for left hemi (FreeSurfer format).
+    rhannotpath : str
+        Path to the annotation files for right hemi (FreeSurfer format).
     fthresh : float
         Pos absolute value under which no color is shown.
     fmax : float
@@ -839,12 +859,14 @@ provided, can not find surf file"
             labelpath = os.path.join(sdir, "label", hemi + "." + labelname)
         if hemi == "lh":
             overlaypath = lhoverlaypath
+            annotpath = lhannotpath
         else:
             overlaypath = rhoverlaypath
+            annotpath = rhannotpath
 
-        # load and colorzie data
+        # load and colorize data
         meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-            meshpath, overlaypath, curvpath, labelpath, fthresh, fmax, invert
+            meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
         )
         # upload to GPU and compile shaders
         shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
