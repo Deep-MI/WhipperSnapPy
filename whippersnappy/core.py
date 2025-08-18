@@ -270,6 +270,7 @@ def prepare_geometry(
     minval=None,
     maxval=None,
     invert=False,
+    scale=1.85
 ):
     """
     Prepare meshdata for upload to GPU.
@@ -314,7 +315,7 @@ def prepare_geometry(
 
     # read vertices and triangles
     surf = read_geometry(surfpath, read_metadata=False)
-    vertices = normalize_mesh(np.array(surf[0], dtype=np.float32), 1.85)
+    vertices = normalize_mesh(np.array(surf[0], dtype=np.float32), scale)
     triangles = np.array(surf[1], dtype=np.uint32)
     # compute vertex normals
     vnormals = np.array(vertex_normals(vertices, triangles), dtype=np.float32)
@@ -351,9 +352,12 @@ def prepare_geometry(
         colors = colors.astype(np.float32)
         fmin = None
         fmax = None
-        neg = False
+        neg = None
     else:
         colors = sulcmap
+        fmin = None
+        fmax = None
+        neg = None
     # concatenate matrices
     vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
     return vertexdata, triangles, fmin, fmax, neg
@@ -744,6 +748,145 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
 
     return image
 
+def snap1(
+    meshpath,
+    overlaypath=None,
+    annotpath=None,
+    labelpath=None,
+    curvpath=None,
+    view="left",
+    viewmat=None,
+    fthresh=None,
+    fmax=None,
+    caption=None,
+    invert=False,
+    colorbar=True,
+    outpath=None,
+    font_file=None,
+    specular=True,
+    scale=1.5,
+):
+    """
+    Snap one view (view and hemisphere is determined by the user)
+
+    Colorbar, caption, and saving are optional.
+
+    Parameters
+    ----------
+    meshpath : str
+        Path to the surface file (FreeSurfer format).
+    overlaypath : str
+        Path to the overlay file (FreeSurfer format).
+    annotpath : str
+        Path to the annotation file (FreeSurfer format).
+    labelpath : str
+       Path to the label file (FreeSurfer format).
+    curvpath : str
+       Path to the curvature file for texture in non-colored regions.
+    view : str
+        Predefined views, can be left (default), right, back, front, top, bottom.
+    viewmat : array-like
+        User-defined 4x4 viewing matrix. Overwrites view.
+    fthresh : float
+        Pos absolute value under which no color is shown.
+    fmax : float
+        Pos absolute value above which color is saturated.
+    caption : str
+       Caption text to be placed on the image.
+    invert : bool
+       Invert color (blue positive, red negative).
+    colorbar : bool
+       Show colorbar on image.
+    outpath : str
+        Path to the output image file.
+    font_file : str
+        Path to the file describing the font to be used in captions.
+    specular : bool
+        Specular is by default set as True.
+    scale : float
+        Global scaling factor. Default: 1.5.
+
+    Returns
+    -------
+    None
+        This function returns None.
+    """
+    # setup window
+    # (keep aspect ratio, as the mesh scale and distances are set accordingly)
+    wwidth = 540
+    weight = 450
+    visible = True
+    window = init_window(wwidth, weight, "WhipperSnapPy 2.0", visible)
+    if not window:
+        return False  # need raise error here in future
+
+    viewLeft   = np.array([[ 0, 0,-1, 0], [-1, 0, 0, 0], [ 0, 1, 0, 0], [ 0, 0, 0, 1]]) # left w top up // right
+    viewRight  = np.array([[ 0, 0, 1, 0], [ 1, 0, 0, 0], [ 0, 1, 0, 0], [ 0, 0, 0, 1]]) # right w top up // right
+    viewBack   = np.array([[ 1, 0, 0, 0], [ 0, 0,-1, 0], [ 0, 1, 0, 0], [ 0, 0, 0, 1]]) # back w top up // back
+    viewFront  = np.array([[-1, 0 ,0, 0], [ 0, 0, 1, 0], [ 0, 1, 0, 0], [ 0, 0, 0, 1]]) # front w top up // front
+    viewBottom = np.array([[-1, 0, 0, 0], [ 0, 1, 0, 0], [ 0, 0,-1, 0], [ 0, 0, 0, 1]]) # bottom ant up // bottom
+    viewTop    = np.array([[ 1, 0, 0, 0], [ 0, 1, 0, 0], [ 0, 0, 1, 0], [ 0, 0, 0, 1]]) # top w ant up // top
+
+    transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
+
+    # load and colorize data
+    meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
+        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale
+    )
+    # upload to GPU and compile shaders
+    shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
+
+    # draw
+    gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+    transformLoc = gl.glGetUniformLocation(shader, "transform")
+    if viewmat is None:
+        if view == "left":
+            viewmat = transl * viewLeft
+        elif view == "right":
+            viewmat = transl * viewRight
+        elif view == "back":
+            viewmat = transl * viewBack
+        elif view == "front":
+            viewmat = transl * viewFront
+        elif view == "bottom":
+            viewmat = transl * viewBottom
+        elif view == "top":
+            viewmat = transl * viewTop
+    else:
+        viewmat = transl * viewmat
+
+    gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
+    gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
+
+    im1 = capture_window(wwidth, weight)
+
+    image = Image.new("RGB", (im1.width, im1.height))
+    image.paste(im1, (0, 0))
+
+    if caption:
+        if font_file is None:
+            script_dir = "/".join(str(__file__).split("/")[:-1])
+            font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
+        font = ImageFont.truetype(font_file, 20)
+        xpos = 0.5 * (image.width - font.getlength(caption))
+        ImageDraw.Draw(image).text(
+            (xpos, image.height - 40), caption, (220, 220, 220), font=font
+        )
+
+    if overlaypath is not None and colorbar:
+        bar = create_colorbar(fthresh, fmax, invert, neg)
+        xpos = int(0.5 * (image.width - bar.width))
+        ypos = int(0.95 * (image.height - bar.height))
+        image.paste(bar, (xpos, ypos))
+
+    if outpath:
+        print(f"[INFO] Saving snapshot to {outpath}")
+        image.save(outpath)
+
+    glfw.terminate()
+
+    return None
+
 def snap4(
     lhoverlaypath=None,
     rhoverlaypath=None,
@@ -794,7 +937,7 @@ def snap4(
     curvname : str
        Curvature file for texture in non-colored regions (default curv).
     colorbar : bool
-       Show colorbar on image.
+       Show colorbar on image. Will be ignored for annoation files.
     outpath : str
         Path to the output image file.
     font_file : str
@@ -915,7 +1058,7 @@ provided, can not find surf file"
             (xpos, image.height - 40), caption, (220, 220, 220), font=font
         )
 
-    if colorbar:
+    if lhannotpath is None and rhannotpath is None and colorbar:
         bar = create_colorbar(fthresh, fmax, invert, neg)
         xpos = int(0.5 * (image.width - bar.width))
         ypos = int(0.5 * (image.height - bar.height))
@@ -925,6 +1068,9 @@ provided, can not find surf file"
         print(f"[INFO] Saving snapshot to {outpath}")
         image.save(outpath)
 
+    glfw.terminate()
+
+    return None
 
 def get_surf_name(sdir, hemi):
     """
