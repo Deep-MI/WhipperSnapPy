@@ -759,8 +759,12 @@ def snap1(
     fthresh=None,
     fmax=None,
     caption=None,
+    caption_x=None,
+    caption_y=None,    
     invert=False,
     colorbar=True,
+    colorbar_x=None,
+    colorbar_y=None,
     outpath=None,
     font_file=None,
     specular=True,
@@ -793,10 +797,18 @@ def snap1(
         Pos absolute value above which color is saturated.
     caption : str
        Caption text to be placed on the image.
+    caption_x : number
+       Horizontal position of the caption. Default: automatically chosen.
+    caption_y : number
+        Vertical position of the caption. Default: automatically chosen.
     invert : bool
        Invert color (blue positive, red negative).
     colorbar : bool
        Show colorbar on image.
+    colorbar_x : number
+       Horizontal position of the colorbar. Default: automatically chosen.
+    colorbar_y : number
+        Vertical position of the colorbar. Default: automatically chosen.       
     outpath : str
         Path to the output image file.
     font_file : str
@@ -814,9 +826,9 @@ def snap1(
     # setup window
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
     wwidth = 540
-    weight = 450
+    wheight = 450
     visible = True
-    window = init_window(wwidth, weight, "WhipperSnapPy 2.0", visible)
+    window = init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible)
     if not window:
         return False  # need raise error here in future
 
@@ -834,7 +846,7 @@ def snap1(
         meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale
     )
     # upload to GPU and compile shaders
-    shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
+    shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
     # draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
@@ -858,7 +870,7 @@ def snap1(
     gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
     gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-    im1 = capture_window(wwidth, weight)
+    im1 = capture_window(wwidth, wheight)
 
     image = Image.new("RGB", (im1.width, im1.height))
     image.paste(im1, (0, 0))
@@ -868,15 +880,20 @@ def snap1(
             script_dir = "/".join(str(__file__).split("/")[:-1])
             font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
         font = ImageFont.truetype(font_file, 20)
-        xpos = 0.5 * (image.width - font.getlength(caption))
+        if caption_x is None:
+            xpos = 0.5 * (image.width - font.getlength(caption))
+        if caption_y is None:
+            ypos = image.height - 40
         ImageDraw.Draw(image).text(
-            (xpos, image.height - 40), caption, (220, 220, 220), font=font
+            (xpos, ypos), caption, (220, 220, 220), font=font
         )
 
     if overlaypath is not None and colorbar:
         bar = create_colorbar(fthresh, fmax, invert, neg)
-        xpos = int(0.5 * (image.width - bar.width))
-        ypos = int(0.95 * (image.height - bar.height))
+        if colorbar_x is None:
+            xpos = int(0.5 * (image.width - bar.width))
+        if colorbar_y is None:            
+            ypos = int(0.95 * (image.height - bar.height))
         image.paste(bar, (xpos, ypos))
 
     if outpath:
@@ -953,9 +970,9 @@ def snap4(
     # setup window
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
     wwidth = 540
-    weight = 450
+    wheight = 450
     visible = True
-    window = init_window(wwidth, weight, "WhipperSnapPy 2.0", visible)
+    window = init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible)
     if not window:
         return False  # need raise error here in future
 
@@ -1012,7 +1029,7 @@ provided, can not find surf file"
             meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
         )
         # upload to GPU and compile shaders
-        shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
+        shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
         # draw
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
@@ -1023,7 +1040,7 @@ provided, can not find surf file"
         gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-        im1 = capture_window(wwidth, weight)
+        im1 = capture_window(wwidth, wheight)
 
         glfw.swap_buffers(window)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
@@ -1033,7 +1050,7 @@ provided, can not find surf file"
         gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-        im2 = capture_window(wwidth, weight)
+        im2 = capture_window(wwidth, wheight)
 
         if hemi == "lh":
             lhimg = Image.new("RGB", (im1.width, im1.height + im2.height))
