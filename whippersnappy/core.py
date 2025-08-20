@@ -297,6 +297,8 @@ def prepare_geometry(
         Maximum value to saturate (-maxval used for negative values).
     invert : bool
         Invert color map.
+    scale : float
+        Global scaling factor. Default: 1.85.        
 
     Returns
     -------
@@ -760,7 +762,7 @@ def snap1(
     fmax=None,
     caption=None,
     caption_x=None,
-    caption_y=None,    
+    caption_y=None,
     invert=False,
     colorbar=True,
     colorbar_x=None,
@@ -808,7 +810,7 @@ def snap1(
     colorbar_x : number
        Horizontal position of the colorbar. Default: automatically chosen.
     colorbar_y : number
-        Vertical position of the colorbar. Default: automatically chosen.       
+        Vertical position of the colorbar. Default: automatically chosen.
     outpath : str
         Path to the output image file.
     font_file : str
@@ -892,7 +894,7 @@ def snap1(
         bar = create_colorbar(fthresh, fmax, invert, neg)
         if colorbar_x is None:
             xpos = int(0.5 * (image.width - bar.width))
-        if colorbar_y is None:            
+        if colorbar_y is None:
             ypos = int(0.95 * (image.height - bar.height))
         image.paste(bar, (xpos, ypos))
 

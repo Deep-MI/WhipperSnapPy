@@ -71,6 +71,8 @@ def show_window(
         Hemisphere; one of: ['lh', 'rh'].
     overlaypath : str
         Path to the overlay file for the specified hemi (FreeSurfer format).
+    annotpath : str
+        Path to the annotation file for the specified hemi (FreeSurfer format).
     sdir : str
        Subject dir containing surf files.
     caption : str
@@ -292,7 +294,8 @@ def run():
          (args.lh_overlay is not None and args.rh_overlay is None) or \
          (args.lh_annot is None and args.rh_annot is not None) or \
          (args.lh_annot is not None and args.rh_annot is None):
-        print("[ERROR] If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa).")
+        print("[ERROR] If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present " \
+              "(and vice versa).")
         sys.exit(0)
 
     #
