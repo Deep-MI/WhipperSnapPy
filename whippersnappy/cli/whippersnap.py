@@ -279,16 +279,21 @@ def run():
 
     args = parser.parse_args()
 
-    # check for mutually exclusive arguments, if at least one variant is present, if both hemis are present
+    # check for mutually exclusive arguments
     if (args.lh_overlay or args.rh_overlay) and (args.lh_annot or args.rh_annot):
-        print("Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time.")
-        return
-    elif args.lh_overlay is None and args.rh_overlay is None and args.lh_annot is None and args.rh_annot is None:
-        print("Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present.")
-        return
-    elif (args.lh_overlay is None and args.rh_overlay is not None) or (args.lh_overlay is not None and args.rh_overlay is None) or (args.lh_annot is None and args.rh_annot is not None) or (args.lh_annot is not None and args.rh_annot is None):
-        print("If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa).")
-        return
+        print("[ERROR] Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time.")
+        sys.exit(0)
+    # check if at least one variant is present
+    if args.lh_overlay is None and args.rh_overlay is None and args.lh_annot is None and args.rh_annot is None:
+        print("[ERROR] Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present.")
+        sys.exit(0)
+    # check if both hemis are present
+    if (args.lh_overlay is None and args.rh_overlay is not None) or \
+         (args.lh_overlay is not None and args.rh_overlay is None) or \
+         (args.lh_annot is None and args.rh_annot is not None) or \
+         (args.lh_annot is not None and args.rh_annot is None):
+        print("[ERROR] If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa).")
+        sys.exit(0)
 
     #
     if not args.interactive:
