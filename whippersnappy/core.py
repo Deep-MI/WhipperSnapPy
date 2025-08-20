@@ -298,7 +298,7 @@ def prepare_geometry(
     invert : bool
         Invert color map.
     scale : float
-        Global scaling factor. Default: 1.85.        
+        Global scaling factor. Default: 1.85.
 
     Returns
     -------
@@ -773,7 +773,7 @@ def snap1(
     scale=1.5,
 ):
     """
-    Snap one view (view and hemisphere is determined by the user)
+    Snap one view (view and hemisphere is determined by the user).
 
     Colorbar, caption, and saving are optional.
 
@@ -956,7 +956,7 @@ def snap4(
     curvname : str
        Curvature file for texture in non-colored regions (default curv).
     colorbar : bool
-       Show colorbar on image. Will be ignored for annoation files.
+       Show colorbar on image. Will be ignored for annotation files.
     outpath : str
         Path to the output image file.
     font_file : str
