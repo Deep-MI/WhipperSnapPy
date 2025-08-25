@@ -769,6 +769,7 @@ def snap1(
     colorbar_y=None,
     outpath=None,
     font_file=None,
+    orientation="horizontal",
     specular=True,
     scale=1.5,
 ):
@@ -786,9 +787,9 @@ def snap1(
     annotpath : str
         Path to the annotation file (FreeSurfer format).
     labelpath : str
-       Path to the label file (FreeSurfer format).
+        Path to the label file (FreeSurfer format).
     curvpath : str
-       Path to the curvature file for texture in non-colored regions.
+        Path to the curvature file for texture in non-colored regions.
     view : str
         Predefined views, can be left (default), right, back, front, top, bottom.
     viewmat : array-like
@@ -798,23 +799,25 @@ def snap1(
     fmax : float
         Pos absolute value above which color is saturated.
     caption : str
-       Caption text to be placed on the image.
+        Caption text to be placed on the image.
     caption_x : number
-       Horizontal position of the caption. Default: automatically chosen.
+        Horizontal position of the caption. Default: automatically chosen.
     caption_y : number
         Vertical position of the caption. Default: automatically chosen.
     invert : bool
-       Invert color (blue positive, red negative).
+        Invert color (blue positive, red negative).
     colorbar : bool
-       Show colorbar on image.
+        Show colorbar on image.
     colorbar_x : number
-       Horizontal position of the colorbar. Default: automatically chosen.
+        Horizontal position of the colorbar. Default: automatically chosen.
     colorbar_y : number
         Vertical position of the colorbar. Default: automatically chosen.
     outpath : str
         Path to the output image file.
     font_file : str
         Path to the file describing the font to be used in captions.
+    orientation : str
+        Orientation of the colorbar and caption. Default: horizontal.
     specular : bool
         Specular is by default set as True.
     scale : float
@@ -877,26 +880,130 @@ def snap1(
     image = Image.new("RGB", (im1.width, im1.height))
     image.paste(im1, (0, 0))
 
+    ori = orientation.lower()
+
+    bar = None
+    bar_w = bar_h = 0
+    if overlaypath is not None and colorbar:
+        bar = create_colorbar(fthresh, fmax, invert, neg)
+        if ori == "vertical":
+            bar = bar.rotate(90, expand=True)  # rotate ticks/label too
+        bar_w, bar_h = bar.size
+
+    font = None
+    text_w = text_h = 0
     if caption:
         if font_file is None:
             script_dir = "/".join(str(__file__).split("/")[:-1])
             font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
         font = ImageFont.truetype(font_file, 20)
-        if caption_x is None:
-            xpos = 0.5 * (image.width - font.getlength(caption))
-        if caption_y is None:
-            ypos = image.height - 40
-        ImageDraw.Draw(image).text(
-            (xpos, ypos), caption, (220, 220, 220), font=font
-        )
+        draw_tmp = ImageDraw.Draw(image)
+        bbox = draw_tmp.textbbox((0, 0), caption, font=font)
+        text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        if ori == "vertical":
+            text_w, text_h = text_h, text_w
 
-    if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, neg)
-        if colorbar_x is None:
-            xpos = int(0.5 * (image.width - bar.width))
-        if colorbar_y is None:
-            ypos = int(0.95 * (image.height - bar.height))
-        image.paste(bar, (xpos, ypos))
+    # Constants defining the position of the caption and colorbar
+    BOTTOM_PAD = 20
+    RIGHT_PAD = 20
+    GAP = 4
+
+    need_auto = (
+        (bar is not None and (colorbar_x is None or colorbar_y is None))
+        or (caption and (caption_x is None or caption_y is None))
+    )
+
+    if ori == "horizontal":
+        extra_h = 0
+        if need_auto:
+            need = BOTTOM_PAD
+            if bar is not None:
+                need += bar_h
+            if bar is not None and caption:
+                need += GAP
+            if caption:
+                need += text_h
+            extra_h = need
+        if extra_h > 0:
+            extended = Image.new("RGB", (image.width, image.height + extra_h), (0, 0, 0))
+            extended.paste(image, (0, 0))
+            image = extended
+
+        if bar is not None:
+            if colorbar_x is None:
+                bx = int(0.5 * (image.width - bar_w))
+            else:
+                bx = colorbar_x
+            if colorbar_y is None:
+                gap_and_caption = (GAP + text_h) if caption else 0
+                by = image.height - BOTTOM_PAD - gap_and_caption - bar_h
+            else:
+                by = colorbar_y
+            image.paste(bar, (bx, by))
+
+        if caption:
+            if caption_x is None:
+                cx = int(0.5 * (image.width - text_w))
+            else:
+                cx = caption_x
+            if caption_y is None:
+                cy = (by + bar_h + GAP) if bar is not None else (image.height - BOTTOM_PAD - text_h)
+            else:
+                cy = caption_y
+            ImageDraw.Draw(image).text(
+                (cx, cy), caption, (220, 220, 220), font=font
+            )
+    else: # ori == vertical
+        extra_w = 0
+        if need_auto:
+            need = RIGHT_PAD
+            if bar is not None:
+                need += bar_w
+            if bar is not None and caption:
+                need += GAP
+            if caption:
+                need += text_w
+            extra_w = need
+        if extra_w > 0:
+            extended = Image.new("RGB", (image.width + extra_w, image.height), (0, 0, 0))
+            extended.paste(image, (0, 0))
+            image = extended
+        
+        if bar is not None:
+            if colorbar_x is None:
+                gap_and_caption = (GAP + text_w) if caption else 0
+                bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
+            else:
+                bx = colorbar_x
+            if colorbar_y is None:
+                by = int(0.5 * (image.height - bar_h))
+            else:
+                by = colorbar_y
+            image.paste(bar, (bx, by))
+
+        if caption:   
+            # Get the exact glyph bounds for the caption     
+            probe = Image.new("L", (1,1), 0)
+            d = ImageDraw.Draw(probe)
+            x0, y0, x1, y1 = d.textbbox((0, 0), caption, font=font)
+            w, h = x1 - x0, y1 - y0
+
+            # Use it create a new transparent image and rotate it
+            temp_caption_img = Image.new("RGBA", (w, h), (0,0,0,0))
+            ImageDraw.Draw(temp_caption_img).text((-x0, -y0), caption, font=font)
+            rotated_caption = temp_caption_img.rotate(90, expand=True, fillcolor=(0,0,0,0))
+            rotated_w, rotated_h = rotated_caption.size
+
+            if caption_x is None:
+                cx = (bx + bar_w + GAP) if bar is not None else (image.width - RIGHT_PAD - rotated_w)
+            else:
+                cx = caption_x
+            if caption_y is None:
+                cy = int(0.5 * (image.height - rotated_h))
+            else:
+                cy = caption_y
+
+            image.paste(rotated_caption, (cx, cy), rotated_caption)
 
     if outpath:
         print(f"[INFO] Saving snapshot to {outpath}")
