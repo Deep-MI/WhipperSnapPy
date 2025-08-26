@@ -828,12 +828,17 @@ def snap1(
     None
         This function returns None.
     """
-    # setup window
+    # setup base window
+    WWIDTH = 700
+    WHEIGHT = 500
+    image = Image.new("RGB", (WWIDTH, WHEIGHT))
+
+    # setup brain image
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
-    wwidth = 540
-    wheight = 450
+    BWIDTH = 540
+    BHEIGHT = 450
     visible = True
-    window = init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible)
+    window = init_window(BWIDTH, BHEIGHT, "WhipperSnapPy 2.0", visible)
     if not window:
         return False  # need raise error here in future
 
@@ -851,7 +856,7 @@ def snap1(
         meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale
     )
     # upload to GPU and compile shaders
-    shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
+    shader = setup_shader(meshdata, triangles, BWIDTH, BHEIGHT, specular=specular)
 
     # draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
@@ -875,10 +880,9 @@ def snap1(
     gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
     gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-    im1 = capture_window(wwidth, wheight)
+    im1 = capture_window(BWIDTH, BHEIGHT)
 
-    image = Image.new("RGB", (im1.width, im1.height))
-    image.paste(im1, (0, 0))
+    image.paste(im1, ((WWIDTH - BWIDTH) // 2, (WHEIGHT - BHEIGHT) // 2))
 
     ori = orientation.lower()
 
@@ -908,77 +912,42 @@ def snap1(
     RIGHT_PAD = 20
     GAP = 4
 
-    need_auto = (
-        (bar is not None and (colorbar_x is None or colorbar_y is None))
-        or (caption and (caption_x is None or caption_y is None))
-    )
-
     if ori == "horizontal":
-        extra_h = 0
-        if need_auto:
-            need = BOTTOM_PAD
-            if bar is not None:
-                need += bar_h
-            if bar is not None and caption:
-                need += GAP
-            if caption:
-                need += text_h
-            extra_h = need
-        if extra_h > 0:
-            extended = Image.new("RGB", (image.width, image.height + extra_h), (0, 0, 0))
-            extended.paste(image, (0, 0))
-            image = extended
-
         if bar is not None:
             if colorbar_x is None:
                 bx = int(0.5 * (image.width - bar_w))
             else:
-                bx = int(colorbar_x * wwidth)
+                bx = int(colorbar_x * WWIDTH)
             if colorbar_y is None:
                 gap_and_caption = (GAP + text_h) if caption else 0
                 by = image.height - BOTTOM_PAD - gap_and_caption - bar_h
             else:
-                by = int(colorbar_y * wheight)
+                by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
         if caption:
             if caption_x is None:
                 cx = int(0.5 * (image.width - text_w))
             else:
-                cx = int(caption_x * wwidth)
+                cx = int(caption_x * WWIDTH)
             if caption_y is None:
                 cy = (by + bar_h + GAP) if bar is not None else (image.height - BOTTOM_PAD - text_h)
             else:
-                cy = int(caption_y * wheight)
+                cy = int(caption_y * WHEIGHT)
             ImageDraw.Draw(image).text(
                 (cx, cy), caption, (220, 220, 220), font=font
             )
-    else: # ori == vertical
-        extra_w = 0
-        if need_auto:
-            need = RIGHT_PAD
-            if bar is not None:
-                need += bar_w
-            if bar is not None and caption:
-                need += GAP
-            if caption:
-                need += text_w
-            extra_w = need
-        if extra_w > 0:
-            extended = Image.new("RGB", (image.width + extra_w, image.height), (0, 0, 0))
-            extended.paste(image, (0, 0))
-            image = extended
-        
+    else: # ori == vertical        
         if bar is not None:
             if colorbar_x is None:
                 gap_and_caption = (GAP + text_w) if caption else 0
                 bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
             else:
-                bx = int(colorbar_x * wwidth)
+                bx = int(colorbar_x * WWIDTH)
             if colorbar_y is None:
                 by = int(0.5 * (image.height - bar_h))
             else:
-                by = int(colorbar_y * wheight)
+                by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
         if caption:   
@@ -997,11 +966,11 @@ def snap1(
             if caption_x is None:
                 cx = (bx + bar_w + GAP) if bar is not None else (image.width - RIGHT_PAD - rotated_w)
             else:
-                cx = int(caption_x * wwidth)
+                cx = int(caption_x * WWIDTH)
             if caption_y is None:
                 cy = int(0.5 * (image.height - rotated_h))
             else:
-                cy = int(caption_y * wheight)
+                cy = int(caption_y * WHEIGHT)
 
             image.paste(rotated_caption, (cx, cy), rotated_caption)
 
