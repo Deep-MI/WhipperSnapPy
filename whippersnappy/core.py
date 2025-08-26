@@ -758,6 +758,8 @@ def snap1(
     curvpath=None,
     view="left",
     viewmat=None,
+    width=None,
+    height=None,
     fthresh=None,
     fmax=None,
     caption=None,
@@ -767,9 +769,9 @@ def snap1(
     colorbar=True,
     colorbar_x=None,
     colorbar_y=None,
+    orientation="horizontal",
     outpath=None,
     font_file=None,
-    orientation="horizontal",
     specular=True,
     scale=1.5,
 ):
@@ -794,6 +796,10 @@ def snap1(
         Predefined views, can be left (default), right, back, front, top, bottom.
     viewmat : array-like
         User-defined 4x4 viewing matrix. Overwrites view.
+    width : number
+        Width of the image. Default: automatically chosen.
+    height : number
+        Height of the image. Default: automatically chosen.
     fthresh : float
         Pos absolute value under which no color is shown.
     fmax : float
@@ -812,12 +818,12 @@ def snap1(
         Normalized horizontal position of the colorbar. Default: automatically chosen.
     colorbar_y : number
         Normalized vertical position of the colorbar. Default: automatically chosen.
+    orientation : str
+        Orientation of the colorbar and caption. Default: horizontal.
     outpath : str
         Path to the output image file.
     font_file : str
         Path to the file describing the font to be used in captions.
-    orientation : str
-        Orientation of the colorbar and caption. Default: horizontal.
     specular : bool
         Specular is by default set as True.
     scale : float
@@ -829,8 +835,8 @@ def snap1(
         This function returns None.
     """
     # setup base window
-    WWIDTH = 700
-    WHEIGHT = 500
+    WWIDTH = 700 if width == None else width
+    WHEIGHT = 500 if height == None else height
     image = Image.new("RGB", (WWIDTH, WHEIGHT))
 
     # setup brain image
@@ -919,7 +925,7 @@ def snap1(
             else:
                 bx = int(colorbar_x * WWIDTH)
             if colorbar_y is None:
-                gap_and_caption = (GAP + text_h) if caption else 0
+                gap_and_caption = (GAP + text_h) if caption_y is None else 0
                 by = image.height - BOTTOM_PAD - gap_and_caption - bar_h
             else:
                 by = int(colorbar_y * WHEIGHT)
@@ -931,7 +937,7 @@ def snap1(
             else:
                 cx = int(caption_x * WWIDTH)
             if caption_y is None:
-                cy = (by + bar_h + GAP) if bar is not None else (image.height - BOTTOM_PAD - text_h)
+                cy = image.height - BOTTOM_PAD - text_h
             else:
                 cy = int(caption_y * WHEIGHT)
             ImageDraw.Draw(image).text(
@@ -940,7 +946,7 @@ def snap1(
     else: # ori == vertical        
         if bar is not None:
             if colorbar_x is None:
-                gap_and_caption = (GAP + text_w) if caption else 0
+                gap_and_caption = (GAP + text_w) if caption_x is None else 0
                 bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
             else:
                 bx = int(colorbar_x * WWIDTH)
@@ -964,7 +970,7 @@ def snap1(
             rotated_w, rotated_h = rotated_caption.size
 
             if caption_x is None:
-                cx = (bx + bar_w + GAP) if bar is not None else (image.width - RIGHT_PAD - rotated_w)
+                cx = image.width - RIGHT_PAD - rotated_w
             else:
                 cx = int(caption_x * WWIDTH)
             if caption_y is None:
