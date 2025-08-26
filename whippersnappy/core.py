@@ -841,10 +841,13 @@ def snap1(
 
     # setup brain image
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
-    BWIDTH = 540
-    BHEIGHT = 450
+    BWIDTH = int(540 * scale)
+    BHEIGHT = int(450 * scale)
+    brain_display_width = min(BWIDTH, WWIDTH)
+    brain_display_height = min(BHEIGHT, WHEIGHT)
+
     visible = True
-    window = init_window(BWIDTH, BHEIGHT, "WhipperSnapPy 2.0", visible)
+    window = init_window(brain_display_width, brain_display_height, "WhipperSnapPy 2.0", visible)
     if not window:
         return False  # need raise error here in future
 
@@ -862,7 +865,7 @@ def snap1(
         meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale
     )
     # upload to GPU and compile shaders
-    shader = setup_shader(meshdata, triangles, BWIDTH, BHEIGHT, specular=specular)
+    shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
 
     # draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
@@ -886,9 +889,12 @@ def snap1(
     gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
     gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-    im1 = capture_window(BWIDTH, BHEIGHT)
+    im1 = capture_window(brain_display_width, brain_display_height)
 
-    image.paste(im1, ((WWIDTH - BWIDTH) // 2, (WHEIGHT - BHEIGHT) // 2))
+    brain_x = 0 if WWIDTH < BWIDTH else (WWIDTH - BWIDTH) // 2
+    brain_y = 0 if WHEIGHT < BHEIGHT else (WHEIGHT - BHEIGHT) // 2
+    
+    image.paste(im1, (brain_x, brain_y))
 
     ori = orientation.lower()
 
