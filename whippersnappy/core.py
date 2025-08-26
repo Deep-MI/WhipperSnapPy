@@ -801,17 +801,17 @@ def snap1(
     caption : str
         Caption text to be placed on the image.
     caption_x : number
-        Horizontal position of the caption. Default: automatically chosen.
+        Normalized horizontal position of the caption. Default: automatically chosen.
     caption_y : number
-        Vertical position of the caption. Default: automatically chosen.
+        Normalized vertical position of the caption. Default: automatically chosen.
     invert : bool
         Invert color (blue positive, red negative).
     colorbar : bool
         Show colorbar on image.
     colorbar_x : number
-        Horizontal position of the colorbar. Default: automatically chosen.
+        Normalized horizontal position of the colorbar. Default: automatically chosen.
     colorbar_y : number
-        Vertical position of the colorbar. Default: automatically chosen.
+        Normalized vertical position of the colorbar. Default: automatically chosen.
     outpath : str
         Path to the output image file.
     font_file : str
@@ -933,23 +933,23 @@ def snap1(
             if colorbar_x is None:
                 bx = int(0.5 * (image.width - bar_w))
             else:
-                bx = colorbar_x
+                bx = int(colorbar_x * wwidth)
             if colorbar_y is None:
                 gap_and_caption = (GAP + text_h) if caption else 0
                 by = image.height - BOTTOM_PAD - gap_and_caption - bar_h
             else:
-                by = colorbar_y
+                by = int(colorbar_y * wheight)
             image.paste(bar, (bx, by))
 
         if caption:
             if caption_x is None:
                 cx = int(0.5 * (image.width - text_w))
             else:
-                cx = caption_x
+                cx = int(caption_x * wwidth)
             if caption_y is None:
                 cy = (by + bar_h + GAP) if bar is not None else (image.height - BOTTOM_PAD - text_h)
             else:
-                cy = caption_y
+                cy = int(caption_y * wheight)
             ImageDraw.Draw(image).text(
                 (cx, cy), caption, (220, 220, 220), font=font
             )
@@ -974,11 +974,11 @@ def snap1(
                 gap_and_caption = (GAP + text_w) if caption else 0
                 bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
             else:
-                bx = colorbar_x
+                bx = int(colorbar_x * wwidth)
             if colorbar_y is None:
                 by = int(0.5 * (image.height - bar_h))
             else:
-                by = colorbar_y
+                by = int(colorbar_y * wheight)
             image.paste(bar, (bx, by))
 
         if caption:   
@@ -997,11 +997,11 @@ def snap1(
             if caption_x is None:
                 cx = (bx + bar_w + GAP) if bar is not None else (image.width - RIGHT_PAD - rotated_w)
             else:
-                cx = caption_x
+                cx = int(caption_x * wwidth)
             if caption_y is None:
                 cy = int(0.5 * (image.height - rotated_h))
             else:
-                cy = caption_y
+                cy = int(caption_y * wheight)
 
             image.paste(rotated_caption, (cx, cy), rotated_caption)
 
