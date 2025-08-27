@@ -645,8 +645,82 @@ def capture_window(width, height):
         image.thumbnail((0.5 * width, 0.5 * height), Image.Resampling.LANCZOS)
     return image
 
+def text_size(caption, font):
+        dummy_img = Image.new("L", (1, 1))
+        draw = ImageDraw.Draw(dummy_img)
+        bbox = draw.textbbox((0, 0), caption, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]        
+        return text_width, text_height
 
-def create_colorbar(fmin, fmax, invert, colorbar_scale=1, neg=True, font_file=None):
+def get_colorbar_label_positions(image, font, captions, colorbar_rect, gapspace=0, neg=True, orientation="horizontal"):  
+    result = {}
+    cb_x, cb_y, cb_width, cb_height = colorbar_rect
+    cb_labels_gap = 5
+
+    if orientation == "horizontal":
+        label_y = cb_y + cb_height + cb_labels_gap
+        
+        # Upper
+        w, h = text_size(captions["upper"], font)
+        result["upper"] = (cb_x + cb_width - w, label_y)
+        
+        # Lower
+        w, h = text_size(captions["lower"], font)
+        if neg: 
+            result["lower"] = (cb_x, label_y)
+        else:
+            lower_x = cb_x + int(gapspace) if gapspace > 0 else cb_x
+            result["lower"] = (lower_x, label_y)
+        
+        # Middle
+        if neg:
+            if gapspace == 0:
+                # Single middle
+                w, h = text_size(captions["middle"], font)
+                result["middle"] = (cb_x + cb_width // 2 - w // 2, label_y)
+            else:
+                # Middle Negative
+                w, h = text_size(captions["middle_neg"], font)
+                result["middle_neg"] = (cb_x + cb_width // 2 - w - int(gapspace), label_y)
+                
+                # Middle Positive
+                w, h = text_size(captions["middle_pos"], font)
+                result["middle_pos"] = (cb_x + cb_width // 2 + int(gapspace), label_y)
+            
+    else:  # orientation == "vertical"
+        label_x = cb_x + cb_width + cb_labels_gap
+        
+        # Upper
+        w, h = text_size(captions["upper"], font)
+        result["upper"] = (label_x, cb_y)
+        
+        # Lower
+        w, h = text_size(captions["lower"], font)
+        if neg:
+            result["lower"] = (label_x, cb_y + cb_height - 1.5 * h)
+        else:
+            lower_y = cb_y + cb_height - int(gapspace) - 1.5 * h if gapspace > 0 else cb_y + cb_height - 1.5 * h
+            result["lower"] = (label_x, lower_y)
+        
+        # Middle labels
+        if neg:
+            if gapspace == 0:
+                # Single middle
+                w, h = text_size(captions["middle"], font)
+                result["middle"] = (label_x, cb_y + cb_height // 2 - h // 2)
+            else:
+                # Middle Positive
+                w, h = text_size(captions["middle_pos"], font)
+                result["middle_pos"] = (label_x, cb_y + cb_height // 2 - 1.5 * h - int(gapspace))
+                
+                # Middle Negative
+                w, h = text_size(captions["middle_neg"], font)
+                result["middle_neg"] = (label_x, cb_y + cb_height // 2 + int(gapspace))
+
+    return result
+
+def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale=1, neg=True, font_file=None):
     """
     Create colorbar image with text indicating min and max values.
 
@@ -658,6 +732,8 @@ def create_colorbar(fmin, fmax, invert, colorbar_scale=1, neg=True, font_file=No
         Absolute max value where color saturates.
     invert : bool
         Color invert.
+    orientation : str
+        Orientation of the colorbar. Default : horizontal
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
     neg : bool
@@ -695,60 +771,55 @@ def create_colorbar(fmin, fmax, invert, colorbar_scale=1, neg=True, font_file=No
     colors[np.isnan(values), :] = 0.33 * np.ones((1, 3))
     img_bar = np.uint8(np.tile(colors, (cheight, 1, 1)) * 255)
     # pad with black
-    img_buf = np.zeros((cheight + 20, cwidth + 20, 3), dtype=np.uint8)
-    img_buf[3 : cheight + 3, 10 : cwidth + 10, :] = img_bar
+    pad_top, pad_left = 3, 10
+    img_buf = np.zeros((cheight + 2 * pad_top, cwidth + 2 * pad_left, 3), dtype=np.uint8)
+    img_buf[pad_top : cheight + pad_top, pad_left : cwidth + pad_left, :] = img_bar
     image = Image.fromarray(img_buf)
 
     if font_file is None:
         script_dir = "/".join(str(__file__).split("/")[:-1])
         font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
-    font = ImageFont.truetype(font_file, 12)
-    if neg:
-        # Left
-        caption = f" <{-fmax:.2f}"
-        xpos = 0  # 10- 0.5*(font.getlength(caption))
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
-        # Right
-        caption = f">{fmax:.2f} "
-        xpos = image.width - (font.getlength(caption))
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
-        if gapspace == 0:
-            caption = "0"
-            xpos = 0.5 * image.width - 0.5 * font.getlength(caption)
-            ImageDraw.Draw(image).text(
-                (xpos, image.height - 17), caption, (220, 220, 220), font=font
-            )
-        else:
-            caption = f"{-fmin:.2f}"
-            xpos = 0.5 * image.width - 0.5 * font.getlength(caption) - gapspace - 5
-            ImageDraw.Draw(image).text(
-                (xpos, image.height - 17), caption, (220, 220, 220), font=font
-            )
-            caption = f"{fmin:.2f}"
-            xpos = 0.5 * image.width - 0.5 * font.getlength(caption) + gapspace + 5
-            ImageDraw.Draw(image).text(
-                (xpos, image.height - 17), caption, (220, 220, 220), font=font
-            )
+    font = ImageFont.truetype(font_file, int(12 * colorbar_scale))
+    
+    # Captions for the colorbar
+    captions = {}
+    captions["upper"] = f">{fmax:.2f}"
+    captions["lower"] = f"<{-fmax:.2f}" if neg else (f"{fmin:.2f}" if gapspace != 0 else "0")
+    if neg and gapspace != 0:
+        captions["middle_neg"] = f"{-fmin:.2f}"
+        captions["middle_pos"] = f"{fmin:.2f}"
+    elif neg and gapspace == 0:
+        captions["middle"] = "0"
+    
+    # Maximum caption sizes
+    caption_sizes = [text_size(caption, font) for caption in captions.values()]
+    max_caption_width = int(max([caption_size[0] for caption_size in caption_sizes]))
+    max_caption_height = int(max([caption_size[1] for caption_size in caption_sizes]))
+
+    # Extend colorbar image by the maximum caption size to fit the captions and rotate image if needed
+    margin = 10
+    if orientation == "vertical":
+        image = image.rotate(90, expand=True)
+
+        new_width = image.width + max_caption_width + margin
+        new_image = Image.new("RGB", (new_width, image.height), (0, 0, 0))
+        new_image.paste(image, (0, 0))
+        image = new_image
+        
+        colorbar_rect = (pad_top, pad_left, cheight, cwidth)
     else:
-        # Right
-        caption = f">{fmax:.2f} "
-        xpos = image.width - (font.getlength(caption))
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
-        # Left
-        caption = f" {fmin:.2f}"
-        xpos = gapspace
-        if gapspace == 0:
-            caption = " 0"
-            xpos = 5
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
+        new_height = image.height + max_caption_height + margin
+        new_image = Image.new("RGB", (image.width, new_height), (0, 0, 0))
+        new_image.paste(image, (0, 0))
+        image = new_image
+
+        colorbar_rect = (pad_left, pad_top, cwidth, cheight)
+        
+    positions = get_colorbar_label_positions(image, font, captions, colorbar_rect, gapspace, neg, orientation)
+    
+    draw = ImageDraw.Draw(image)
+    for label_key, position in positions.items():
+        draw.text((int(position[0]), int(position[1])), captions[label_key], fill=(220, 220, 220), font=font)
 
     return image
 
@@ -909,9 +980,7 @@ def snap1(
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, colorbar_scale, neg)
-        if ori == "vertical":
-            bar = bar.rotate(90, expand=True)  # rotate ticks/label too
+        bar = create_colorbar(fthresh, fmax, invert, ori, colorbar_scale, neg)
         bar_w, bar_h = bar.size
 
     font = None
