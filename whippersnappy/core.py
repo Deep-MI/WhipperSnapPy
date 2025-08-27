@@ -646,7 +646,7 @@ def capture_window(width, height):
     return image
 
 
-def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
+def create_colorbar(fmin, fmax, invert, colorbar_scale=1, neg=True, font_file=None):
     """
     Create colorbar image with text indicating min and max values.
 
@@ -658,6 +658,8 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
         Absolute max value where color saturates.
     invert : bool
         Color invert.
+    colorbar_scale : number
+        Colorbar scaling factor. Default: 1.
     neg : bool
         Show negative axis.
     font_file : str
@@ -668,8 +670,8 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     image: PIL.Image.Image
         Colorbar image.
     """
-    cwidth = 200
-    cheight = 30
+    cwidth = int(200 * colorbar_scale)
+    cheight = int(30 * colorbar_scale)
     # img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
     values = np.nan * np.ones(cwidth)
     gapspace = 0
@@ -765,15 +767,17 @@ def snap1(
     caption=None,
     caption_x=None,
     caption_y=None,
+    caption_scale=1,
     invert=False,
     colorbar=True,
     colorbar_x=None,
     colorbar_y=None,
+    colorbar_scale=1,
     orientation="horizontal",
     outpath=None,
     font_file=None,
     specular=True,
-    scale=1.5,
+    brain_scale=1,
 ):
     """
     Snap one view (view and hemisphere is determined by the user).
@@ -810,6 +814,8 @@ def snap1(
         Normalized horizontal position of the caption. Default: automatically chosen.
     caption_y : number
         Normalized vertical position of the caption. Default: automatically chosen.
+    caption_scale : number
+        Caption scaling factor. Default: 1.
     invert : bool
         Invert color (blue positive, red negative).
     colorbar : bool
@@ -818,6 +824,8 @@ def snap1(
         Normalized horizontal position of the colorbar. Default: automatically chosen.
     colorbar_y : number
         Normalized vertical position of the colorbar. Default: automatically chosen.
+    colorbar_scale : number
+        Colorbar scaling factor. Default: 1.
     orientation : str
         Orientation of the colorbar and caption. Default: horizontal.
     outpath : str
@@ -826,8 +834,8 @@ def snap1(
         Path to the file describing the font to be used in captions.
     specular : bool
         Specular is by default set as True.
-    scale : float
-        Global scaling factor. Default: 1.5.
+    brain_scale : float
+        Brain scaling factor. Default: 1.
 
     Returns
     -------
@@ -841,8 +849,8 @@ def snap1(
 
     # setup brain image
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
-    BWIDTH = int(540 * scale)
-    BHEIGHT = int(450 * scale)
+    BWIDTH = int(540 * brain_scale)
+    BHEIGHT = int(450 * brain_scale)
     brain_display_width = min(BWIDTH, WWIDTH)
     brain_display_height = min(BHEIGHT, WHEIGHT)
 
@@ -862,7 +870,7 @@ def snap1(
 
     # load and colorize data
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale
+        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, brain_scale
     )
     # upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
@@ -901,7 +909,7 @@ def snap1(
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, neg)
+        bar = create_colorbar(fthresh, fmax, invert, colorbar_scale, neg)
         if ori == "vertical":
             bar = bar.rotate(90, expand=True)  # rotate ticks/label too
         bar_w, bar_h = bar.size
@@ -912,12 +920,15 @@ def snap1(
         if font_file is None:
             script_dir = "/".join(str(__file__).split("/")[:-1])
             font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
-        font = ImageFont.truetype(font_file, 20)
+        font = ImageFont.truetype(font_file, 20 * caption_scale)
         draw_tmp = ImageDraw.Draw(image)
         bbox = draw_tmp.textbbox((0, 0), caption, font=font)
         text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if ori == "vertical":
             text_w, text_h = text_h, text_w
+
+        text_w = int(text_w * caption_scale)
+        text_h = int(text_h * caption_scale)
 
     # Constants defining the position of the caption and colorbar
     BOTTOM_PAD = 20
