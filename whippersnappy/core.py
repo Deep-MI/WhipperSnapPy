@@ -651,10 +651,10 @@ def text_size(caption, font):
 
     Parameters
     ----------
-    font : PIL.ImageFont.FreeTypeFont
-        Font of the labels.
     caption : str
         Text that is to be rendered.
+    font : PIL.ImageFont.FreeTypeFont
+        Font of the labels.
     
     Returns
     -------
@@ -773,7 +773,7 @@ def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale
     invert : bool
         Color invert.
     orientation : str
-        Orientation of the colorbar. Default : horizontal
+        Orientation of the colorbar. Default : horizontal.
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
     neg : bool
@@ -955,8 +955,8 @@ def snap1(
     # setup base window
     REFWWIDTH = 700
     REFWHEIGHT = 500
-    WWIDTH = REFWWIDTH if width == None else width
-    WHEIGHT = REFWHEIGHT if height == None else height
+    WWIDTH = REFWWIDTH if width is None else width
+    WHEIGHT = REFWHEIGHT if height is None else height
     UI_SCALE = min(WWIDTH / REFWWIDTH, WHEIGHT / REFWHEIGHT)
 
     image = Image.new("RGB", (WWIDTH, WHEIGHT))
