@@ -665,7 +665,7 @@ def text_size(caption, font):
     """
     dummy_img = Image.new("L", (1, 1))
     draw = ImageDraw.Draw(dummy_img)
-    bbox = draw.textbbox((0, 0), caption, font=font)
+    bbox = draw.textbbox((0, 0), caption, font=font, anchor="lt")
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]        
     return text_width, text_height
@@ -840,7 +840,7 @@ def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale
     if orientation == "vertical":
         image = image.rotate(90, expand=True)
 
-        new_width = image.width + int(max_caption_width * 2)
+        new_width = image.width + int(max_caption_width * 1.5)
         new_image = Image.new("RGB", (new_width, image.height), (0, 0, 0))
         new_image.paste(image, (0, 0))
         image = new_image
@@ -1029,14 +1029,10 @@ def snap1(
             script_dir = "/".join(str(__file__).split("/")[:-1])
             font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
         font = ImageFont.truetype(font_file, 20 * caption_scale)
-        draw_tmp = ImageDraw.Draw(image)
-        bbox = draw_tmp.textbbox((0, 0), caption, font=font)
-        text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        if ori == "vertical":
-            text_w, text_h = text_h, text_w
+        text_w, text_h = text_size(caption, font)
 
-        text_w = int(text_w * caption_scale)
-        text_h = int(text_h * caption_scale)
+        text_w = int(text_w)
+        text_h = int(text_h)
 
     # Constants defining the position of the caption and colorbar
     BOTTOM_PAD = 20
@@ -1066,12 +1062,12 @@ def snap1(
             else:
                 cy = int(caption_y * WHEIGHT)
             ImageDraw.Draw(image).text(
-                (cx, cy), caption, (220, 220, 220), font=font
+                (cx, cy), caption, (220, 220, 220), font=font, anchor="lt"
             )
     else: # ori == vertical        
         if bar is not None:
             if colorbar_x is None:
-                gap_and_caption = (GAP + text_w) if caption_x is None else 0
+                gap_and_caption = (GAP + text_h) if caption_x is None else 0
                 bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
             else:
                 bx = int(colorbar_x * WWIDTH)
@@ -1081,16 +1077,10 @@ def snap1(
                 by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
-        if caption:   
-            # Get the exact glyph bounds for the caption     
-            probe = Image.new("L", (1,1), 0)
-            d = ImageDraw.Draw(probe)
-            x0, y0, x1, y1 = d.textbbox((0, 0), caption, font=font)
-            w, h = x1 - x0, y1 - y0
-
-            # Use it create a new transparent image and rotate it
-            temp_caption_img = Image.new("RGBA", (w, h), (0,0,0,0))
-            ImageDraw.Draw(temp_caption_img).text((-x0, -y0), caption, font=font)
+        if caption:
+            # Create a new transparent image and rotate it
+            temp_caption_img = Image.new("RGBA", (text_w, text_h), (0,0,0,0))
+            ImageDraw.Draw(temp_caption_img).text((0, 0), caption, font=font, anchor="lt")
             rotated_caption = temp_caption_img.rotate(90, expand=True, fillcolor=(0,0,0,0))
             rotated_w, rotated_h = rotated_caption.size
 
