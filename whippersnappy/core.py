@@ -840,7 +840,7 @@ def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale
     if orientation == "vertical":
         image = image.rotate(90, expand=True)
 
-        new_width = image.width + int(max_caption_width * 1.5)
+        new_width = image.width + int(max_caption_width)
         new_image = Image.new("RGB", (new_width, image.height), (0, 0, 0))
         new_image.paste(image, (0, 0))
         image = new_image
@@ -963,8 +963,8 @@ def snap1(
 
     # setup brain image
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
-    BWIDTH = int(540 * brain_scale)
-    BHEIGHT = int(450 * brain_scale)
+    BWIDTH = int(540 * brain_scale * UI_SCALE)
+    BHEIGHT = int(450 * brain_scale * UI_SCALE)
     brain_display_width = min(BWIDTH, WWIDTH)
     brain_display_height = min(BHEIGHT, WHEIGHT)
 
@@ -984,7 +984,7 @@ def snap1(
 
     # load and colorize data
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
+        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale=brain_scale
     )
     # upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
