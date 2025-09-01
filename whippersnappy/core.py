@@ -953,8 +953,12 @@ def snap1(
         This function returns None.
     """
     # setup base window
-    WWIDTH = 700 if width == None else width
-    WHEIGHT = 500 if height == None else height
+    REFWWIDTH = 700
+    REFWHEIGHT = 500
+    WWIDTH = REFWWIDTH if width == None else width
+    WHEIGHT = REFWHEIGHT if height == None else height
+    UI_SCALE = min(WWIDTH / REFWWIDTH, WHEIGHT / REFWHEIGHT)
+
     image = Image.new("RGB", (WWIDTH, WHEIGHT))
 
     # setup brain image
@@ -980,7 +984,7 @@ def snap1(
 
     # load and colorize data
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, brain_scale
+        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
     )
     # upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
@@ -1019,7 +1023,7 @@ def snap1(
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, ori, colorbar_scale, neg)
+        bar = create_colorbar(fthresh, fmax, invert, ori, colorbar_scale * UI_SCALE, neg)
         bar_w, bar_h = bar.size
 
     font = None
@@ -1028,16 +1032,16 @@ def snap1(
         if font_file is None:
             script_dir = "/".join(str(__file__).split("/")[:-1])
             font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
-        font = ImageFont.truetype(font_file, 20 * caption_scale)
+        font = ImageFont.truetype(font_file, 20 * caption_scale * UI_SCALE)
         text_w, text_h = text_size(caption, font)
 
         text_w = int(text_w)
         text_h = int(text_h)
 
     # Constants defining the position of the caption and colorbar
-    BOTTOM_PAD = 20
-    RIGHT_PAD = 20
-    GAP = 4
+    BOTTOM_PAD = int(20 * UI_SCALE)
+    RIGHT_PAD = int(20 * UI_SCALE)
+    GAP = int(4 * UI_SCALE)
 
     if ori == "horizontal":
         if bar is not None:
