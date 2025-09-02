@@ -19,9 +19,21 @@ import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 import pyrr
 from PIL import Image, ImageDraw, ImageFont
+from enum import Enum
 
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 
+class ViewType(Enum):
+    LEFT: 1
+    RIGHT: 2
+    BACK: 3
+    FRONT: 4
+    TOP: 5
+    BOTTOM: 6
+
+class OrientationType(Enum):
+    HORIZONTAL: 1
+    VERTICAL: 2
 
 def normalize_mesh(v, scale=1.0):
     """
@@ -670,7 +682,7 @@ def text_size(caption, font):
     text_height = bbox[3] - bbox[1]        
     return text_width, text_height
 
-def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=True, orientation="horizontal"):  
+def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=True, orientation=OrientationType.HORIZONTAL):  
     """
     Get the positions of the labels for the colorbar.
 
@@ -686,8 +698,8 @@ def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=Tr
         Length of the gray space representing the threshold. Default : 0.
     neg : bool
         Show negative axis. Default: True.
-    orientation : str
-        Orientation of the colorbar. Default : horizontal.
+    orientation : OrientationType
+        Orientation of the colorbar, can be OrientationType.HORIZONTAL or OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
 
     Returns
     -------
@@ -698,7 +710,7 @@ def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=Tr
     cb_x, cb_y, cb_width, cb_height = colorbar_rect
     cb_labels_gap = 5
 
-    if orientation == "horizontal":
+    if orientation == OrientationType.HORIZONTAL:
         label_y = cb_y + cb_height + cb_labels_gap
         
         # Upper
@@ -728,7 +740,7 @@ def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=Tr
                 w, h = text_size(labels["middle_pos"], font)
                 positions["middle_pos"] = (cb_x + cb_width // 2 + int(gapspace), label_y)
             
-    else:  # orientation == "vertical"
+    else:  # orientation == OrientationType.VERTICAL
         label_x = cb_x + cb_width + cb_labels_gap
         
         # Upper
@@ -760,7 +772,7 @@ def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=Tr
 
     return positions
 
-def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale=1, neg=True, font_file=None):
+def create_colorbar(fmin, fmax, invert, orientation=OrientationType.HORIZONTAL, colorbar_scale=1, neg=True):
     """
     Create colorbar image with text indicating min and max values.
 
@@ -772,14 +784,12 @@ def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale
         Absolute max value where color saturates.
     invert : bool
         Color invert.
-    orientation : str
-        Orientation of the colorbar. Default : horizontal.
+    orientation : OrientationType
+        Orientation of the colorbar, can be OrientationType.HORIZONTAL or OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
     neg : bool
         Show negative axis.
-    font_file : str
-        Path to the file describing the font to be used.
 
     Returns
     -------
@@ -837,7 +847,7 @@ def create_colorbar(fmin, fmax, invert, orientation="horizontal", colorbar_scale
     max_caption_height = int(max([caption_size[1] for caption_size in caption_sizes]))
 
     # Extend colorbar image by the maximum caption size to fit the labels and rotate image if needed
-    if orientation == "vertical":
+    if orientation == OrientationType.VERTICAL:
         image = image.rotate(90, expand=True)
 
         new_width = image.width + int(max_caption_width)
@@ -868,7 +878,7 @@ def snap1(
     annotpath=None,
     labelpath=None,
     curvpath=None,
-    view="left",
+    view=ViewType.LEFT,
     viewmat=None,
     width=None,
     height=None,
@@ -883,7 +893,7 @@ def snap1(
     colorbar_x=None,
     colorbar_y=None,
     colorbar_scale=1,
-    orientation="horizontal",
+    orientation=OrientationType.HORIZONTAL,
     outpath=None,
     font_file=None,
     specular=True,
@@ -906,8 +916,8 @@ def snap1(
         Path to the label file (FreeSurfer format).
     curvpath : str
         Path to the curvature file for texture in non-colored regions.
-    view : str
-        Predefined views, can be left (default), right, back, front, top, bottom.
+    view : ViewType
+        Predefined views, can be ViewType.LEFT, ViewType.RIGHT, ViewType.BACK, ViewType.FRONT, ViewType.TOP or ViewType.BOTTOM. Default: ViewType.LEFT.
     viewmat : array-like
         User-defined 4x4 viewing matrix. Overwrites view.
     width : number
@@ -936,8 +946,8 @@ def snap1(
         Normalized vertical position of the colorbar. Default: automatically chosen.
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
-    orientation : str
-        Orientation of the colorbar and caption. Default: horizontal.
+    orientation : OrientationType
+        Orientation of the colorbar and caption, can be OrientationType.VERTICAL or OrientationType.HORIZONTAL. Default: OrientationType.HORIZONTAL.
     outpath : str
         Path to the output image file.
     font_file : str
@@ -993,17 +1003,17 @@ def snap1(
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     transformLoc = gl.glGetUniformLocation(shader, "transform")
     if viewmat is None:
-        if view == "left":
+        if view == ViewType.LEFT:
             viewmat = transl * viewLeft
-        elif view == "right":
+        elif view == ViewType.RIGHT:
             viewmat = transl * viewRight
-        elif view == "back":
+        elif view == ViewType.BACK:
             viewmat = transl * viewBack
-        elif view == "front":
+        elif view == ViewType.FRONT:
             viewmat = transl * viewFront
-        elif view == "bottom":
+        elif view == ViewType.BOTTOM:
             viewmat = transl * viewBottom
-        elif view == "top":
+        elif view == ViewType.TOP:
             viewmat = transl * viewTop
     else:
         viewmat = transl * viewmat
@@ -1023,7 +1033,7 @@ def snap1(
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, ori, colorbar_scale * UI_SCALE, neg)
+        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * UI_SCALE, neg)
         bar_w, bar_h = bar.size
 
     font = None
@@ -1043,7 +1053,7 @@ def snap1(
     RIGHT_PAD = int(20 * UI_SCALE)
     GAP = int(4 * UI_SCALE)
 
-    if ori == "horizontal":
+    if orientation == OrientationType.HORIZONTAL:
         if bar is not None:
             if colorbar_x is None:
                 bx = int(0.5 * (image.width - bar_w))
@@ -1068,7 +1078,7 @@ def snap1(
             ImageDraw.Draw(image).text(
                 (cx, cy), caption, (220, 220, 220), font=font, anchor="lt"
             )
-    else: # ori == vertical        
+    else: # orientation == OrientationType.VERTICAL    
         if bar is not None:
             if colorbar_x is None:
                 gap_and_caption = (GAP + text_h) if caption_x is None else 0
@@ -1279,7 +1289,7 @@ provided, can not find surf file"
         )
 
     if lhannotpath is None and rhannotpath is None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, neg)
+        bar = create_colorbar(fthresh, fmax, invert, neg=neg)
         xpos = int(0.5 * (image.width - bar.width))
         ypos = int(0.5 * (image.height - bar.height))
         image.paste(bar, (xpos, ypos))
