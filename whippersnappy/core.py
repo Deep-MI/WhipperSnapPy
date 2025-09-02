@@ -21,7 +21,7 @@ import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
-from .types import ViewType, OrientationType
+from .types import OrientationType, ViewType
 
 def normalize_mesh(v, scale=1.0):
     """

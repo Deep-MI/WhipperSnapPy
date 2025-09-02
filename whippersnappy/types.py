@@ -8,11 +8,9 @@ Dependencies:
 @Revised   : 02.10.2025
 
 """
+import enum
 
-# Standard library imports
-from enum import Enum
-
-class ViewType(Enum):
+class ViewType(enum.Enum):
     LEFT = 1
     RIGHT = 2
     BACK = 3
@@ -20,6 +18,6 @@ class ViewType(Enum):
     TOP = 5
     BOTTOM = 6
 
-class OrientationType(Enum):
+class OrientationType(enum.Enum):
     HORIZONTAL = 1
     VERTICAL = 2
