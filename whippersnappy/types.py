@@ -10,6 +10,7 @@ Dependencies:
 """
 import enum
 
+
 class ViewType(enum.Enum):
     LEFT = 1
     RIGHT = 2
