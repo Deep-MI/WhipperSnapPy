@@ -5,7 +5,7 @@ Dependencies:
 
 @Author    : Martin Reuter
 @Created   : 27.02.2022
-@Revised   : 16.03.2022
+@Revised   : 02.10.2025
 
 """
 
@@ -19,21 +19,9 @@ import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 import pyrr
 from PIL import Image, ImageDraw, ImageFont
-from enum import Enum
+from .types import ViewType, OrientationType
 
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
-
-class ViewType(Enum):
-    LEFT: 1
-    RIGHT: 2
-    BACK: 3
-    FRONT: 4
-    TOP: 5
-    BOTTOM: 6
-
-class OrientationType(Enum):
-    HORIZONTAL: 1
-    VERTICAL: 2
 
 def normalize_mesh(v, scale=1.0):
     """
@@ -772,7 +760,7 @@ def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=Tr
 
     return positions
 
-def create_colorbar(fmin, fmax, invert, orientation=OrientationType.HORIZONTAL, colorbar_scale=1, neg=True):
+def create_colorbar(fmin, fmax, invert, orientation=OrientationType.HORIZONTAL, colorbar_scale=1, neg=True, font_file=None):
     """
     Create colorbar image with text indicating min and max values.
 
@@ -790,6 +778,8 @@ def create_colorbar(fmin, fmax, invert, orientation=OrientationType.HORIZONTAL, 
         Colorbar scaling factor. Default: 1.
     neg : bool
         Show negative axis.
+    font_file : str
+        Path to the file describing the font to be used.
 
     Returns
     -------
@@ -1028,12 +1018,10 @@ def snap1(
     
     image.paste(im1, (brain_x, brain_y))
 
-    ori = orientation.lower()
-
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * UI_SCALE, neg)
+        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * UI_SCALE, neg, font_file=font_file)
         bar_w, bar_h = bar.size
 
     font = None
