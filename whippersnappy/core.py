@@ -19,8 +19,8 @@ import OpenGL.GL as gl
 import OpenGL.GL.shaders as shaders
 import pyrr
 from PIL import Image, ImageDraw, ImageFont
-from .types import ViewType, OrientationType
 
+from .types import ViewType, OrientationType
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 
 def normalize_mesh(v, scale=1.0):
@@ -670,7 +670,14 @@ def text_size(caption, font):
     text_height = bbox[3] - bbox[1]        
     return text_width, text_height
 
-def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=True, orientation=OrientationType.HORIZONTAL):  
+def get_colorbar_label_positions(
+    font, 
+    labels, 
+    colorbar_rect, 
+    gapspace=0, 
+    neg=True, 
+    orientation=OrientationType.HORIZONTAL
+):  
     """
     Get the positions of the labels for the colorbar.
 
@@ -760,7 +767,15 @@ def get_colorbar_label_positions(font, labels, colorbar_rect, gapspace=0, neg=Tr
 
     return positions
 
-def create_colorbar(fmin, fmax, invert, orientation=OrientationType.HORIZONTAL, colorbar_scale=1, neg=True, font_file=None):
+def create_colorbar(
+    fmin, 
+    fmax, 
+    invert, 
+    orientation=OrientationType.HORIZONTAL, 
+    colorbar_scale=1, 
+    neg=True, 
+    font_file=None
+):
     """
     Create colorbar image with text indicating min and max values.
 
