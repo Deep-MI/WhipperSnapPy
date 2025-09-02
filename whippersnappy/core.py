@@ -20,8 +20,8 @@ import OpenGL.GL.shaders as shaders
 import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
-from .types import ViewType, OrientationType
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
+from .types import ViewType, OrientationType
 
 def normalize_mesh(v, scale=1.0):
     """
@@ -694,7 +694,8 @@ def get_colorbar_label_positions(
     neg : bool
         Show negative axis. Default: True.
     orientation : OrientationType
-        Orientation of the colorbar, can be OrientationType.HORIZONTAL or OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
+        Orientation of the colorbar, can be OrientationType.HORIZONTAL or 
+        OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
 
     Returns
     -------
@@ -788,7 +789,8 @@ def create_colorbar(
     invert : bool
         Color invert.
     orientation : OrientationType
-        Orientation of the colorbar, can be OrientationType.HORIZONTAL or OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
+        Orientation of the colorbar, can be OrientationType.HORIZONTAL or 
+        OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
     neg : bool
@@ -922,7 +924,8 @@ def snap1(
     curvpath : str
         Path to the curvature file for texture in non-colored regions.
     view : ViewType
-        Predefined views, can be ViewType.LEFT, ViewType.RIGHT, ViewType.BACK, ViewType.FRONT, ViewType.TOP or ViewType.BOTTOM. Default: ViewType.LEFT.
+        Predefined views, can be ViewType.LEFT, ViewType.RIGHT, ViewType.BACK, 
+        ViewType.FRONT, ViewType.TOP or ViewType.BOTTOM. Default: ViewType.LEFT.
     viewmat : array-like
         User-defined 4x4 viewing matrix. Overwrites view.
     width : number
@@ -952,7 +955,8 @@ def snap1(
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
     orientation : OrientationType
-        Orientation of the colorbar and caption, can be OrientationType.VERTICAL or OrientationType.HORIZONTAL. Default: OrientationType.HORIZONTAL.
+        Orientation of the colorbar and caption, can be OrientationType.VERTICAL or 
+        OrientationType.HORIZONTAL. Default: OrientationType.HORIZONTAL.
     outpath : str
         Path to the output image file.
     font_file : str

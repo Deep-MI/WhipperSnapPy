@@ -9,6 +9,7 @@ Dependencies:
 
 """
 
+# Standard library imports
 from enum import Enum
 
 class ViewType(Enum):
