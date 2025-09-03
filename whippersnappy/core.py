@@ -1382,6 +1382,14 @@ provided, can not find surf file"
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
             meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
         )
+        
+        # Check if there is something to display
+        if pos == 0 and neg == 0:
+            print(
+                "[Error] Overlay has no values to display"
+            )
+            sys.exit(1)
+
         # upload to GPU and compile shaders
         shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
