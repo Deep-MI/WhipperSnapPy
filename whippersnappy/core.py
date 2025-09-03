@@ -21,7 +21,7 @@ import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
-from .types import OrientationType, ViewType
+from .types import ColorSelection, OrientationType, ViewType
 
 
 def normalize_mesh(v, scale=1.0):
@@ -146,6 +146,13 @@ def heat_color(values, invert=False):
     colors[np.isnan(values), :] = np.nan
     return colors
 
+def mask_sign(mapdata, color_mode):
+    masked_mapdata = np.copy(mapdata)
+    if color_mode == ColorSelection.POSITIVE:
+        masked_mapdata[masked_mapdata < 0] = np.nan
+    elif color_mode == ColorSelection.NEGATIVE:
+        masked_mapdata[masked_mapdata > 0] = np.nan
+    return masked_mapdata
 
 def rescale_overlay(values, minval=None, maxval=None):
     """
@@ -173,28 +180,35 @@ def rescale_overlay(values, minval=None, maxval=None):
         Positive minimum value (crop values whose absolute value is below).
     maxval: float
         Positive maximum value (saturate color at maxval and -maxval).
+    pos: bool
+        Whether positive values are present at all after cropping.
     neg: bool
         Whether negative values are present at all after cropping.
     """
     valsign = np.sign(values)
     valabs = np.abs(values)
-    realmin = np.min(values)
-    if maxval is None:
-        maxval = np.max(valabs)
-    if minval is None:
-        minval = max(0.0, np.min(valabs))
+    
     if maxval < 0 or minval < 0:
         print("resacle_overlay ERROR: min and maxval should both be positive!")
         exit(1)
-    # print("Using min {:.2f} and max {:.2f}".format(minval,maxval))
-    # rescale map symmetrically to -1 .. 1 (keeping minval at 0)
+    
     # mask values below minval
     values[valabs < minval] = np.nan
-    # shift towards 0 from both sides
-    values = values - valsign * minval
-    # rescale so that former maxval is at 1 (and -1 for negative values)
-    values = values / (maxval - minval)
-    return values, minval, maxval, (realmin < 0 and realmin < -minval)
+    
+    # rescale map symmetrically to -1 .. 1 with the minval = 0
+    # Any arithmetic operation containing NaN values results in NaN
+    range_val = maxval - minval
+    if range_val == 0:
+        values = np.zeros_like(values)
+    else:
+        values = values - valsign * minval
+        values = values / range_val
+
+    # Check if there are any positive or negative values
+    pos = np.any(values[~np.isnan(values)] > 0)
+    neg = np.any(values[~np.isnan(values)] < 0)
+
+    return values, minval, maxval, pos, neg
 
 
 def binary_color(values, thres, color_low, color_high):
@@ -271,7 +285,8 @@ def prepare_geometry(
     minval=None,
     maxval=None,
     invert=False,
-    scale=1.85
+    scale=1.85,
+    color_mode=ColorSelection.BOTH
 ):
     """
     Prepare meshdata for upload to GPU.
@@ -300,6 +315,9 @@ def prepare_geometry(
         Invert color map.
     scale : float
         Global scaling factor. Default: 1.85.
+    color_mode : ColorSelection
+        Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
+        or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
 
     Returns
     -------
@@ -312,6 +330,8 @@ def prepare_geometry(
         Minimum value of overlay function after rescale.
     fmax: float
         Maximum value of overlay function after rescale.
+    pos: bool
+        Whether positive values are there after rescale/cropping.
     neg: bool
         Whether negative values are there after rescale/cropping.
     """
@@ -337,11 +357,25 @@ def prepare_geometry(
             mapdata = read_mgh_data(overlaypath)
         else:
             mapdata = read_morph_data(overlaypath)
-        mapdata, fmin, fmax, neg = rescale_overlay(mapdata, minval, maxval)
+
+        valabs = np.abs(mapdata)    
+        if maxval is None:
+            maxval = np.max(valabs) if np.any(valabs) else 0
+        if minval is None:
+            minval = max(0.0, np.min(valabs) if np.any(valabs) else 0)
+        
+        # Mask map and get either positive and/or negative values
+        mapdata = mask_sign(mapdata, color_mode)
+
+        # Rescale the map with minval and maxval
+        mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, minval, maxval)
+        
         # mask map with label
         mapdata = mask_label(mapdata, labelpath)
+        
         # compute color
         colors = heat_color(mapdata, invert)
+        
         missing = np.isnan(mapdata)
         colors[missing, :] = sulcmap[missing, :]
     elif annotpath:
@@ -355,15 +389,17 @@ def prepare_geometry(
         colors = colors.astype(np.float32)
         fmin = None
         fmax = None
+        pos = None
         neg = None
     else:
         colors = sulcmap
         fmin = None
         fmax = None
+        pos = None
         neg = None
     # concatenate matrices
     vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
-    return vertexdata, triangles, fmin, fmax, neg
+    return vertexdata, triangles, fmin, fmax, pos, neg
 
 
 def init_window(width, height, title="PyOpenGL", visible=True):
@@ -675,7 +711,8 @@ def get_colorbar_label_positions(
     font, 
     labels, 
     colorbar_rect, 
-    gapspace=0, 
+    gapspace=0,
+    pos=True, 
     neg=True, 
     orientation=OrientationType.HORIZONTAL
 ):  
@@ -692,6 +729,8 @@ def get_colorbar_label_positions(
         The coordinate values of the colorbar edges.
     gapspace : int
         Length of the gray space representing the threshold. Default : 0.
+    post : bool
+        Show positive axis. Default: True.
     neg : bool
         Show negative axis. Default: True.
     orientation : OrientationType
@@ -712,7 +751,11 @@ def get_colorbar_label_positions(
         
         # Upper
         w, h = text_size(labels["upper"], font)
-        positions["upper"] = (cb_x + cb_width - w, label_y)
+        if pos:
+            positions["upper"] = (cb_x + cb_width - w, label_y)
+        else:
+            upper_x = cb_x + cb_width - w - gapspace if gapspace > 0 else cb_x + cb_width - w
+            positions["upper"] = (upper_x, label_y)
         
         # Lower
         w, h = text_size(labels["lower"], font)
@@ -723,7 +766,7 @@ def get_colorbar_label_positions(
             positions["lower"] = (lower_x, label_y)
         
         # Middle
-        if neg:
+        if neg and pos:
             if gapspace == 0:
                 # Single middle
                 w, h = text_size(labels["middle"], font)
@@ -774,7 +817,8 @@ def create_colorbar(
     fmax, 
     invert, 
     orientation=OrientationType.HORIZONTAL, 
-    colorbar_scale=1, 
+    colorbar_scale=1,
+    pos=True, 
     neg=True, 
     font_file=None
 ):
@@ -794,6 +838,8 @@ def create_colorbar(
         OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
     colorbar_scale : number
         Colorbar scaling factor. Default: 1.
+    pos : bool
+        Show positive axis.
     neg : bool
         Show negative axis.
     font_file : str
@@ -815,15 +861,18 @@ def create_colorbar(
         gapspace = 0.08 * cwidth
     else:
         num = int(0.5 * cwidth)
-    if not neg:
+    if not neg or not pos:
         num = num * 2
         gapspace = gapspace * 2
     vals = np.linspace(0.01, 1, num)
-    if not neg:
+    if pos and not neg:
         values[-vals.size :] = vals
+    elif not pos and neg:
+        values[: vals.size] = -1.0 * np.flip(vals)
     else:
         values[: vals.size] = -1.0 * np.flip(vals)
         values[-vals.size :] = vals
+    
 
     colors = heat_color(values, invert)
     colors[np.isnan(values), :] = 0.33 * np.ones((1, 3))
@@ -841,12 +890,12 @@ def create_colorbar(
     
     # Labels for the colorbar
     labels = {}
-    labels["upper"] = f">{fmax:.2f}"
+    labels["upper"] = f">{fmax:.2f}" if pos else (f"{-fmin:.2f}" if gapspace != 0 else "0")
     labels["lower"] = f"<{-fmax:.2f}" if neg else (f"{fmin:.2f}" if gapspace != 0 else "0")
-    if neg and gapspace != 0:
+    if neg and pos and gapspace != 0:
         labels["middle_neg"] = f"{-fmin:.2f}"
         labels["middle_pos"] = f"{fmin:.2f}"
-    elif neg and gapspace == 0:
+    elif neg and pos and gapspace == 0:
         labels["middle"] = "0"
     
     # Maximum caption sizes
@@ -872,7 +921,7 @@ def create_colorbar(
 
         colorbar_rect = (pad_left, pad_top, cwidth, cheight)
         
-    positions = get_colorbar_label_positions(font, labels, colorbar_rect, gapspace, neg, orientation)
+    positions = get_colorbar_label_positions(font, labels, colorbar_rect, gapspace, pos, neg, orientation)
     
     draw = ImageDraw.Draw(image)
     for label_key, position in positions.items():
@@ -902,6 +951,7 @@ def snap1(
     colorbar_y=None,
     colorbar_scale=1,
     orientation=OrientationType.HORIZONTAL,
+    color_mode=ColorSelection.BOTH,
     outpath=None,
     font_file=None,
     specular=True,
@@ -958,6 +1008,9 @@ def snap1(
     orientation : OrientationType
         Orientation of the colorbar and caption, can be OrientationType.VERTICAL or 
         OrientationType.HORIZONTAL. Default: OrientationType.HORIZONTAL.
+    color_mode : ColorSelection
+        Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
+        or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
     outpath : str
         Path to the output image file.
     font_file : str
@@ -978,6 +1031,25 @@ def snap1(
     WWIDTH = REFWWIDTH if width is None else width
     WHEIGHT = REFWHEIGHT if height is None else height
     UI_SCALE = min(WWIDTH / REFWWIDTH, WHEIGHT / REFWHEIGHT)
+
+    # Check screen resolution
+    if not glfw.init():
+        print(
+            "[ERROR] Could not init glfw!"
+        )
+        sys.exit(1)
+    primary_monitor = glfw.get_primary_monitor()
+    mode = glfw.get_video_mode(primary_monitor)
+    screen_width = mode.size.width
+    screen_height = mode.size.height
+    if width > screen_width:
+        print(
+            "[INFO] Requested width exceeds screen width, expect black bars"
+        )
+    elif height > screen_height:
+        print(
+            "[INFO] Requested height exceeds screen height, expect black bars"
+        )
 
     image = Image.new("RGB", (WWIDTH, WHEIGHT))
 
@@ -1003,8 +1075,9 @@ def snap1(
     transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
     # load and colorize data
-    meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale=brain_scale
+    meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
+        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, 
+        scale=brain_scale, color_mode=color_mode
     )
     # upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
@@ -1038,10 +1111,32 @@ def snap1(
     
     image.paste(im1, (brain_x, brain_y))
 
+    if color_mode == ColorSelection.POSITIVE:
+        if pos == 0 and neg == 1:
+            print(
+                "[Error] Overlay has no values to display with positive color_mode"
+            )
+            sys.exit(1)
+        neg = 0
+    elif color_mode == ColorSelection.NEGATIVE:
+        if pos == 1 and neg == 0:
+            print(
+                "[Error] Overlay has no values to display with negative color_mode"
+            )
+            sys.exit(1)
+        pos = 0
+    else:
+        if pos == 0 and neg == 0:
+            print(
+                "[Error] Overlay has no values to display"
+            )
+            sys.exit(1)
+        
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * UI_SCALE, neg, font_file=font_file)
+        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * UI_SCALE, 
+                              pos, neg, font_file=font_file)
         bar_w, bar_h = bar.size
 
     font = None
@@ -1246,7 +1341,7 @@ provided, can not find surf file"
             annotpath = rhannotpath
 
         # load and colorize data
-        meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
+        meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
             meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
         )
         # upload to GPU and compile shaders
@@ -1297,7 +1392,7 @@ provided, can not find surf file"
         )
 
     if lhannotpath is None and rhannotpath is None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, neg=neg)
+        bar = create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg)
         xpos = int(0.5 * (image.width - bar.width))
         ypos = int(0.5 * (image.height - bar.height))
         image.paste(bar, (xpos, ypos))

@@ -11,6 +11,15 @@ Dependencies:
 import enum
 
 
+class ColorSelection(enum.Enum):
+    BOTH = 1
+    POSITIVE = 2
+    NEGATIVE = 3
+    
+class OrientationType(enum.Enum):
+    HORIZONTAL = 1
+    VERTICAL = 2
+
 class ViewType(enum.Enum):
     LEFT = 1
     RIGHT = 2
@@ -18,7 +27,3 @@ class ViewType(enum.Enum):
     FRONT = 4
     TOP = 5
     BOTTOM = 6
-
-class OrientationType(enum.Enum):
-    HORIZONTAL = 1
-    VERTICAL = 2
