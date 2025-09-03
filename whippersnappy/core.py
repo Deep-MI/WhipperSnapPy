@@ -979,6 +979,25 @@ def snap1(
     WHEIGHT = REFWHEIGHT if height is None else height
     UI_SCALE = min(WWIDTH / REFWWIDTH, WHEIGHT / REFWHEIGHT)
 
+    # Check screen resolution
+    if not glfw.init():
+        print(
+            f"[ERROR] Could not init glfw!"
+        )
+        sys.exit(1)
+    primary_monitor = glfw.get_primary_monitor()
+    mode = glfw.get_video_mode(primary_monitor)
+    screen_width = mode.size.width
+    screen_height = mode.size.height
+    if width > screen_width:
+        print(
+            f"[INFO] Requested width exceeds screen width, expect black bars"
+        )
+    elif height > screen_height:
+        print(
+            f"[INFO] Requested height exceeds screen height, expect black bars"
+        )
+
     image = Image.new("RGB", (WWIDTH, WHEIGHT))
 
     # setup brain image
