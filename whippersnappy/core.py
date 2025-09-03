@@ -747,7 +747,7 @@ def get_colorbar_label_positions(
         The coordinate values of the colorbar edges.
     gapspace : int
         Length of the gray space representing the threshold. Default : 0.
-    post : bool
+    pos : bool
         Show positive axis. Default: True.
     neg : bool
         Show negative axis. Default: True.
