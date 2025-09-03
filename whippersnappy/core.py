@@ -754,7 +754,7 @@ def get_colorbar_label_positions(
         if pos:
             positions["upper"] = (cb_x + cb_width - w, label_y)
         else:
-            upper_x = cb_x + cb_width - w - gapspace if gapspace > 0 else cb_x + cb_width - w
+            upper_x = cb_x + cb_width - w - int(gapspace) if gapspace > 0 else cb_x + cb_width - w
             positions["upper"] = (upper_x, label_y)
         
         # Lower
@@ -785,8 +785,12 @@ def get_colorbar_label_positions(
         
         # Upper
         w, h = text_size(labels["upper"], font)
-        positions["upper"] = (label_x, cb_y)
-        
+        if pos:
+            positions["upper"] = (label_x, cb_y)
+        else:
+            upper_y = cb_y + int(gapspace) if gapspace > 0 else cb_y
+            positions["upper"] = (label_x, upper_y)
+            
         # Lower
         w, h = text_size(labels["lower"], font)
         if neg:
@@ -796,7 +800,7 @@ def get_colorbar_label_positions(
             positions["lower"] = (label_x, lower_y)
         
         # Middle labels
-        if neg:
+        if neg and pos:
             if gapspace == 0:
                 # Single middle
                 w, h = text_size(labels["middle"], font)
