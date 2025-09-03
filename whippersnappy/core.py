@@ -1198,7 +1198,7 @@ def snap1(
             else:
                 bx = int(colorbar_x * WWIDTH)
             if colorbar_y is None:
-                gap_and_caption = (GAP + text_h) if caption_y is None else 0
+                gap_and_caption = (GAP + text_h) if caption and caption_y is None else 0
                 by = image.height - BOTTOM_PAD - gap_and_caption - bar_h
             else:
                 by = int(colorbar_y * WHEIGHT)
@@ -1221,7 +1221,7 @@ def snap1(
         # Place the colorbar
         if bar is not None:
             if colorbar_x is None:
-                gap_and_caption = (GAP + text_h) if caption_x is None else 0
+                gap_and_caption = (GAP + text_h) if caption and caption_x is None else 0
                 bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
             else:
                 bx = int(colorbar_x * WWIDTH)
