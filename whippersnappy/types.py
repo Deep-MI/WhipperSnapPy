@@ -15,7 +15,7 @@ class ColorSelection(enum.Enum):
     BOTH = 1
     POSITIVE = 2
     NEGATIVE = 3
-    
+
 class OrientationType(enum.Enum):
     HORIZONTAL = 1
     VERTICAL = 2

@@ -1112,20 +1112,20 @@ def snap1(
 
     # Check if there is data to display
     if color_mode == ColorSelection.POSITIVE:
-        if pos == 0 and neg == 1:
+        if not pos and neg:
             print(
                 "[Error] Overlay has no values to display with positive color_mode"
             )
             sys.exit(1)
-        neg = 0
+        neg = False
     elif color_mode == ColorSelection.NEGATIVE:
-        if pos == 1 and neg == 0:
+        if pos and not neg:
             print(
                 "[Error] Overlay has no values to display with negative color_mode"
             )
             sys.exit(1)
-        pos = 0
-    if pos == 0 and neg == 0:
+        pos = False
+    if not pos and not neg:
         print(
             "[Error] Overlay has no values to display"
         )
