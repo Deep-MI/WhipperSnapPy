@@ -1083,6 +1083,27 @@ def snap1(
         meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, 
         scale=brain_scale, color_mode=color_mode
     )
+
+    if color_mode == ColorSelection.POSITIVE:
+        if pos == 0 and neg == 1:
+            print(
+                "[Error] Overlay has no values to display with positive color_mode"
+            )
+            sys.exit(1)
+        neg = 0
+    elif color_mode == ColorSelection.NEGATIVE:
+        if pos == 1 and neg == 0:
+            print(
+                "[Error] Overlay has no values to display with negative color_mode"
+            )
+            sys.exit(1)
+        pos = 0
+    if pos == 0 and neg == 0:
+        print(
+            "[Error] Overlay has no values to display"
+        )
+        sys.exit(1)
+
     # upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
 
@@ -1114,27 +1135,6 @@ def snap1(
     brain_y = 0 if WHEIGHT < BHEIGHT else (WHEIGHT - BHEIGHT) // 2
     
     image.paste(im1, (brain_x, brain_y))
-
-    if color_mode == ColorSelection.POSITIVE:
-        if pos == 0 and neg == 1:
-            print(
-                "[Error] Overlay has no values to display with positive color_mode"
-            )
-            sys.exit(1)
-        neg = 0
-    elif color_mode == ColorSelection.NEGATIVE:
-        if pos == 1 and neg == 0:
-            print(
-                "[Error] Overlay has no values to display with negative color_mode"
-            )
-            sys.exit(1)
-        pos = 0
-    else:
-        if pos == 0 and neg == 0:
-            print(
-                "[Error] Overlay has no values to display"
-            )
-            sys.exit(1)
         
     bar = None
     bar_w = bar_h = 0
