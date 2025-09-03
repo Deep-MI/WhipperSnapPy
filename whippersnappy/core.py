@@ -213,7 +213,7 @@ def rescale_overlay(values, minval=None, maxval=None):
     # Mask values below minval
     values[valabs < minval] = np.nan
     
-    # Eescale map symmetrically to -1 .. 1 with the minval = 0
+    # Rescale map symmetrically to -1 .. 1 with the minval = 0
     # Any arithmetic operation containing NaN values results in NaN
     range_val = maxval - minval
     if range_val == 0:
@@ -948,7 +948,7 @@ def create_colorbar(
 
         colorbar_rect = (pad_left, pad_top, cwidth, cheight)
         
-    # Get posiitons of the labels
+    # Get positions of the labels
     positions = get_colorbar_label_positions(font, labels, colorbar_rect, gapspace, pos, neg, orientation)
     
     # Draw the labels
