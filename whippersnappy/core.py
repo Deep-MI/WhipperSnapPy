@@ -146,13 +146,31 @@ def heat_color(values, invert=False):
     colors[np.isnan(values), :] = np.nan
     return colors
 
-def mask_sign(mapdata, color_mode):
-    masked_mapdata = np.copy(mapdata)
+def mask_sign(values, color_mode):
+    """
+    Mask values don't have the same sign as the color_mode.
+
+    The masked values will be replaced by nan.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Float values of function on the surface mesh (length Nvert).
+    color_mode : ColorSelection
+        Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
+        or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
+
+    Returns
+    -------
+    values: numpy.ndarray
+        Float array of input function on mesh (length Nvert).
+    """
+    masked_values = np.copy(values)
     if color_mode == ColorSelection.POSITIVE:
-        masked_mapdata[masked_mapdata < 0] = np.nan
+        masked_values[masked_values < 0] = np.nan
     elif color_mode == ColorSelection.NEGATIVE:
-        masked_mapdata[masked_mapdata > 0] = np.nan
-    return masked_mapdata
+        masked_values[masked_values > 0] = np.nan
+    return masked_values
 
 def rescale_overlay(values, minval=None, maxval=None):
     """
@@ -192,10 +210,10 @@ def rescale_overlay(values, minval=None, maxval=None):
         print("resacle_overlay ERROR: min and maxval should both be positive!")
         exit(1)
     
-    # mask values below minval
+    # Mask values below minval
     values[valabs < minval] = np.nan
     
-    # rescale map symmetrically to -1 .. 1 with the minval = 0
+    # Eescale map symmetrically to -1 .. 1 with the minval = 0
     # Any arithmetic operation containing NaN values results in NaN
     range_val = maxval - minval
     if range_val == 0:
@@ -856,11 +874,11 @@ def create_colorbar(
     """
     cwidth = int(200 * colorbar_scale)
     cheight = int(30 * colorbar_scale)
-    # img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
-    values = np.nan * np.ones(cwidth)
     gapspace = 0
+
+    # Add gray gap if needed
     if fmin > 0.01:
-        # leave gray gap
+        # Leave gray gap
         num = int(0.42 * cwidth)
         gapspace = 0.08 * cwidth
     else:
@@ -868,25 +886,30 @@ def create_colorbar(
     if not neg or not pos:
         num = num * 2
         gapspace = gapspace * 2
-    vals = np.linspace(0.01, 1, num)
-    if pos and not neg:
-        values[-vals.size :] = vals
-    elif not pos and neg:
-        values[: vals.size] = -1.0 * np.flip(vals)
-    else:
-        values[: vals.size] = -1.0 * np.flip(vals)
-        values[-vals.size :] = vals
     
+    # Set the values for the colorbar
+    values = np.nan * np.ones(cwidth)
+    steps = np.linspace(0.01, 1, num)
+    if pos and not neg:
+        values[-steps.size :] = steps
+    elif not pos and neg:
+        values[: steps.size] = -1.0 * np.flip(steps)
+    else:
+        values[: steps.size] = -1.0 * np.flip(steps)
+        values[-steps.size :] = steps
 
+    # Set the colors
     colors = heat_color(values, invert)
     colors[np.isnan(values), :] = 0.33 * np.ones((1, 3))
     img_bar = np.uint8(np.tile(colors, (cheight, 1, 1)) * 255)
-    # pad with black
+    
+    # Pad with black
     pad_top, pad_left = 3, 10
     img_buf = np.zeros((cheight + 2 * pad_top, cwidth + 2 * pad_left, 3), dtype=np.uint8)
     img_buf[pad_top : cheight + pad_top, pad_left : cwidth + pad_left, :] = img_bar
     image = Image.fromarray(img_buf)
 
+    # Get the font for the labels
     if font_file is None:
         script_dir = "/".join(str(__file__).split("/")[:-1])
         font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
@@ -925,8 +948,10 @@ def create_colorbar(
 
         colorbar_rect = (pad_left, pad_top, cwidth, cheight)
         
+    # Get posiitons of the labels
     positions = get_colorbar_label_positions(font, labels, colorbar_rect, gapspace, pos, neg, orientation)
     
+    # Draw the labels
     draw = ImageDraw.Draw(image)
     for label_key, position in positions.items():
         draw.text((int(position[0]), int(position[1])), labels[label_key], fill=(220, 220, 220), font=font)
@@ -1029,7 +1054,7 @@ def snap1(
     None
         This function returns None.
     """
-    # setup base window
+    # Setup base image
     REFWWIDTH = 700
     REFWHEIGHT = 500
     WWIDTH = REFWWIDTH if width is None else width
@@ -1055,9 +1080,10 @@ def snap1(
             "[INFO] Requested height exceeds screen height, expect black bars"
         )
 
+    # Create the base image
     image = Image.new("RGB", (WWIDTH, WHEIGHT))
 
-    # setup brain image
+    # Setup brain image
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
     BWIDTH = int(540 * brain_scale * UI_SCALE)
     BHEIGHT = int(450 * brain_scale * UI_SCALE)
@@ -1078,12 +1104,13 @@ def snap1(
 
     transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
-    # load and colorize data
+    # Load and colorize data
     meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
         meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, 
         scale=brain_scale, color_mode=color_mode
     )
 
+    # Check if there is data to display
     if color_mode == ColorSelection.POSITIVE:
         if pos == 0 and neg == 1:
             print(
@@ -1104,10 +1131,10 @@ def snap1(
         )
         sys.exit(1)
 
-    # upload to GPU and compile shaders
+    # Upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
 
-    # draw
+    # Draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     transformLoc = gl.glGetUniformLocation(shader, "transform")
     if viewmat is None:
@@ -1131,11 +1158,13 @@ def snap1(
 
     im1 = capture_window(brain_display_width, brain_display_height)
 
+    # Center brain
     brain_x = 0 if WWIDTH < BWIDTH else (WWIDTH - BWIDTH) // 2
     brain_y = 0 if WHEIGHT < BHEIGHT else (WHEIGHT - BHEIGHT) // 2
     
     image.paste(im1, (brain_x, brain_y))
         
+    # Create colorbar
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
@@ -1143,6 +1172,7 @@ def snap1(
                               pos, neg, font_file=font_file)
         bar_w, bar_h = bar.size
 
+    # Create caption
     font = None
     text_w = text_h = 0
     if caption:
@@ -1161,6 +1191,7 @@ def snap1(
     GAP = int(4 * UI_SCALE)
 
     if orientation == OrientationType.HORIZONTAL:
+        # Place the colorbar
         if bar is not None:
             if colorbar_x is None:
                 bx = int(0.5 * (image.width - bar_w))
@@ -1173,6 +1204,7 @@ def snap1(
                 by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
+        # Place the caption
         if caption:
             if caption_x is None:
                 cx = int(0.5 * (image.width - text_w))
@@ -1186,6 +1218,7 @@ def snap1(
                 (cx, cy), caption, (220, 220, 220), font=font, anchor="lt"
             )
     else: # orientation == OrientationType.VERTICAL    
+        # Place the colorbar
         if bar is not None:
             if colorbar_x is None:
                 gap_and_caption = (GAP + text_h) if caption_x is None else 0
@@ -1198,6 +1231,7 @@ def snap1(
                 by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
+        # Place the caption
         if caption:
             # Create a new transparent image and rotate it
             temp_caption_img = Image.new("RGBA", (text_w, text_h), (0,0,0,0))
