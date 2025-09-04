@@ -5,7 +5,7 @@ Dependencies:
 
 @Author    : Martin Reuter
 @Created   : 27.02.2022
-@Revised   : 16.03.2022
+@Revised   : 02.10.2025
 
 """
 
@@ -21,6 +21,7 @@ import pyrr
 from PIL import Image, ImageDraw, ImageFont
 
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
+from .types import ColorSelection, OrientationType, ViewType
 
 
 def normalize_mesh(v, scale=1.0):
@@ -145,6 +146,31 @@ def heat_color(values, invert=False):
     colors[np.isnan(values), :] = np.nan
     return colors
 
+def mask_sign(values, color_mode):
+    """
+    Mask values don't have the same sign as the color_mode.
+
+    The masked values will be replaced by nan.
+
+    Parameters
+    ----------
+    values : numpy.ndarray
+        Float values of function on the surface mesh (length Nvert).
+    color_mode : ColorSelection
+        Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
+        or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
+
+    Returns
+    -------
+    values: numpy.ndarray
+        Float array of input function on mesh (length Nvert).
+    """
+    masked_values = np.copy(values)
+    if color_mode == ColorSelection.POSITIVE:
+        masked_values[masked_values < 0] = np.nan
+    elif color_mode == ColorSelection.NEGATIVE:
+        masked_values[masked_values > 0] = np.nan
+    return masked_values
 
 def rescale_overlay(values, minval=None, maxval=None):
     """
@@ -172,28 +198,35 @@ def rescale_overlay(values, minval=None, maxval=None):
         Positive minimum value (crop values whose absolute value is below).
     maxval: float
         Positive maximum value (saturate color at maxval and -maxval).
+    pos: bool
+        Whether positive values are present at all after cropping.
     neg: bool
         Whether negative values are present at all after cropping.
     """
     valsign = np.sign(values)
     valabs = np.abs(values)
-    realmin = np.min(values)
-    if maxval is None:
-        maxval = np.max(valabs)
-    if minval is None:
-        minval = max(0.0, np.min(valabs))
+    
     if maxval < 0 or minval < 0:
         print("resacle_overlay ERROR: min and maxval should both be positive!")
         exit(1)
-    # print("Using min {:.2f} and max {:.2f}".format(minval,maxval))
-    # rescale map symmetrically to -1 .. 1 (keeping minval at 0)
-    # mask values below minval
+    
+    # Mask values below minval
     values[valabs < minval] = np.nan
-    # shift towards 0 from both sides
-    values = values - valsign * minval
-    # rescale so that former maxval is at 1 (and -1 for negative values)
-    values = values / (maxval - minval)
-    return values, minval, maxval, (realmin < 0 and realmin < -minval)
+    
+    # Rescale map symmetrically to -1 .. 1 with the minval = 0
+    # Any arithmetic operation containing NaN values results in NaN
+    range_val = maxval - minval
+    if range_val == 0:
+        values = np.zeros_like(values)
+    else:
+        values = values - valsign * minval
+        values = values / range_val
+
+    # Check if there are any positive or negative values
+    pos = np.any(values[~np.isnan(values)] > 0)
+    neg = np.any(values[~np.isnan(values)] < 0)
+
+    return values, minval, maxval, pos, neg
 
 
 def binary_color(values, thres, color_low, color_high):
@@ -270,7 +303,8 @@ def prepare_geometry(
     minval=None,
     maxval=None,
     invert=False,
-    scale=1.85
+    scale=1.85,
+    color_mode=ColorSelection.BOTH
 ):
     """
     Prepare meshdata for upload to GPU.
@@ -299,6 +333,9 @@ def prepare_geometry(
         Invert color map.
     scale : float
         Global scaling factor. Default: 1.85.
+    color_mode : ColorSelection
+        Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
+        or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
 
     Returns
     -------
@@ -311,6 +348,8 @@ def prepare_geometry(
         Minimum value of overlay function after rescale.
     fmax: float
         Maximum value of overlay function after rescale.
+    pos: bool
+        Whether positive values are there after rescale/cropping.
     neg: bool
         Whether negative values are there after rescale/cropping.
     """
@@ -336,11 +375,25 @@ def prepare_geometry(
             mapdata = read_mgh_data(overlaypath)
         else:
             mapdata = read_morph_data(overlaypath)
-        mapdata, fmin, fmax, neg = rescale_overlay(mapdata, minval, maxval)
+
+        valabs = np.abs(mapdata)    
+        if maxval is None:
+            maxval = np.max(valabs) if np.any(valabs) else 0
+        if minval is None:
+            minval = max(0.0, np.min(valabs) if np.any(valabs) else 0)
+        
+        # Mask map and get either positive and/or negative values
+        mapdata = mask_sign(mapdata, color_mode)
+
+        # Rescale the map with minval and maxval
+        mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, minval, maxval)
+        
         # mask map with label
         mapdata = mask_label(mapdata, labelpath)
+        
         # compute color
         colors = heat_color(mapdata, invert)
+        
         missing = np.isnan(mapdata)
         colors[missing, :] = sulcmap[missing, :]
     elif annotpath:
@@ -354,15 +407,17 @@ def prepare_geometry(
         colors = colors.astype(np.float32)
         fmin = None
         fmax = None
+        pos = None
         neg = None
     else:
         colors = sulcmap
         fmin = None
         fmax = None
+        pos = None
         neg = None
     # concatenate matrices
     vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
-    return vertexdata, triangles, fmin, fmax, neg
+    return vertexdata, triangles, fmin, fmax, pos, neg
 
 
 def init_window(width, height, title="PyOpenGL", visible=True):
@@ -645,8 +700,150 @@ def capture_window(width, height):
         image.thumbnail((0.5 * width, 0.5 * height), Image.Resampling.LANCZOS)
     return image
 
+def text_size(caption, font):
+    """
+    Get the size of the text.
 
-def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
+    Parameters
+    ----------
+    caption : str
+        Text that is to be rendered.
+    font : PIL.ImageFont.FreeTypeFont
+        Font of the labels.
+    
+    Returns
+    -------
+    text_width: int
+        Width of the text in pixels.
+    text_height: int
+        Height of the text in pixels.
+    """
+    dummy_img = Image.new("L", (1, 1))
+    draw = ImageDraw.Draw(dummy_img)
+    bbox = draw.textbbox((0, 0), caption, font=font, anchor="lt")
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]        
+    return text_width, text_height
+
+def get_colorbar_label_positions(
+    font, 
+    labels, 
+    colorbar_rect, 
+    gapspace=0,
+    pos=True, 
+    neg=True, 
+    orientation=OrientationType.HORIZONTAL
+):  
+    """
+    Get the positions of the labels for the colorbar.
+
+    Parameters
+    ----------
+    font : PIL.ImageFont.FreeTypeFont
+        Font of the labels.
+    labels : dict
+        Label texts that are to be rendered.
+    colorbar_rect : tuple
+        The coordinate values of the colorbar edges.
+    gapspace : int
+        Length of the gray space representing the threshold. Default : 0.
+    pos : bool
+        Show positive axis. Default: True.
+    neg : bool
+        Show negative axis. Default: True.
+    orientation : OrientationType
+        Orientation of the colorbar, can be OrientationType.HORIZONTAL or 
+        OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
+
+    Returns
+    -------
+    positions: dict
+        Positions of all labels.
+    """
+    positions = {}
+    cb_x, cb_y, cb_width, cb_height = colorbar_rect
+    cb_labels_gap = 5
+
+    if orientation == OrientationType.HORIZONTAL:
+        label_y = cb_y + cb_height + cb_labels_gap
+        
+        # Upper
+        w, h = text_size(labels["upper"], font)
+        if pos:
+            positions["upper"] = (cb_x + cb_width - w, label_y)
+        else:
+            upper_x = cb_x + cb_width - w - int(gapspace) if gapspace > 0 else cb_x + cb_width - w
+            positions["upper"] = (upper_x, label_y)
+        
+        # Lower
+        w, h = text_size(labels["lower"], font)
+        if neg: 
+            positions["lower"] = (cb_x, label_y)
+        else:
+            lower_x = cb_x + int(gapspace) if gapspace > 0 else cb_x
+            positions["lower"] = (lower_x, label_y)
+        
+        # Middle
+        if neg and pos:
+            if gapspace == 0:
+                # Single middle
+                w, h = text_size(labels["middle"], font)
+                positions["middle"] = (cb_x + cb_width // 2 - w // 2, label_y)
+            else:
+                # Middle Negative
+                w, h = text_size(labels["middle_neg"], font)
+                positions["middle_neg"] = (cb_x + cb_width // 2 - w - int(gapspace), label_y)
+                
+                # Middle Positive
+                w, h = text_size(labels["middle_pos"], font)
+                positions["middle_pos"] = (cb_x + cb_width // 2 + int(gapspace), label_y)
+            
+    else:  # orientation == OrientationType.VERTICAL
+        label_x = cb_x + cb_width + cb_labels_gap
+        
+        # Upper
+        w, h = text_size(labels["upper"], font)
+        if pos:
+            positions["upper"] = (label_x, cb_y)
+        else:
+            upper_y = cb_y + int(gapspace) if gapspace > 0 else cb_y
+            positions["upper"] = (label_x, upper_y)
+            
+        # Lower
+        w, h = text_size(labels["lower"], font)
+        if neg:
+            positions["lower"] = (label_x, cb_y + cb_height - 1.5 * h)
+        else:
+            lower_y = cb_y + cb_height - int(gapspace) - 1.5 * h if gapspace > 0 else cb_y + cb_height - 1.5 * h
+            positions["lower"] = (label_x, lower_y)
+        
+        # Middle labels
+        if neg and pos:
+            if gapspace == 0:
+                # Single middle
+                w, h = text_size(labels["middle"], font)
+                positions["middle"] = (label_x, cb_y + cb_height // 2 - h // 2)
+            else:
+                # Middle Positive
+                w, h = text_size(labels["middle_pos"], font)
+                positions["middle_pos"] = (label_x, cb_y + cb_height // 2 - 1.5 * h - int(gapspace))
+                
+                # Middle Negative
+                w, h = text_size(labels["middle_neg"], font)
+                positions["middle_neg"] = (label_x, cb_y + cb_height // 2 + int(gapspace))
+
+    return positions
+
+def create_colorbar(
+    fmin, 
+    fmax, 
+    invert, 
+    orientation=OrientationType.HORIZONTAL, 
+    colorbar_scale=1,
+    pos=True, 
+    neg=True, 
+    font_file=None
+):
     """
     Create colorbar image with text indicating min and max values.
 
@@ -658,6 +855,13 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
         Absolute max value where color saturates.
     invert : bool
         Color invert.
+    orientation : OrientationType
+        Orientation of the colorbar, can be OrientationType.HORIZONTAL or 
+        OrientationType.VERTICAL. Default : OrientationType.HORIZONTAL.
+    colorbar_scale : number
+        Colorbar scaling factor. Default: 1.
+    pos : bool
+        Show positive axis.
     neg : bool
         Show negative axis.
     font_file : str
@@ -668,85 +872,89 @@ def create_colorbar(fmin, fmax, invert, neg=True, font_file=None):
     image: PIL.Image.Image
         Colorbar image.
     """
-    cwidth = 200
-    cheight = 30
-    # img = Image.new("RGB", (cwidth, cheight), color=(90, 90, 90))
-    values = np.nan * np.ones(cwidth)
+    cwidth = int(200 * colorbar_scale)
+    cheight = int(30 * colorbar_scale)
     gapspace = 0
+
+    # Add gray gap if needed
     if fmin > 0.01:
-        # leave gray gap
+        # Leave gray gap
         num = int(0.42 * cwidth)
         gapspace = 0.08 * cwidth
     else:
         num = int(0.5 * cwidth)
-    if not neg:
+    if not neg or not pos:
         num = num * 2
         gapspace = gapspace * 2
-    vals = np.linspace(0.01, 1, num)
-    if not neg:
-        values[-vals.size :] = vals
+    
+    # Set the values for the colorbar
+    values = np.nan * np.ones(cwidth)
+    steps = np.linspace(0.01, 1, num)
+    if pos and not neg:
+        values[-steps.size :] = steps
+    elif not pos and neg:
+        values[: steps.size] = -1.0 * np.flip(steps)
     else:
-        values[: vals.size] = -1.0 * np.flip(vals)
-        values[-vals.size :] = vals
+        values[: steps.size] = -1.0 * np.flip(steps)
+        values[-steps.size :] = steps
 
+    # Set the colors
     colors = heat_color(values, invert)
     colors[np.isnan(values), :] = 0.33 * np.ones((1, 3))
     img_bar = np.uint8(np.tile(colors, (cheight, 1, 1)) * 255)
-    # pad with black
-    img_buf = np.zeros((cheight + 20, cwidth + 20, 3), dtype=np.uint8)
-    img_buf[3 : cheight + 3, 10 : cwidth + 10, :] = img_bar
+    
+    # Pad with black
+    pad_top, pad_left = 3, 10
+    img_buf = np.zeros((cheight + 2 * pad_top, cwidth + 2 * pad_left, 3), dtype=np.uint8)
+    img_buf[pad_top : cheight + pad_top, pad_left : cwidth + pad_left, :] = img_bar
     image = Image.fromarray(img_buf)
 
+    # Get the font for the labels
     if font_file is None:
         script_dir = "/".join(str(__file__).split("/")[:-1])
         font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
-    font = ImageFont.truetype(font_file, 12)
-    if neg:
-        # Left
-        caption = f" <{-fmax:.2f}"
-        xpos = 0  # 10- 0.5*(font.getlength(caption))
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
-        # Right
-        caption = f">{fmax:.2f} "
-        xpos = image.width - (font.getlength(caption))
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
-        if gapspace == 0:
-            caption = "0"
-            xpos = 0.5 * image.width - 0.5 * font.getlength(caption)
-            ImageDraw.Draw(image).text(
-                (xpos, image.height - 17), caption, (220, 220, 220), font=font
-            )
-        else:
-            caption = f"{-fmin:.2f}"
-            xpos = 0.5 * image.width - 0.5 * font.getlength(caption) - gapspace - 5
-            ImageDraw.Draw(image).text(
-                (xpos, image.height - 17), caption, (220, 220, 220), font=font
-            )
-            caption = f"{fmin:.2f}"
-            xpos = 0.5 * image.width - 0.5 * font.getlength(caption) + gapspace + 5
-            ImageDraw.Draw(image).text(
-                (xpos, image.height - 17), caption, (220, 220, 220), font=font
-            )
+    font = ImageFont.truetype(font_file, int(12 * colorbar_scale))
+    
+    # Labels for the colorbar
+    labels = {}
+    labels["upper"] = f">{fmax:.2f}" if pos else (f"{-fmin:.2f}" if gapspace != 0 else "0")
+    labels["lower"] = f"<{-fmax:.2f}" if neg else (f"{fmin:.2f}" if gapspace != 0 else "0")
+    if neg and pos and gapspace != 0:
+        labels["middle_neg"] = f"{-fmin:.2f}"
+        labels["middle_pos"] = f"{fmin:.2f}"
+    elif neg and pos and gapspace == 0:
+        labels["middle"] = "0"
+    
+    # Maximum caption sizes
+    caption_sizes = [text_size(caption, font) for caption in labels.values()]
+    max_caption_width = int(max([caption_size[0] for caption_size in caption_sizes]))
+    max_caption_height = int(max([caption_size[1] for caption_size in caption_sizes]))
+
+    # Extend colorbar image by the maximum caption size to fit the labels and rotate image if needed
+    if orientation == OrientationType.VERTICAL:
+        image = image.rotate(90, expand=True)
+
+        new_width = image.width + int(max_caption_width)
+        new_image = Image.new("RGB", (new_width, image.height), (0, 0, 0))
+        new_image.paste(image, (0, 0))
+        image = new_image
+        
+        colorbar_rect = (pad_top, pad_left, cheight, cwidth)
     else:
-        # Right
-        caption = f">{fmax:.2f} "
-        xpos = image.width - (font.getlength(caption))
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
-        # Left
-        caption = f" {fmin:.2f}"
-        xpos = gapspace
-        if gapspace == 0:
-            caption = " 0"
-            xpos = 5
-        ImageDraw.Draw(image).text(
-            (xpos, image.height - 17), caption, (220, 220, 220), font=font
-        )
+        new_height = image.height + int(max_caption_height * 2)
+        new_image = Image.new("RGB", (image.width, new_height), (0, 0, 0))
+        new_image.paste(image, (0, 0))
+        image = new_image
+
+        colorbar_rect = (pad_left, pad_top, cwidth, cheight)
+        
+    # Get positions of the labels
+    positions = get_colorbar_label_positions(font, labels, colorbar_rect, gapspace, pos, neg, orientation)
+    
+    # Draw the labels
+    draw = ImageDraw.Draw(image)
+    for label_key, position in positions.items():
+        draw.text((int(position[0]), int(position[1])), labels[label_key], fill=(220, 220, 220), font=font)
 
     return image
 
@@ -756,22 +964,27 @@ def snap1(
     annotpath=None,
     labelpath=None,
     curvpath=None,
-    view="left",
+    view=ViewType.LEFT,
     viewmat=None,
+    width=None,
+    height=None,
     fthresh=None,
     fmax=None,
     caption=None,
     caption_x=None,
     caption_y=None,
+    caption_scale=1,
     invert=False,
     colorbar=True,
     colorbar_x=None,
     colorbar_y=None,
+    colorbar_scale=1,
+    orientation=OrientationType.HORIZONTAL,
+    color_mode=ColorSelection.BOTH,
     outpath=None,
     font_file=None,
-    orientation="horizontal",
     specular=True,
-    scale=1.5,
+    brain_scale=1,
 ):
     """
     Snap one view (view and hemisphere is determined by the user).
@@ -790,10 +1003,15 @@ def snap1(
         Path to the label file (FreeSurfer format).
     curvpath : str
         Path to the curvature file for texture in non-colored regions.
-    view : str
-        Predefined views, can be left (default), right, back, front, top, bottom.
+    view : ViewType
+        Predefined views, can be ViewType.LEFT, ViewType.RIGHT, ViewType.BACK, 
+        ViewType.FRONT, ViewType.TOP or ViewType.BOTTOM. Default: ViewType.LEFT.
     viewmat : array-like
         User-defined 4x4 viewing matrix. Overwrites view.
+    width : number
+        Width of the image. Default: automatically chosen.
+    height : number
+        Height of the image. Default: automatically chosen.
     fthresh : float
         Pos absolute value under which no color is shown.
     fmax : float
@@ -801,39 +1019,79 @@ def snap1(
     caption : str
         Caption text to be placed on the image.
     caption_x : number
-        Horizontal position of the caption. Default: automatically chosen.
+        Normalized horizontal position of the caption. Default: automatically chosen.
     caption_y : number
-        Vertical position of the caption. Default: automatically chosen.
+        Normalized vertical position of the caption. Default: automatically chosen.
+    caption_scale : number
+        Caption scaling factor. Default: 1.
     invert : bool
         Invert color (blue positive, red negative).
     colorbar : bool
         Show colorbar on image.
     colorbar_x : number
-        Horizontal position of the colorbar. Default: automatically chosen.
+        Normalized horizontal position of the colorbar. Default: automatically chosen.
     colorbar_y : number
-        Vertical position of the colorbar. Default: automatically chosen.
+        Normalized vertical position of the colorbar. Default: automatically chosen.
+    colorbar_scale : number
+        Colorbar scaling factor. Default: 1.
+    orientation : OrientationType
+        Orientation of the colorbar and caption, can be OrientationType.VERTICAL or 
+        OrientationType.HORIZONTAL. Default: OrientationType.HORIZONTAL.
+    color_mode : ColorSelection
+        Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
+        or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
     outpath : str
         Path to the output image file.
     font_file : str
         Path to the file describing the font to be used in captions.
-    orientation : str
-        Orientation of the colorbar and caption. Default: horizontal.
     specular : bool
         Specular is by default set as True.
-    scale : float
-        Global scaling factor. Default: 1.5.
+    brain_scale : float
+        Brain scaling factor. Default: 1.
 
     Returns
     -------
     None
         This function returns None.
     """
-    # setup window
+    # Setup base image
+    REFWWIDTH = 700
+    REFWHEIGHT = 500
+    WWIDTH = REFWWIDTH if width is None else width
+    WHEIGHT = REFWHEIGHT if height is None else height
+    UI_SCALE = min(WWIDTH / REFWWIDTH, WHEIGHT / REFWHEIGHT)
+
+    # Check screen resolution
+    if not glfw.init():
+        print(
+            "[ERROR] Could not init glfw!"
+        )
+        sys.exit(1)
+    primary_monitor = glfw.get_primary_monitor()
+    mode = glfw.get_video_mode(primary_monitor)
+    screen_width = mode.size.width
+    screen_height = mode.size.height
+    if width > screen_width:
+        print(
+            "[INFO] Requested width exceeds screen width, expect black bars"
+        )
+    elif height > screen_height:
+        print(
+            "[INFO] Requested height exceeds screen height, expect black bars"
+        )
+
+    # Create the base image
+    image = Image.new("RGB", (WWIDTH, WHEIGHT))
+
+    # Setup brain image
     # (keep aspect ratio, as the mesh scale and distances are set accordingly)
-    wwidth = 540
-    wheight = 450
+    BWIDTH = int(540 * brain_scale * UI_SCALE)
+    BHEIGHT = int(450 * brain_scale * UI_SCALE)
+    brain_display_width = min(BWIDTH, WWIDTH)
+    brain_display_height = min(BHEIGHT, WHEIGHT)
+
     visible = True
-    window = init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible)
+    window = init_window(brain_display_width, brain_display_height, "WhipperSnapPy 2.0", visible)
     if not window:
         return False  # need raise error here in future
 
@@ -846,28 +1104,51 @@ def snap1(
 
     transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
-    # load and colorize data
-    meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale
+    # Load and colorize data
+    meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
+        meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, 
+        scale=brain_scale, color_mode=color_mode
     )
-    # upload to GPU and compile shaders
-    shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
-    # draw
+    # Check if there is data to display
+    if color_mode == ColorSelection.POSITIVE:
+        if not pos and neg:
+            print(
+                "[Error] Overlay has no values to display with positive color_mode"
+            )
+            sys.exit(1)
+        neg = False
+    elif color_mode == ColorSelection.NEGATIVE:
+        if pos and not neg:
+            print(
+                "[Error] Overlay has no values to display with negative color_mode"
+            )
+            sys.exit(1)
+        pos = False
+    if not pos and not neg:
+        print(
+            "[Error] Overlay has no values to display"
+        )
+        sys.exit(1)
+
+    # Upload to GPU and compile shaders
+    shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
+
+    # Draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     transformLoc = gl.glGetUniformLocation(shader, "transform")
     if viewmat is None:
-        if view == "left":
+        if view == ViewType.LEFT:
             viewmat = transl * viewLeft
-        elif view == "right":
+        elif view == ViewType.RIGHT:
             viewmat = transl * viewRight
-        elif view == "back":
+        elif view == ViewType.BACK:
             viewmat = transl * viewBack
-        elif view == "front":
+        elif view == ViewType.FRONT:
             viewmat = transl * viewFront
-        elif view == "bottom":
+        elif view == ViewType.BOTTOM:
             viewmat = transl * viewBottom
-        elif view == "top":
+        elif view == ViewType.TOP:
             viewmat = transl * viewTop
     else:
         viewmat = transl * viewmat
@@ -875,133 +1156,97 @@ def snap1(
     gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, viewmat)
     gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-    im1 = capture_window(wwidth, wheight)
+    im1 = capture_window(brain_display_width, brain_display_height)
 
-    image = Image.new("RGB", (im1.width, im1.height))
-    image.paste(im1, (0, 0))
-
-    ori = orientation.lower()
-
+    # Center brain
+    brain_x = 0 if WWIDTH < BWIDTH else (WWIDTH - BWIDTH) // 2
+    brain_y = 0 if WHEIGHT < BHEIGHT else (WHEIGHT - BHEIGHT) // 2
+    
+    image.paste(im1, (brain_x, brain_y))
+        
+    # Create colorbar
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, neg)
-        if ori == "vertical":
-            bar = bar.rotate(90, expand=True)  # rotate ticks/label too
+        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * UI_SCALE, 
+                              pos, neg, font_file=font_file)
         bar_w, bar_h = bar.size
 
+    # Create caption
     font = None
     text_w = text_h = 0
     if caption:
         if font_file is None:
             script_dir = "/".join(str(__file__).split("/")[:-1])
             font_file = os.path.join(script_dir, "Roboto-Regular.ttf")
-        font = ImageFont.truetype(font_file, 20)
-        draw_tmp = ImageDraw.Draw(image)
-        bbox = draw_tmp.textbbox((0, 0), caption, font=font)
-        text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        if ori == "vertical":
-            text_w, text_h = text_h, text_w
+        font = ImageFont.truetype(font_file, 20 * caption_scale * UI_SCALE)
+        text_w, text_h = text_size(caption, font)
+
+        text_w = int(text_w)
+        text_h = int(text_h)
 
     # Constants defining the position of the caption and colorbar
-    BOTTOM_PAD = 20
-    RIGHT_PAD = 20
-    GAP = 4
+    BOTTOM_PAD = int(20 * UI_SCALE)
+    RIGHT_PAD = int(20 * UI_SCALE)
+    GAP = int(4 * UI_SCALE)
 
-    need_auto = (
-        (bar is not None and (colorbar_x is None or colorbar_y is None))
-        or (caption and (caption_x is None or caption_y is None))
-    )
-
-    if ori == "horizontal":
-        extra_h = 0
-        if need_auto:
-            need = BOTTOM_PAD
-            if bar is not None:
-                need += bar_h
-            if bar is not None and caption:
-                need += GAP
-            if caption:
-                need += text_h
-            extra_h = need
-        if extra_h > 0:
-            extended = Image.new("RGB", (image.width, image.height + extra_h), (0, 0, 0))
-            extended.paste(image, (0, 0))
-            image = extended
-
+    if orientation == OrientationType.HORIZONTAL:
+        # Place the colorbar
         if bar is not None:
             if colorbar_x is None:
                 bx = int(0.5 * (image.width - bar_w))
             else:
-                bx = colorbar_x
+                bx = int(colorbar_x * WWIDTH)
             if colorbar_y is None:
-                gap_and_caption = (GAP + text_h) if caption else 0
+                gap_and_caption = (GAP + text_h) if caption and caption_y is None else 0
                 by = image.height - BOTTOM_PAD - gap_and_caption - bar_h
             else:
-                by = colorbar_y
+                by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
+        # Place the caption
         if caption:
             if caption_x is None:
                 cx = int(0.5 * (image.width - text_w))
             else:
-                cx = caption_x
+                cx = int(caption_x * WWIDTH)
             if caption_y is None:
-                cy = (by + bar_h + GAP) if bar is not None else (image.height - BOTTOM_PAD - text_h)
+                cy = image.height - BOTTOM_PAD - text_h
             else:
-                cy = caption_y
+                cy = int(caption_y * WHEIGHT)
             ImageDraw.Draw(image).text(
-                (cx, cy), caption, (220, 220, 220), font=font
+                (cx, cy), caption, (220, 220, 220), font=font, anchor="lt"
             )
-    else: # ori == vertical
-        extra_w = 0
-        if need_auto:
-            need = RIGHT_PAD
-            if bar is not None:
-                need += bar_w
-            if bar is not None and caption:
-                need += GAP
-            if caption:
-                need += text_w
-            extra_w = need
-        if extra_w > 0:
-            extended = Image.new("RGB", (image.width + extra_w, image.height), (0, 0, 0))
-            extended.paste(image, (0, 0))
-            image = extended
-        
+    else: # orientation == OrientationType.VERTICAL    
+        # Place the colorbar
         if bar is not None:
             if colorbar_x is None:
-                gap_and_caption = (GAP + text_w) if caption else 0
+                gap_and_caption = (GAP + text_h) if caption and caption_x is None else 0
                 bx = image.width - RIGHT_PAD - gap_and_caption - bar_w
             else:
-                bx = colorbar_x
+                bx = int(colorbar_x * WWIDTH)
             if colorbar_y is None:
                 by = int(0.5 * (image.height - bar_h))
             else:
-                by = colorbar_y
+                by = int(colorbar_y * WHEIGHT)
             image.paste(bar, (bx, by))
 
-        if caption:   
-            # Get the exact glyph bounds for the caption     
-            probe = Image.new("L", (1,1), 0)
-            d = ImageDraw.Draw(probe)
-            x0, y0, x1, y1 = d.textbbox((0, 0), caption, font=font)
-            w, h = x1 - x0, y1 - y0
-
-            # Use it create a new transparent image and rotate it
-            temp_caption_img = Image.new("RGBA", (w, h), (0,0,0,0))
-            ImageDraw.Draw(temp_caption_img).text((-x0, -y0), caption, font=font)
+        # Place the caption
+        if caption:
+            # Create a new transparent image and rotate it
+            temp_caption_img = Image.new("RGBA", (text_w, text_h), (0,0,0,0))
+            ImageDraw.Draw(temp_caption_img).text((0, 0), caption, font=font, anchor="lt")
             rotated_caption = temp_caption_img.rotate(90, expand=True, fillcolor=(0,0,0,0))
             rotated_w, rotated_h = rotated_caption.size
 
             if caption_x is None:
-                cx = (bx + bar_w + GAP) if bar is not None else (image.width - RIGHT_PAD - rotated_w)
+                cx = image.width - RIGHT_PAD - rotated_w
             else:
-                cx = caption_x
+                cx = int(caption_x * WWIDTH)
             if caption_y is None:
                 cy = int(0.5 * (image.height - rotated_h))
             else:
-                cy = caption_y
+                cy = int(caption_y * WHEIGHT)
 
             image.paste(rotated_caption, (cx, cy), rotated_caption)
 
@@ -1134,9 +1379,17 @@ provided, can not find surf file"
             annotpath = rhannotpath
 
         # load and colorize data
-        meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
+        meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
             meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert
         )
+        
+        # Check if there is something to display
+        if pos == 0 and neg == 0:
+            print(
+                "[Error] Overlay has no values to display"
+            )
+            sys.exit(1)
+
         # upload to GPU and compile shaders
         shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
@@ -1185,7 +1438,7 @@ provided, can not find surf file"
         )
 
     if lhannotpath is None and rhannotpath is None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, neg)
+        bar = create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg)
         xpos = int(0.5 * (image.width - bar.width))
         ypos = int(0.5 * (image.height - bar.height))
         image.paste(bar, (xpos, ypos))
