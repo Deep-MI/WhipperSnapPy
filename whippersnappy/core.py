@@ -1071,11 +1071,11 @@ def snap1(
     mode = glfw.get_video_mode(primary_monitor)
     screen_width = mode.size.width
     screen_height = mode.size.height
-    if width > screen_width:
+    if WWIDTH > screen_width:
         print(
             "[INFO] Requested width exceeds screen width, expect black bars"
         )
-    elif height > screen_height:
+    elif WHEIGHT > screen_height:
         print(
             "[INFO] Requested height exceeds screen height, expect black bars"
         )
@@ -1111,25 +1111,26 @@ def snap1(
     )
 
     # Check if there is data to display
-    if color_mode == ColorSelection.POSITIVE:
-        if not pos and neg:
+    if overlaypath is not None:
+        if color_mode == ColorSelection.POSITIVE:
+            if not pos and neg:
+                print(
+                    "[Error] Overlay has no values to display with positive color_mode"
+                )
+                sys.exit(1)
+            neg = False
+        elif color_mode == ColorSelection.NEGATIVE:
+            if pos and not neg:
+                print(
+                    "[Error] Overlay has no values to display with negative color_mode"
+                )
+                sys.exit(1)
+            pos = False
+        if not pos and not neg:
             print(
-                "[Error] Overlay has no values to display with positive color_mode"
+                "[Error] Overlay has no values to display"
             )
             sys.exit(1)
-        neg = False
-    elif color_mode == ColorSelection.NEGATIVE:
-        if pos and not neg:
-            print(
-                "[Error] Overlay has no values to display with negative color_mode"
-            )
-            sys.exit(1)
-        pos = False
-    if not pos and not neg:
-        print(
-            "[Error] Overlay has no values to display"
-        )
-        sys.exit(1)
 
     # Upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
