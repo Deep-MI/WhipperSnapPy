@@ -546,7 +546,8 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
           // key light (overhead)
           vec3 lightPos1 = vec3(0.0,5.0,5.0);
           vec3 lightDir = normalize(lightPos1 - FragPos);
-          float diff = max(dot(norm, lightDir), 0.0);
+          // float diff = max(dot(norm, lightDir), 0.0);
+          float diff = abs(dot(norm, lightDir));
           float key = 0.6;
           vec3 diffuse = key * diff * lightColor;
 
@@ -554,23 +555,27 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
           vec3 lightPos2 = vec3(0.0,0.0,5.0);
           lightDir = normalize(lightPos2 - FragPos);
           vec3 ohlightDir = lightDir;
-          diff = max(dot(norm, lightDir), 0.0);
+          // diff = max(dot(norm, lightDir), 0.0);
+          diff = abs(dot(norm, lightDir));
           diffuse = diffuse + 0.68  * key * diff * lightColor;
 
           // fill light (from below)
           vec3 lightPos3 = vec3(0.0,-5.0,5.0);
           lightDir = normalize(lightPos3 - FragPos);
-          diff = max(dot(norm, lightDir), 0.0);
+          // diff = max(dot(norm, lightDir), 0.0);
+          diff = abs(dot(norm, lightDir));
           diffuse = diffuse + 0.6  * key * diff * lightColor;
 
           // left right back lights
           vec3 lightPos4 = vec3(5.0,0.0,-5.0);
           lightDir = normalize(lightPos4 - FragPos);
-          diff = max(dot(norm, lightDir), 0.0);
+          // diff = max(dot(norm, lightDir), 0.0);
+          diff = abs(dot(norm, lightDir));
           diffuse = diffuse + 0.52 * key * diff * lightColor;
           vec3 lightPos5 = vec3(-5.0,0.0,-5.0);
           lightDir = normalize(lightPos5 - FragPos);
-          diff = max(dot(norm, lightDir), 0.0);
+          ///diff = max(dot(norm, lightDir), 0.0);
+          diff = abs(dot(norm, lightDir));
           diffuse = diffuse + 0.52 * key * diff * lightColor;
 
           // specular
@@ -582,7 +587,8 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
             // so viewDir is (0,0,0) - Position => -Position
             vec3 viewDir = normalize(-FragPos);
             vec3 reflectDir = reflect(ohlightDir, norm);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+            // float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+            float spec = pow(abs(dot(viewDir, reflectDir)), 32);
             vec3 specular = specularStrength * spec * lightColor;
             // final color
             result = (ambient + diffuse + specular) * Color;
