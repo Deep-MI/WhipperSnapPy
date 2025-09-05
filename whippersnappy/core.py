@@ -1250,7 +1250,7 @@ def snap1(
                 cy = int(caption_y * WHEIGHT)
 
             image.paste(rotated_caption, (cx, cy), rotated_caption)
-    
+
     # save image
     print(f"[INFO] Saving snapshot to {outpath}")
     image.save(outpath)
