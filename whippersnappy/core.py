@@ -996,7 +996,7 @@ def snap1(
     meshpath : str
         Path to the surface file (FreeSurfer format).
     outpath : str
-        Path to the output image file.        
+        Path to the output image file.
     overlaypath : str
         Path to the overlay file (FreeSurfer format).
     annotpath : str
