@@ -960,6 +960,7 @@ def create_colorbar(
 
 def snap1(
     meshpath,
+    outpath,    
     overlaypath=None,
     annotpath=None,
     labelpath=None,
@@ -981,7 +982,6 @@ def snap1(
     colorbar_scale=1,
     orientation=OrientationType.HORIZONTAL,
     color_mode=ColorSelection.BOTH,
-    outpath=None,
     font_file=None,
     specular=True,
     brain_scale=1,
@@ -995,6 +995,8 @@ def snap1(
     ----------
     meshpath : str
         Path to the surface file (FreeSurfer format).
+    outpath : str
+        Path to the output image file.
     overlaypath : str
         Path to the overlay file (FreeSurfer format).
     annotpath : str
@@ -1040,8 +1042,6 @@ def snap1(
     color_mode : ColorSelection
         Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
         or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
-    outpath : str
-        Path to the output image file.
     font_file : str
         Path to the file describing the font to be used in captions.
     specular : bool
@@ -1251,9 +1251,9 @@ def snap1(
 
             image.paste(rotated_caption, (cx, cy), rotated_caption)
 
-    if outpath:
-        print(f"[INFO] Saving snapshot to {outpath}")
-        image.save(outpath)
+    # save image
+    print(f"[INFO] Saving snapshot to {outpath}")
+    image.save(outpath)
 
     glfw.terminate()
 
