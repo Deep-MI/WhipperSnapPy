@@ -961,6 +961,7 @@ def create_colorbar(
 
 def snap1(
     meshpath,
+    outpath,    
     overlaypath=None,
     annotpath=None,
     labelpath=None,
@@ -982,7 +983,6 @@ def snap1(
     colorbar_scale=1,
     orientation=OrientationType.HORIZONTAL,
     color_mode=ColorSelection.BOTH,
-    outpath=None,
     font_file=None,
     specular=True,
     brain_scale=1,
@@ -996,6 +996,8 @@ def snap1(
     ----------
     meshpath : str
         Path to the surface file (FreeSurfer format).
+    outpath : str
+        Path to the output image file.
     overlaypath : str
         Path to the overlay file (FreeSurfer format).
     annotpath : str
@@ -1041,8 +1043,6 @@ def snap1(
     color_mode : ColorSelection
         Select which values to color, can be ColorSelection.BOTH, ColorSelection.POSITIVE
         or ColorSelection.NEGATIVE. Default: ColorSelection.BOTH.
-    outpath : str
-        Path to the output image file.
     font_file : str
         Path to the file describing the font to be used in captions.
     specular : bool
@@ -1112,25 +1112,26 @@ def snap1(
     )
 
     # Check if there is data to display
-    if color_mode == ColorSelection.POSITIVE:
-        if not pos and neg:
+    if overlaypath is not None:
+        if color_mode == ColorSelection.POSITIVE:
+            if not pos and neg:
+                print(
+                    "[Error] Overlay has no values to display with positive color_mode"
+                )
+                sys.exit(1)
+            neg = False
+        elif color_mode == ColorSelection.NEGATIVE:
+            if pos and not neg:
+                print(
+                    "[Error] Overlay has no values to display with negative color_mode"
+                )
+                sys.exit(1)
+            pos = False
+        if not pos and not neg:
             print(
-                "[Error] Overlay has no values to display with positive color_mode"
+                "[Error] Overlay has no values to display"
             )
             sys.exit(1)
-        neg = False
-    elif color_mode == ColorSelection.NEGATIVE:
-        if pos and not neg:
-            print(
-                "[Error] Overlay has no values to display with negative color_mode"
-            )
-            sys.exit(1)
-        pos = False
-    if not pos and not neg:
-        print(
-            "[Error] Overlay has no values to display"
-        )
-        sys.exit(1)
 
     # Upload to GPU and compile shaders
     shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
@@ -1251,9 +1252,9 @@ def snap1(
 
             image.paste(rotated_caption, (cx, cy), rotated_caption)
 
-    if outpath:
-        print(f"[INFO] Saving snapshot to {outpath}")
-        image.save(outpath)
+    # save image
+    print(f"[INFO] Saving snapshot to {outpath}")
+    image.save(outpath)
 
     glfw.terminate()
 
