@@ -1072,13 +1072,13 @@ def snap1(
     mode = glfw.get_video_mode(primary_monitor)
     screen_width = mode.size.width
     screen_height = mode.size.height
-    if width > screen_width:
+    if WWIDTH > screen_width:
         print(
-            f"[INFO] Requested width {width} exceeds screen width {screen_width}, expect black bars"
+            f"[INFO] Requested width {WWIDTH} exceeds screen width {screen_width}, expect black bars"
         )
-    elif height > screen_height:
+    elif WHEIGHT > screen_height:
         print(
-            f"[INFO] Requested height {height} exceeds screen height {screen_height} , expect black bars"
+            f"[INFO] Requested height {WHEIGHT} exceeds screen height {screen_height} , expect black bars"
         )
 
     # Create the base image
