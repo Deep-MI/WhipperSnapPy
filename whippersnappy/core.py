@@ -538,7 +538,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
         void main()
         {
           // ambient
-          float ambientStrength = 0.0;
+          float ambientStrength = 0.1;
           vec3 ambient = ambientStrength * lightColor;
 
           // diffuse
@@ -546,37 +546,33 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
           // key light (overhead)
           vec3 lightPos1 = vec3(0.0,5.0,5.0);
           vec3 lightDir = normalize(lightPos1 - FragPos);
-          // float diff = max(dot(norm, lightDir), 0.0);
-          float diff = abs(dot(norm, lightDir));
-          float key = 0.6;
-          vec3 diffuse = key * diff * lightColor;
+          float diff = max(dot(norm, lightDir), 0.0);
+          float key = 0.75;
+          vec3 diffuse = 0.55 * key * diff * lightColor;
 
           // headlight (at camera)
           vec3 lightPos2 = vec3(0.0,0.0,5.0);
           lightDir = normalize(lightPos2 - FragPos);
           vec3 ohlightDir = lightDir;
-          // diff = max(dot(norm, lightDir), 0.0);
-          diff = abs(dot(norm, lightDir));
-          diffuse = diffuse + 0.68  * key * diff * lightColor;
+          diff = max(dot(norm, lightDir), 0.0);
+          diffuse = diffuse + 0.8 * key * diff * lightColor;
 
           // fill light (from below)
           vec3 lightPos3 = vec3(0.0,-5.0,5.0);
           lightDir = normalize(lightPos3 - FragPos);
-          // diff = max(dot(norm, lightDir), 0.0);
-          diff = abs(dot(norm, lightDir));
-          diffuse = diffuse + 0.6  * key * diff * lightColor;
+          diff = max(dot(norm, lightDir), 0.0);
+          diffuse = diffuse + 0.5 * key  * diff * lightColor;
 
           // left right back lights
           vec3 lightPos4 = vec3(5.0,0.0,-5.0);
           lightDir = normalize(lightPos4 - FragPos);
-          // diff = max(dot(norm, lightDir), 0.0);
-          diff = abs(dot(norm, lightDir));
-          diffuse = diffuse + 0.52 * key * diff * lightColor;
+          diff = max(dot(norm, lightDir), 0.0);
+          diffuse = diffuse + 0.55 * key * diff * lightColor;
+
           vec3 lightPos5 = vec3(-5.0,0.0,-5.0);
           lightDir = normalize(lightPos5 - FragPos);
-          ///diff = max(dot(norm, lightDir), 0.0);
-          diff = abs(dot(norm, lightDir));
-          diffuse = diffuse + 0.52 * key * diff * lightColor;
+          diff = max(dot(norm, lightDir), 0.0);
+          diffuse = diffuse + 0.55 * key * diff * lightColor;
 
           // specular
           vec3 result;
@@ -587,8 +583,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
             // so viewDir is (0,0,0) - Position => -Position
             vec3 viewDir = normalize(-FragPos);
             vec3 reflectDir = reflect(ohlightDir, norm);
-            // float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-            float spec = pow(abs(dot(viewDir, reflectDir)), 32);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
             vec3 specular = specularStrength * spec * lightColor;
             // final color
             result = (ambient + diffuse + specular) * Color;
@@ -1079,11 +1074,11 @@ def snap1(
     screen_height = mode.size.height
     if width > screen_width:
         print(
-            "[INFO] Requested width exceeds screen width, expect black bars"
+            f"[INFO] Requested width {width} exceeds screen width {screen_width}, expect black bars"
         )
     elif height > screen_height:
         print(
-            "[INFO] Requested height exceeds screen height, expect black bars"
+            f"[INFO] Requested height {height} exceeds screen height {screen_height} , expect black bars"
         )
 
     # Create the base image
