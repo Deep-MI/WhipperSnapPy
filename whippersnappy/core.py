@@ -561,7 +561,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
           vec3 lightPos3 = vec3(0.0,-5.0,5.0);
           lightDir = normalize(lightPos3 - FragPos);
           diff = max(dot(norm, lightDir), 0.0);
-          diffuse = diffuse + 0.5 * key  * diff * lightColor;
+          diffuse = diffuse + 0.5 * key * diff * lightColor;
 
           // left right back lights
           vec3 lightPos4 = vec3(5.0,0.0,-5.0);
