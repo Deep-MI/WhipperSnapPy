@@ -489,7 +489,7 @@ def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0)
     specular : Boolean
         By default specular is set as True.
     ambient : float
-        Ambient light strenght, by default 0: use only diffuse light sources.
+        Ambient light strength, by default 0: use only diffuse light sources.
 
     Returns
     -------
