@@ -970,7 +970,7 @@ def create_colorbar(
 
 def snap1(
     meshpath,
-    outpath,
+    outpath,    
     overlaypath=None,
     annotpath=None,
     labelpath=None,
