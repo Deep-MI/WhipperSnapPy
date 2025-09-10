@@ -1290,6 +1290,7 @@ def snap4(
     outpath=None,
     font_file=None,
     specular=True,
+    ambient=0.0,
 ):
     """
     Snap four views (front and back for left and right hemispheres).
@@ -1330,6 +1331,8 @@ def snap4(
         Path to the file describing the font to be used in captions.
     specular : bool
         Specular is by default set as True.
+    ambient : float
+        Ambient light, default 0, only use diffuse light sources.
 
     Returns
     -------
@@ -1406,7 +1409,8 @@ provided, can not find surf file"
             sys.exit(1)
 
         # upload to GPU and compile shaders
-        shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
+        shader = setup_shader(meshdata, triangles, wwidth, wheight,
+                              specular=specular, ambient=ambient)
 
         # draw
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
