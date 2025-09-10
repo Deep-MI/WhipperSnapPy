@@ -1090,7 +1090,7 @@ def snap1(
         )
     elif WHEIGHT > screen_height:
         print(
-            f"[INFO] Requested height {WHEIGHT} exceeds screen height {screen_height} , expect black bars"
+            f"[INFO] Requested height {WHEIGHT} exceeds screen height {screen_height}, expect black bars"
         )
 
     # Create the base image
