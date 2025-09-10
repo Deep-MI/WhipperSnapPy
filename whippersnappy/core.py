@@ -1146,7 +1146,8 @@ def snap1(
             sys.exit(1)
 
     # Upload to GPU and compile shaders
-    shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular, ambient=ambient)
+    shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height,
+                          specular=specular, ambient=ambient)
 
     # Draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
