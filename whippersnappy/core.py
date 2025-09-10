@@ -465,7 +465,7 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     return window
 
 
-def setup_shader(meshdata, triangles, width, height, specular=True):
+def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0):
     """
     Create vertex and fragment shaders.
 
@@ -488,6 +488,8 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
         Window height (to set perspective projection).
     specular : Boolean
         By default specular is set as True.
+    ambient : float
+        Ambient light strenght, by default 0: use only diffuse light sources.
 
     Returns
     -------
@@ -532,47 +534,50 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
 
         out vec4 FragColor;
 
-        uniform vec3 lightColor;
-        uniform bool doSpecular;
+        uniform vec3 lightColor = vec3(1.0, 1.0, 1.0);
+        uniform bool doSpecular = true;
+        uniform float ambientStrength = 0.0;
 
         void main()
         {
           // ambient
-          float ambientStrength = 0.1;
           vec3 ambient = ambientStrength * lightColor;
 
           // diffuse
           vec3 norm = normalize(Normal);
+          // values for overhead, front, below, back lights
+          //vec4 diffweights = vec4(0.4, 0.6, 0.4, 0.4); //more light below
+          vec4 diffweights = vec4(0.6, 0.4, 0.4, 0.3); //orig more shadow
+
           // key light (overhead)
           vec3 lightPos1 = vec3(0.0,5.0,5.0);
           vec3 lightDir = normalize(lightPos1 - FragPos);
           float diff = max(dot(norm, lightDir), 0.0);
-          float key = 0.75;
-          vec3 diffuse = 0.55 * key * diff * lightColor;
+          vec3 diffuse = diffweights[0]  * diff * lightColor;
 
           // headlight (at camera)
           vec3 lightPos2 = vec3(0.0,0.0,5.0);
           lightDir = normalize(lightPos2 - FragPos);
-          vec3 ohlightDir = lightDir;
+          vec3 ohlightDir = lightDir; // needed for specular
           diff = max(dot(norm, lightDir), 0.0);
-          diffuse = diffuse + 0.8 * key * diff * lightColor;
+          diffuse = diffuse + diffweights[1]  * diff * lightColor;
 
           // fill light (from below)
           vec3 lightPos3 = vec3(0.0,-5.0,5.0);
           lightDir = normalize(lightPos3 - FragPos);
           diff = max(dot(norm, lightDir), 0.0);
-          diffuse = diffuse + 0.5 * key * diff * lightColor;
+          diffuse = diffuse + diffweights[2] * diff * lightColor;
 
-          // left right back lights
+          // left right back lights (both are same brightness)
           vec3 lightPos4 = vec3(5.0,0.0,-5.0);
           lightDir = normalize(lightPos4 - FragPos);
           diff = max(dot(norm, lightDir), 0.0);
-          diffuse = diffuse + 0.55 * key * diff * lightColor;
+          diffuse = diffuse + diffweights[3] * diff * lightColor;
 
           vec3 lightPos5 = vec3(-5.0,0.0,-5.0);
           lightDir = normalize(lightPos5 - FragPos);
           diff = max(dot(norm, lightDir), 0.0);
-          diffuse = diffuse + 0.55 * key * diff * lightColor;
+          diffuse = diffuse + diffweights[3] * diff * lightColor;
 
           // specular
           vec3 result;
@@ -669,6 +674,10 @@ def setup_shader(meshdata, triangles, width, height, specular=True):
     # setup light color in fragment shader
     lightColor_loc = gl.glGetUniformLocation(shader, "lightColor")
     gl.glUniform3f(lightColor_loc, 1.0, 1.0, 1.0)
+
+    # setup ambient light strength (default=0)
+    ambientLight_loc = gl.glGetUniformLocation(shader, "ambientStrength")
+    gl.glUniform1f(ambientLight_loc, ambient)
 
     return shader
 
@@ -986,6 +995,7 @@ def snap1(
     font_file=None,
     specular=True,
     brain_scale=1,
+    ambient=0.0,
 ):
     """
     Snap one view (view and hemisphere is determined by the user).
@@ -1049,6 +1059,8 @@ def snap1(
         Specular is by default set as True.
     brain_scale : float
         Brain scaling factor. Default: 1.
+    ambient : float
+        Ambient light, default 0, only use diffuse light sources.
 
     Returns
     -------
@@ -1134,7 +1146,7 @@ def snap1(
             sys.exit(1)
 
     # Upload to GPU and compile shaders
-    shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular)
+    shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height, specular=specular, ambient=ambient)
 
     # Draw
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
