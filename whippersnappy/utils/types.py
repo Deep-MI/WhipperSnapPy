@@ -19,6 +19,13 @@ import enum
 class ColorSelection(enum.Enum):
     """Enum to select which sign(s) of overlay values to color.
 
+    Parameters
+    ----------
+    *values : tuple
+        Positional arguments passed to the Enum constructor (not used by
+        consumers of this enum). Documented here to satisfy documentation
+        linters that inspect the class signature.
+
     Attributes
     ----------
     BOTH : int
@@ -36,6 +43,12 @@ class ColorSelection(enum.Enum):
 class OrientationType(enum.Enum):
     """Enum describing orientation choices for elements like the colorbar.
 
+    Parameters
+    ----------
+    *values : tuple
+        Positional arguments passed to the Enum constructor (not used by
+        consumers of this enum).
+
     Attributes
     ----------
     HORIZONTAL : int
@@ -49,6 +62,12 @@ class OrientationType(enum.Enum):
 
 class ViewType(enum.Enum):
     """Predefined canonical view directions used by snapshot renderers.
+
+    Parameters
+    ----------
+    *values : tuple
+        Positional arguments passed to the Enum constructor (not used by
+        consumers of this enum).
 
     Attributes
     ----------
