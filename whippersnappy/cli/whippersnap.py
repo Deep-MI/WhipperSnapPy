@@ -220,12 +220,18 @@ def run():
     Parses command-line arguments, validates argument combinations, and
     either launches a non-interactive snapshot generation (``snap4``) or
     starts the interactive viewer and configuration GUI.
-    - Validates that either overlay or annotation inputs are provided for
-      both hemispheres (or raises ``ValueError``).
-    - In non-interactive mode calls :func:`whippersnappy.snap4` to produce
-      and optionally save a composed image.
-    - In interactive mode spawns the OpenGL viewer thread and launches the
-      PyQt6-based configuration window in the main thread.
+
+    Notes
+    -----
+    The function validates that either overlay or annotation inputs are
+    provided for both hemispheres; it raises ``ValueError`` for invalid
+    combinations.
+
+    In non-interactive mode the function calls :func:`whippersnappy.snap4`
+    to produce and optionally save a composed image.
+
+    In interactive mode it spawns the OpenGL viewer thread and launches
+    the PyQt6-based configuration window in the main thread.
 
     Raises
     ------

@@ -27,8 +27,8 @@ import enum
 class ColorSelection(enum.Enum):
     """Enum to select which sign(s) of overlay values to color.
 
-    Members
-    -------
+    Attributes
+    ----------
     BOTH : int
         Use both positive and negative values for coloring.
     POSITIVE : int
@@ -44,8 +44,8 @@ class ColorSelection(enum.Enum):
 class OrientationType(enum.Enum):
     """Enum describing orientation choices for elements like the colorbar.
 
-    Members
-    -------
+    Attributes
+    ----------
     HORIZONTAL : int
         Layout along the horizontal axis.
     VERTICAL : int
@@ -58,8 +58,8 @@ class OrientationType(enum.Enum):
 class ViewType(enum.Enum):
     """Predefined canonical view directions used by snapshot renderers.
 
-    Members
-    -------
+    Attributes
+    ----------
     LEFT : int
         Left hemisphere lateral view.
     RIGHT : int
