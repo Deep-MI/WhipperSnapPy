@@ -25,13 +25,17 @@ import argparse
 import math
 import os
 import signal
-import sys
 import threading
+import logging
 
 import glfw
 import OpenGL.GL as gl
 import pyrr
-from PyQt6.QtWidgets import QApplication
+try:
+    from PyQt6.QtWidgets import QApplication
+except Exception:
+    # GUI dependency missing; handle at runtime when interactive mode is requested
+    QApplication = None
 
 from whippersnappy import snap4
 from whippersnappy.geometry import get_surf_name, prepare_geometry
@@ -40,6 +44,9 @@ from whippersnappy.gl import (
     setup_shader,
 )
 from whippersnappy.gui import ConfigWindow
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Global variables for config app configuration state:
 current_fthresh_ = None
@@ -101,13 +108,12 @@ def show_window(
         return False
 
     if surfname is None:
-        print("[INFO] No surf_name provided. Looking for options in surf directory...")
+        logger.info("No surf_name provided. Looking for options in surf directory...")
         found_surfname = get_surf_name(sdir, hemi)
         if found_surfname is None:
-            print(
-                f"[ERROR] Could not find a valid surf file in {sdir} for hemi: {hemi}!"
-            )
-            sys.exit(0)
+            msg = f"Could not find a valid surf file in {sdir} for hemi: {hemi}!"
+            logger.error(msg)
+            raise FileNotFoundError(msg)
         meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
     else:
         meshpath = os.path.join(sdir, "surf", hemi + "." + surfname)
@@ -132,11 +138,7 @@ def show_window(
     )
     shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
 
-    print()
-    print("Keys:")
-    print("Left - Right : Rotate Geometry")
-    print("ESC          : Quit")
-    print()
+    logger.info("\nKeys:\nLeft - Right : Rotate Geometry\nESC          : Quit\n")
 
     ypos = 0
     while glfw.get_key(
@@ -194,6 +196,10 @@ def config_app_exit_handler():
 
 def run():
     global current_fthresh_, current_fmax_, app_, app_window_
+    # Configure basic logging for CLI invocation so messages from module loggers
+    # are visible to end users. Avoid configuring on import by doing this here.
+    import logging as _logging
+    _logging.basicConfig(level=_logging.INFO, format='%(levelname)s: %(message)s')
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -282,20 +288,37 @@ def run():
 
     # check for mutually exclusive arguments
     if (args.lh_overlay or args.rh_overlay) and (args.lh_annot or args.rh_annot):
-        print("[ERROR] Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time.")
-        sys.exit(0)
+        msg = "Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time."
+        logger.error(msg)
+        raise ValueError(msg)
     # check if at least one variant is present
     if args.lh_overlay is None and args.rh_overlay is None and args.lh_annot is None and args.rh_annot is None:
-        print("[ERROR] Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present.")
-        sys.exit(0)
+        msg = "Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present."
+        logger.error(msg)
+        raise ValueError(msg)
     # check if both hemis are present
     if (args.lh_overlay is None and args.rh_overlay is not None) or \
          (args.lh_overlay is not None and args.rh_overlay is None) or \
          (args.lh_annot is None and args.rh_annot is not None) or \
          (args.lh_annot is not None and args.rh_annot is None):
-        print("[ERROR] If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present " \
-              "(and vice versa).")
-        sys.exit(0)
+        msg = "If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa)."
+        logger.error(msg)
+        raise ValueError(msg)
+
+    logger.info(f"Left hemisphere overlay: {args.lh_overlay}")
+    logger.info(f"Right hemisphere overlay: {args.rh_overlay}")
+    logger.info(f"Left hemisphere annotation: {args.lh_annot}")
+    logger.info(f"Right hemisphere annotation: {args.rh_annot}")
+    logger.info(f"Subject directory: {args.sdir}")
+    logger.info(f"Surface name: {args.surf_name}")
+    logger.info(f"Output path: {args.output_path}")
+    logger.info(f"Caption: {args.caption}")
+    logger.info(f"Colorbar: {'enabled' if not args.no_colorbar else 'disabled'}")
+    logger.info(f"fmax: {args.fmax}")
+    logger.info(f"fthresh: {args.fthresh}")
+    logger.info(f"Interactive mode: {'enabled' if args.interactive else 'disabled'}")
+    logger.info(f"Color scale inversion: {'enabled' if args.invert else 'disabled'}")
+    logger.info(f"Specular reflection: {'enabled' if args.specular else 'disabled'}")
 
     #
     if not args.interactive:
@@ -335,6 +358,13 @@ def run():
             ),
         )
         thread.start()
+
+        # Ensure GUI toolkit is available
+        if QApplication is None:
+            raise ImportError(
+                "Interactive mode requires PyQt6. Install it (pip install PyQt6) "
+                "or run without --interactive."
+            )
 
         # Setting up and running config app window (must be main thread):
         app_ = QApplication([])

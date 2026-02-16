@@ -100,8 +100,8 @@ def _list_dependencies_info(out: Callable, ljust: int, dependencies: list[str]):
         # handle special dependencies with backends, C dep, ..
         if dep in ("matplotlib", "seaborn") and version_ != "Not found.":
             try:
-                from matplotlib import pyplot as plt
-
+                import importlib
+                plt = importlib.import_module("matplotlib.pyplot")
                 backend = plt.get_backend()
             except Exception:
                 backend = "Not found"

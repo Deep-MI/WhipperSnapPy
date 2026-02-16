@@ -18,6 +18,7 @@ Dependencies:
 @Created   : 14.02.2026
 """
 
+import logging
 import numpy as np
 import pythreejs as p3js
 from ipywidgets import HTML, VBox
@@ -26,6 +27,9 @@ from whippersnappy.utils.types import ColorSelection
 
 from .geometry import prepare_geometry
 from .gl import get_webgl_shaders
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def plot3d(
@@ -83,9 +87,12 @@ def plot3d(
 
     Examples
     --------
-    >>> from whippersnappy import plot3d
-    >>> viewer = plot3d('path/to/lh.white', curvpath='path/to/lh.curv')
-    >>> display(viewer)
+    In a notebook:
+
+        from whippersnappy import plot3d
+        from IPython.display import display
+        viewer = plot3d('path/to/lh.white', curvpath='path/to/lh.curv')
+        display(viewer)
     """
 
     # Load and prepare mesh data
@@ -95,7 +102,7 @@ def plot3d(
         minval, maxval, invert, scale, color_mode
     )
 
-    print(f"Loaded mesh: {meshdata.shape[0]} vertices, {triangles.shape[0]} faces")
+    logger.info("Loaded mesh: %d vertices, %d faces", meshdata.shape[0], triangles.shape[0])
 
     # Extract vertices, normals, and colors
     vertices = meshdata[:, :3]  # x, y, z

@@ -3,7 +3,7 @@
 """
 
 import os
-import sys
+import logging
 
 import glfw
 import numpy as np
@@ -17,6 +17,9 @@ from whippersnappy.utils.types import ColorSelection, OrientationType, ViewType
 
 from . import gl as _gl
 from .gl import get_view_matrices
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def snap1(
@@ -56,16 +59,16 @@ def snap1(
     ui_scale = min(wwidth / ref_width, wheight / ref_height)
 
     if not glfw.init():
-        print("[ERROR] Could not init glfw!")
-        sys.exit(1)
+        logger.error("Could not init glfw!")
+        raise RuntimeError("Could not initialize GLFW; OpenGL context unavailable")
     primary_monitor = glfw.get_primary_monitor()
     mode = glfw.get_video_mode(primary_monitor)
     screen_width = mode.size.width
     screen_height = mode.size.height
     if wwidth > screen_width:
-        print(f"[INFO] Requested width {wwidth} exceeds screen width {screen_width}, expect black bars")
+        logger.info("Requested width %d exceeds screen width %d, expect black bars", wwidth, screen_width)
     elif wheight > screen_height:
-        print(f"[INFO] Requested height {wheight} exceeds screen height {screen_height}, expect black bars")
+        logger.info("Requested height %d exceeds screen height %d, expect black bars", wheight, screen_height)
 
     image = Image.new("RGB", (wwidth, wheight))
 
@@ -96,17 +99,17 @@ def snap1(
     if overlaypath is not None:
         if color_mode == ColorSelection.POSITIVE:
             if not pos and neg:
-                print("[Error] Overlay has no values to display with positive color_mode")
-                sys.exit(1)
+                logger.error("Overlay has no values to display with positive color_mode")
+                raise ValueError("Overlay has no values to display with positive color_mode")
             neg = False
         elif color_mode == ColorSelection.NEGATIVE:
             if pos and not neg:
-                print("[Error] Overlay has no values to display with negative color_mode")
-                sys.exit(1)
+                logger.error("Overlay has no values to display with negative color_mode")
+                raise ValueError("Overlay has no values to display with negative color_mode")
             pos = False
         if not pos and not neg:
-            print("[Error] Overlay has no values to display")
-            sys.exit(1)
+            logger.error("Overlay has no values to display")
+            raise ValueError("Overlay has no values to display")
 
     shader = _gl.setup_shader(meshdata, triangles, brain_display_width, brain_display_height,
                           specular=specular, ambient=ambient)
@@ -186,7 +189,7 @@ def snap1(
         glfw.terminate()
         return image
 
-    print(f"[INFO] Saving snapshot to {outpath}")
+    logger.info("Saving snapshot to %s", outpath)
     image.save(outpath)
     glfw.terminate()
     return None
@@ -217,12 +220,12 @@ def snap4(
     wheight = 450
     # Try to create a visible window first (better for debugging),
     # but fall back to an invisible/offscreen window if that fails.
-    window = _gl.init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible=True)
+    window = _gl.init_window(wwidth, wheight, "WhipperSnapPy", visible=True)
     if not window:
-        print("[WARNING] Could not create visible GLFW window; retrying with invisible window (offscreen).")
-        window = _gl.init_window(wwidth, wheight, "WhipperSnapPy 2.0", visible=False)
+        logger.warning("Could not create visible GLFW window; retrying with invisible window (offscreen).")
+        window = _gl.init_window(wwidth, wheight, "WhipperSnapPy", visible=False)
         if not window:
-            print("[ERROR] Could not create any GLFW window/context. OpenGL context unavailable.")
+            logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
             return None
 
     rot_z = pyrr.Matrix44.from_z_rotation(-0.5 * np.pi)
@@ -232,17 +235,22 @@ def snap4(
     view_right = rot_y * view_left
     transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
+    # Predefine hemisphere images so static analysis knows they exist even if
+    # an earlier step raises an exception (we still will fail at runtime).
+    lhimg = None
+    rhimg = None
+
     for hemi in ("lh", "rh"):
         if surfname is None:
             if sdir is None:
                 sdir = os.environ.get("SUBJECTS_DIR")
                 if not sdir:
-                    print("[INFO] No surf_name or subjects directory (sdir) provided")
-                    sys.exit(1)
+                    logger.error("No surf_name or subjects directory (sdir) provided")
+                    raise ValueError("No surf_name or SUBJECTS_DIR provided")
             found_surfname = get_surf_name(sdir, hemi)
             if found_surfname is None:
-                print(f"[ERROR] Could not find valid surface in {sdir} for hemi: {hemi}!")
-                sys.exit(1)
+                logger.error("Could not find valid surface in %s for hemi: %s!", sdir, hemi)
+                raise FileNotFoundError(f"Could not find valid surface in {sdir} for hemi: {hemi}")
             meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
         else:
             meshpath = os.path.join(sdir, "surf", hemi + "." + surfname)
@@ -254,47 +262,47 @@ def snap4(
         annotpath = lhannotpath if hemi == "lh" else rhannotpath
 
         # Diagnostic: report mesh and overlay paths and whether they exist
-        print(f"[DEBUG] hemisphere={hemi}")
-        print(f"[DEBUG] meshpath={meshpath} exists={os.path.exists(meshpath)}")
+        logger.debug("hemisphere=%s", hemi)
+        logger.debug("meshpath=%s exists=%s", meshpath, os.path.exists(meshpath))
         if overlaypath is not None:
-            print(f"[DEBUG] overlaypath={overlaypath} exists={os.path.exists(overlaypath)}")
+            logger.debug("overlaypath=%s exists=%s", overlaypath, os.path.exists(overlaypath))
         if annotpath is not None:
-            print(f"[DEBUG] annotpath={annotpath} exists={os.path.exists(annotpath)}")
+            logger.debug("annotpath=%s exists=%s", annotpath, os.path.exists(annotpath))
         if curvpath is not None:
-            print(f"[DEBUG] curvpath={curvpath} exists={os.path.exists(curvpath)}")
+            logger.debug("curvpath=%s exists=%s", curvpath, os.path.exists(curvpath))
 
         try:
             meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
                 meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale=brain_scale
             )
         except Exception as e:
-            print(f"[ERROR] prepare_geometry failed for {meshpath}: {e}")
+            logger.error("prepare_geometry failed for %s: %s", meshpath, e)
             glfw.terminate()
             return None
 
         # Diagnostics about mesh data
         try:
-            print(f"[DEBUG] meshdata shape: {getattr(meshdata, 'shape', None)}; triangles count: {getattr(triangles, 'size', None)}")
+            logger.debug("meshdata shape: %s; triangles count: %s", getattr(meshdata, 'shape', None), getattr(triangles, 'size', None))
         except Exception:
             pass
 
         if pos == 0 and neg == 0:
-            print("[Error] Overlay has no values to display")
-            sys.exit(1)
+            logger.error("Overlay has no values to display")
+            raise ValueError("Overlay has no values to display")
 
         try:
             shader = _gl.setup_shader(meshdata, triangles, wwidth, wheight, specular=specular, ambient=ambient)
-            print("[DEBUG] Shader setup complete")
+            logger.debug("Shader setup complete")
         except Exception as e:
-            print(f"[ERROR] setup_shader failed: {e}")
+            logger.error("setup_shader failed: %s", e)
             glfw.terminate()
             return None
 
         try:
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         except Exception as e:
-            print(f"[ERROR] glClear failed: {e}")
-            print(f"glError: {gl.glGetError()}")
+            logger.error("glClear failed: %s", e)
+            logger.error("glError: %s", gl.glGetError())
             glfw.terminate()
             return None
         transform_loc = gl.glGetUniformLocation(shader, "transform")
@@ -303,9 +311,9 @@ def snap4(
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
         try:
             im1 = _gl.capture_window(wwidth, wheight)
-            print(f"[DEBUG] Captured image 1 size: {im1.size}")
+            logger.debug("Captured image 1 size: %s", im1.size)
         except Exception as e:
-            print(f"[ERROR] capture_window failed: {e}")
+            logger.error("capture_window failed: %s", e)
             glfw.terminate()
             return None
 
@@ -313,8 +321,8 @@ def snap4(
         try:
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         except Exception as e:
-            print(f"[ERROR] glClear failed: {e}")
-            print(f"glError: {gl.glGetError()}")
+            logger.error("glClear failed: %s", e)
+            logger.error("glError: %s", gl.glGetError())
             glfw.terminate()
             return None
         viewmat = view_right if hemi == "lh" else view_left
@@ -322,9 +330,9 @@ def snap4(
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
         try:
             im2 = _gl.capture_window(wwidth, wheight)
-            print(f"[DEBUG] Captured image 2 size: {im2.size}")
+            logger.debug("Captured image 2 size: %s", im2.size)
         except Exception as e:
-            print(f"[ERROR] capture_window failed: {e}")
+            logger.error("capture_window failed: %s", e)
             glfw.terminate()
             return None
 
@@ -377,7 +385,7 @@ def snap4(
 
     # Otherwise save to disk
     if outpath:
-        print(f"[INFO] Saving snapshot to {outpath}")
+        logger.info("Saving snapshot to %s", outpath)
         image.save(outpath)
 
     glfw.terminate()

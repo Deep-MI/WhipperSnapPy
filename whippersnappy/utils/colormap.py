@@ -1,8 +1,13 @@
 """Colormap and value preprocessing utilities."""
 
+import logging
 import numpy as np
 
 from whippersnappy.utils.types import ColorSelection
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def heat_color(values, invert=False):
@@ -47,8 +52,8 @@ def rescale_overlay(values, minval=None, maxval=None):
     valabs = np.abs(values)
 
     if maxval < 0 or minval < 0:
-        print("rescale_overlay ERROR: min and maxval should both be positive!")
-        exit(1)
+        logger.error("rescale_overlay ERROR: min and maxval should both be positive!")
+        raise ValueError("minval and maxval must be non-negative")
 
     values[valabs < minval] = np.nan
     range_val = maxval - minval
