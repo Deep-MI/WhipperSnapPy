@@ -183,6 +183,10 @@ numpydoc_validation_exclude = {  # regex to ignore during docstring check
     r"\.__div__",
     r"\.__neg__",
 }
+# Exclude the small types module from numpydoc validation. The enum classes
+# in `whippersnappy.utils.types` intentionally do not document Enum
+# constructor varargs; exclude the module to silence PR01 for this file only.
+numpydoc_validation_exclude.update({r"^whippersnappy\.utils\.types($|\.)"})
 
 # -- sphinxcontrib-bibtex ----------------------------------------------------
 bibtex_bibfiles = ["./references.bib"]
@@ -276,4 +280,3 @@ def ensure_pandoc_installed(_):
 
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
-

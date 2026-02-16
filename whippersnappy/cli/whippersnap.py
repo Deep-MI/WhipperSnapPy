@@ -221,6 +221,13 @@ def run():
     either launches a non-interactive snapshot generation (``snap4``) or
     starts the interactive viewer and configuration GUI.
 
+    Raises
+    ------
+    ValueError
+        For invalid or mutually exclusive argument combinations.
+    ImportError
+        If interactive mode is requested but PyQt6 is not available.
+
     Notes
     -----
     The function validates that either overlay or annotation inputs are
@@ -232,13 +239,6 @@ def run():
 
     In interactive mode it spawns the OpenGL viewer thread and launches
     the PyQt6-based configuration window in the main thread.
-
-    Raises
-    ------
-    ValueError
-        For invalid or mutually exclusive argument combinations.
-    ImportError
-        If interactive mode is requested but PyQt6 is not available.
     """
     global current_fthresh_, current_fmax_, app_, app_window_
     # Configure basic logging for CLI invocation so messages from module loggers

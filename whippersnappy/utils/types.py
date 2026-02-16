@@ -11,14 +11,6 @@ OrientationType
     Orientation of UI elements such as the colorbar (horizontal or vertical).
 ViewType
     Predefined canonical view orientations for rendering the brain surface.
-
-Examples
---------
->>> from whippersnappy.utils.types import ColorSelection, ViewType
->>> ColorSelection.BOTH
-<ColorSelection.BOTH: 1>
->>> ViewType.LEFT
-<ViewType.LEFT: 1>
 """
 
 import enum
