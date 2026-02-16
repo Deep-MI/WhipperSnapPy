@@ -140,6 +140,12 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
+[tool.codespell]
+#ignore-words-list = 'coo,daty'
+check-filenames = true
+check-hidden = true
+skip = './.git,./build,./.mypy_cache,./.pytest_cache'
+
 [tool.pytest.ini_options]
 minversion = '6.0'
 addopts = '--durations 20 --junit-xml=junit-results.xml --verbose'
