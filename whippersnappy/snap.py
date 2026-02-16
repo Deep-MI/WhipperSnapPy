@@ -2,8 +2,8 @@
 
 """
 
-import os
 import logging
+import os
 
 import glfw
 import numpy as np
@@ -51,7 +51,84 @@ def snap1(
     brain_scale=1.5,
     ambient=0.0,
 ):
-    """Snap one view (view and hemisphere is determined by the user)."""
+    """Render a single static snapshot of a surface view.
+
+    This function opens an (offscreen) OpenGL context, uploads the provided
+    surface geometry and colors (overlay or annotation), renders the scene
+    for a single view, captures the framebuffer, and returns a PIL Image
+    containing the rendered brain view. When ``outpath`` is provided the
+    image is also written to disk.
+
+    Parameters
+    ----------
+    meshpath : str
+        Path to the surface file (FreeSurfer-format, e.g. "lh.white").
+    outpath : str or None, optional
+        When provided, the resulting image is saved to this path. If ``None``
+        the PIL Image object is returned.
+    overlaypath : str or None, optional
+        Path to overlay/mgh file providing per-vertex values to color the
+        surface. If ``None``, coloring falls back to curvature/annotation.
+    annotpath : str or None, optional
+        Path to a FreeSurfer .annot file with per-vertex labels.
+    labelpath : str or None, optional
+        Path to a label file (cortex.label) used to mask overlay values.
+    curvpath : str or None, optional
+        Path to curvature file used to texture non-colored regions.
+    view : ViewType, optional
+        Which pre-defined view to render (left, right, front, ...). Default is ``ViewType.LEFT``.
+    viewmat : 4x4 matrix-like, optional
+        Optional view matrix to override the pre-defined view.
+    width, height : int or None, optional
+        Requested overall canvas width/height in pixels. If ``None`` defaults
+        are used (700x500 reference).
+    fthresh, fmax : float or None, optional
+        Threshold and saturation values for overlay coloring.
+    caption, caption_x, caption_y, caption_scale : str/float, optional
+        Caption text and layout parameters. Caption defaults to ``None`` and caption_scale defaults to 1.
+    invert : bool, optional
+        Invert the color scale. Default is ``False``.
+    colorbar : bool, optional
+        If True, render a colorbar when an overlay is present. Default is ``True``.
+    colorbar_x, colorbar_y, colorbar_scale : float, optional
+        Colorbar positioning and scale flags. Scale defaults to 1.
+    orientation : OrientationType, optional
+        Orientation of the colorbar (HORIZONTAL/VERTICAL). Default is ``OrientationType.HORIZONTAL``.
+    color_mode : ColorSelection, optional
+        Which sign of overlay to color (POSITIVE/NEGATIVE/BOTH). Default is ``ColorSelection.BOTH``.
+    font_file : str or None, optional
+        Path to a TTF font for captions; fallback to bundled font if None.
+    specular : bool, optional
+        Enable specular highlights. Default is ``True``.
+    brain_scale : float, optional
+        Scale factor applied when preparing the geometry. Default is ``1.5``.
+    ambient : float, optional
+        Ambient lighting strength for shader. Default is ``0.0``.
+
+    Returns
+    -------
+    PIL.Image.Image or None
+        If ``outpath`` is ``None`` the function returns a PIL Image object
+        containing the rendered snapshot. If ``outpath`` is provided the
+        image is saved to disk and ``None`` is returned.
+
+    Raises
+    ------
+    RuntimeError
+        If the OpenGL/GLFW context cannot be initialized.
+    ValueError
+        If the overlay contains no values to display for the chosen
+        color_mode.
+    FileNotFoundError
+        If required surface files cannot be found when deriving from
+        SUBJECTS_DIR in multi-view helpers.
+
+    Example
+    -------
+    >>> from whippersnappy import snap1
+    >>> img = snap1('fsaverage/surf/lh.white', overlaypath='fsaverage/surf/lh.thickness')
+    >>> img.save('/tmp/lh.png')
+    """
     ref_width = 700
     ref_height = 500
     wwidth = ref_width if width is None else width
@@ -130,7 +207,8 @@ def snap1(
     bar = None
     bar_w = bar_h = 0
     if overlaypath is not None and colorbar:
-        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * ui_scale, pos, neg, font_file=font_file)
+        bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * ui_scale, pos, neg,
+                              font_file=font_file)
         bar_w, bar_h = bar.size
 
     font = None
@@ -215,7 +293,74 @@ def snap4(
     ambient=0.0,
     brain_scale=1.85,
 ):
-    """Snap four views (front and back for left and right hemispheres)."""
+    """Render four snapshot views (left/right hemispheres, front/back).
+
+    This convenience function renders four views (top/bottom for each
+    hemisphere), stitches them together into a single PIL Image and returns
+    it (or saves it to ``outpath`` when provided). It is typically used to
+    produce publication-ready overview figures composed from both
+    hemispheres.
+
+    Parameters
+    ----------
+    lhoverlaypath, rhoverlaypath : str or None
+        Paths to left/right hemisphere overlay files (mutually required if
+        either is provided).
+    lhannotpath, rhannotpath : str or None
+        Paths to left/right hemisphere annotation (.annot) files.
+    fthresh, fmax : float or None
+        Threshold and saturation for overlay coloring.
+    sdir : str or None
+        Subject directory (used when surfname is not provided). If not
+        supplied the environment variable ``SUBJECTS_DIR`` is consulted.
+    caption : str or None
+        Caption string to place on the final image.
+    invert : bool, optional
+        Invert color scale. Default is ``False``.
+    labelname : str, optional
+        Name of the label file (default 'cortex.label').
+    surfname : str or None, optional
+        Surface basename to load (if None the function will auto-discover a
+        suitable surface).
+    curvname : str or None, optional
+        Curvature file basename to load for texturing non-colored regions. Default is ``curv``.
+    colorbar : bool, optional
+        Whether to draw a colorbar on the composed image. Default is ``True``.
+    outpath : str or None, optional
+        If provided, save composed image to this path and return ``None``.
+    font_file : str or None, optional
+        Path to a font to use for captions.
+    specular : bool, optional
+        Enable/disable specular highlights in the renderer. Default is ``True``.
+    ambient : float, optional
+        Ambient lighting strength. Default is ``0``.
+    brain_scale : float, optional
+        Scaling factor passed to geometry preparation. Default is ``1.85``.
+
+    Returns
+    -------
+    PIL.Image.Image or None
+        Composed image of the four views, or ``None`` if ``outpath`` was
+        provided and the image was written to disk.
+
+    Raises
+    ------
+    ValueError
+        For invalid argument combinations or when required overlay values
+        are absent.
+    FileNotFoundError
+        When required surface files are not found.
+
+    Example
+    -------
+    >>> from whippersnappy import snap4
+    >>> img = snap4(
+    >>>          lhoverlaypath='fsaverage/surf/lh.thickness',
+    >>>          rhoverlaypath='fsaverage/surf/rh.thickness',
+    >>>         sdir='./fsaverage'
+    >>>       )
+    >>> img.save('/tmp/whippersnappy_overview.png')
+    """
     wwidth = 540
     wheight = 450
     # Try to create a visible window first (better for debugging),
@@ -282,7 +427,8 @@ def snap4(
 
         # Diagnostics about mesh data
         try:
-            logger.debug("meshdata shape: %s; triangles count: %s", getattr(meshdata, 'shape', None), getattr(triangles, 'size', None))
+            logger.debug("meshdata shape: %s; triangles count: %s", getattr(meshdata, 'shape', None),
+                         getattr(triangles, 'size', None))
         except Exception:
             pass
 

@@ -15,14 +15,33 @@ from .shaders import get_default_shaders
 
 
 def create_vao():
-    """Create and bind a VAO, returning its handle."""
+    """Create and bind a Vertex Array Object (VAO).
+
+    Returns
+    -------
+    int
+        OpenGL handle for the created VAO.
+    """
     vao = gl.glGenVertexArrays(1)
     gl.glBindVertexArray(vao)
     return vao
 
 
 def compile_shader_program(vertex_src, fragment_src):
-    """Compile and link a shader program."""
+    """Compile GLSL vertex and fragment sources and link them into a program.
+
+    Parameters
+    ----------
+    vertex_src : str
+        Vertex shader source code.
+    fragment_src : str
+        Fragment shader source code.
+
+    Returns
+    -------
+    int
+        OpenGL program handle.
+    """
     return gl.shaders.compileProgram(
         shaders.compileShader(vertex_src, gl.GL_VERTEX_SHADER),
         shaders.compileShader(fragment_src, gl.GL_FRAGMENT_SHADER),
@@ -30,7 +49,20 @@ def compile_shader_program(vertex_src, fragment_src):
 
 
 def setup_buffers(meshdata, triangles):
-    """Create VBO/EBO and upload mesh data."""
+    """Create and upload vertex and element buffers for the mesh.
+
+    Parameters
+    ----------
+    meshdata : numpy.ndarray
+        Vertex array with interleaved attributes (position, normal, color).
+    triangles : numpy.ndarray
+        Face index array.
+
+    Returns
+    -------
+    (vbo, ebo) : tuple
+        OpenGL buffer handles for the VBO and EBO.
+    """
     vbo = gl.glGenBuffers(1)
     gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
     gl.glBufferData(gl.GL_ARRAY_BUFFER, meshdata.nbytes, meshdata, gl.GL_STATIC_DRAW)
@@ -45,7 +77,13 @@ def setup_buffers(meshdata, triangles):
 
 
 def setup_vertex_attributes(shader):
-    """Configure vertex attribute pointers for position, normal, color."""
+    """Configure vertex attribute pointers for position, normal and color.
+
+    Parameters
+    ----------
+    shader : int
+        OpenGL shader program handle used to query attribute locations.
+    """
     position = gl.glGetAttribLocation(shader, "aPos")
     gl.glVertexAttribPointer(
         position, 3, gl.GL_FLOAT, gl.GL_FALSE, 9 * 4, gl.ctypes.c_void_p(0)
@@ -66,13 +104,24 @@ def setup_vertex_attributes(shader):
 
 
 def set_default_gl_state():
-    """Apply common GL state for rendering."""
+    """Set frequently used default OpenGL state for rendering.
+
+    This function enables depth testing and sets a default clear color.
+    """
     gl.glClearColor(0.0, 0.0, 0.0, 1.0)
     gl.glEnable(gl.GL_DEPTH_TEST)
 
 
 def set_camera_uniforms(shader, view, projection, model):
-    """Set view/projection/model uniforms in the shader."""
+    """Upload camera MVP (view, projection, model) matrices to the shader.
+
+    Parameters
+    ----------
+    shader : int
+        OpenGL shader program handle.
+    view, projection, model : array-like
+        4x4 matrices to be uploaded to the corresponding shader uniforms.
+    """
     view_loc = gl.glGetUniformLocation(shader, "view")
     proj_loc = gl.glGetUniformLocation(shader, "projection")
     model_loc = gl.glGetUniformLocation(shader, "model")
@@ -82,7 +131,19 @@ def set_camera_uniforms(shader, view, projection, model):
 
 
 def set_lighting_uniforms(shader, specular=True, ambient=0.0, light_color=(1.0, 1.0, 1.0)):
-    """Set lighting uniforms in the shader."""
+    """Set lighting-related uniforms (specular toggle, ambient, light color).
+
+    Parameters
+    ----------
+    shader : int
+        OpenGL shader program handle.
+    specular : bool, optional, default True
+        Enable specular highlights.
+    ambient : float, optional, default 0.0
+        Ambient light strength.
+    light_color : tuple, optional, default (1.0, 1.0, 1.0)
+        RGB light color.
+    """
     specular_loc = gl.glGetUniformLocation(shader, "doSpecular")
     gl.glUniform1i(specular_loc, specular)
 
@@ -94,7 +155,22 @@ def set_lighting_uniforms(shader, specular=True, ambient=0.0, light_color=(1.0, 
 
 
 def init_window(width, height, title="PyOpenGL", visible=True):
-    """Create an OpenGL window (GLFW) and make its context current."""
+    """Create a GLFW window, make an OpenGL context current and return the window handle.
+
+    Parameters
+    ----------
+    width, height : int
+        Window dimensions in pixels.
+    title : str, optional, default 'PyOpenGL'
+        Window title.
+    visible : bool, optional, default True
+        If False create an invisible/offscreen window (useful for headless rendering).
+
+    Returns
+    -------
+    window or False
+        GLFW window handle on success, or False on failure.
+    """
     if not glfw.init():
         return False
 
@@ -115,9 +191,28 @@ def init_window(width, height, title="PyOpenGL", visible=True):
 
 
 def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0):
-    """Create vertex and fragment shaders, set up VAO/VBO/EBO, and initialize camera/lighting uniforms.
+    """Create shader program, upload mesh and initialize camera & lighting.
 
-    This function composes several low-level helpers in this module and returns the compiled shader program handle.
+    This is a convenience wrapper that compiles default shaders, creates
+    VAO/VBO/EBO, and configures common uniforms (camera matrices, lighting).
+
+    Parameters
+    ----------
+    meshdata : numpy.ndarray
+        Interleaved vertex data.
+    triangles : numpy.ndarray
+        Triangle indices.
+    width, height : int
+        Framebuffer size used to compute projection matrix.
+    specular : bool, optional, default True
+        Enable specular highlights.
+    ambient : float, optional, default 0.0
+        Ambient lighting strength.
+
+    Returns
+    -------
+    shader : int
+        Compiled OpenGL shader program handle.
     """
     vertex_shader, fragment_shader = get_default_shaders()
 
@@ -139,9 +234,20 @@ def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0)
 
 
 def capture_window(width, height):
-    """Capture the current GL framebuffer region into a PIL Image (RGB).
+    """Read the current GL framebuffer and return it as a PIL.Image (RGB).
 
-    On macOS we adjust for the retina scaling factor by reading at double resolution and downsampling.
+    On macOS (retina) this function reads at double resolution and downscales
+    the result to compensate for pixel-density differences.
+
+    Parameters
+    ----------
+    width, height : int
+        Desired output image dimensions.
+
+    Returns
+    -------
+    PIL.Image.Image
+        RGB image containing the captured framebuffer content.
     """
     if sys.platform == "darwin":
         rwidth = 2 * width
@@ -157,18 +263,3 @@ def capture_window(width, height):
     if sys.platform == "darwin":
         image.thumbnail((0.5 * rwidth, 0.5 * rheight), Image.Resampling.LANCZOS)
     return image
-
-
-__all__ = [
-    "create_vao",
-    "compile_shader_program",
-    "setup_buffers",
-    "setup_vertex_attributes",
-    "set_default_gl_state",
-    "set_camera_uniforms",
-    "set_lighting_uniforms",
-    "init_window",
-    "setup_shader",
-    "capture_window",
-]
-

@@ -6,7 +6,17 @@ from whippersnappy.utils.types import ViewType
 
 
 def get_view_matrices():
-    """Return canonical view matrices for left/right/front/back/top/bottom."""
+    """Return canonical 4x4 view matrices for common brain orientations.
+
+    The returned dictionary maps :class:`whippersnappy.utils.types.ViewType`
+    enum members to corresponding 4x4 view matrices (dtype float32) that
+    can be used as camera/view transforms in the OpenGL renderer.
+
+    Returns
+    -------
+    dict
+        Mapping of :class:`ViewType` -> 4x4 numpy.ndarray view matrix.
+    """
     view_left = np.array([[0, 0, -1, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.float32)
     view_right = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.float32)
     view_back = np.array([[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.float32)
@@ -25,5 +35,16 @@ def get_view_matrices():
 
 
 def get_view_matrix(view_type):
-    """Return a view matrix for a single view type."""
+    """Return the 4x4 view matrix for a single :class:`ViewType`.
+
+    Parameters
+    ----------
+    view_type : ViewType
+        Enum member indicating the requested view.
+
+    Returns
+    -------
+    numpy.ndarray
+        4x4 float32 view matrix.
+    """
     return get_view_matrices()[view_type]

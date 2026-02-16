@@ -17,7 +17,20 @@ from PIL import ImageFont
 
 
 def text_size(caption, font):
-    """Return text width and height in pixels."""
+    """Return text width and height in pixels for a given caption and font.
+
+    Parameters
+    ----------
+    caption : str
+        Text to measure.
+    font : PIL.ImageFont.FreeTypeFont or similar
+        Font object used for measurement.
+
+    Returns
+    -------
+    (width, height) : tuple[int, int]
+        Pixel dimensions of rendered text.
+    """
     dummy_img = Image.new("L", (1, 1))
     draw = ImageDraw.Draw(dummy_img)
     bbox = draw.textbbox((0, 0), caption, font=font, anchor="lt")
@@ -35,7 +48,28 @@ def get_colorbar_label_positions(
     neg=True,
     orientation=OrientationType.HORIZONTAL,
 ):
-    """Return label positions for a colorbar."""
+    """Compute positions for colorbar label text.
+
+    Parameters
+    ----------
+    font : PIL.ImageFont
+        Font used to measure text sizes.
+    labels : dict
+        Mapping of label keys to text strings (e.g. 'upper','lower','middle').
+    colorbar_rect : tuple
+        Rectangle for the colorbar (x, y, width, height).
+    gapspace : int, optional, default 0
+        Additional spacing used for split colorbars.
+    pos, neg : bool, optional, default True, True
+        Whether positive/negative sides are present.
+    orientation : OrientationType, optional, default OrientationType.HORIZONTAL
+        Orientation of the colorbar.
+
+    Returns
+    -------
+    positions : dict
+        Mapping of label key -> (x, y) pixel position.
+    """
     positions = {}
     cb_x, cb_y, cb_width, cb_height = colorbar_rect
     cb_labels_gap = 5
@@ -106,9 +140,32 @@ def create_colorbar(
     neg=True,
     font_file=None,
 ):
-    """Create a colorbar image (PIL.Image) using the project's heat_color.
+    """Create a colored colorbar as a PIL.Image.
 
-    Parameters mirror the previous implementation in `render.py`.
+    The colorbar visualizes the overlay color mapping (using
+    :func:`whippersnappy.utils.colormap.heat_color`) and optionally draws
+    numeric labels for the min/threshold/saturation positions.
+
+    Parameters
+    ----------
+    fmin, fmax : float
+        Threshold and saturation values used to label the colorbar.
+    invert : bool
+        Invert the heat color mapping.
+    orientation : OrientationType, optional, default OrientationType.HORIZONTAL
+        Orientation of the colorbar (HORIZONTAL/VERTICAL).
+    colorbar_scale : float, optional, default 1
+        Scale factor for resulting image size.
+    pos, neg : bool, optional, default True, True
+        Whether the colorbar has positive/negative regions.
+    font_file : str or None, optional
+        Path to a TTF font file to use for labels.
+
+    Returns
+    -------
+    PIL.Image.Image or None
+        A PIL image containing the colorbar, or ``None`` if inputs are
+        insufficient (e.g. fmin/fmax are None).
     """
     # If fmin/fmax are not specified, we cannot create a meaningful colorbar.
     if fmin is None or fmax is None:
@@ -154,7 +211,8 @@ def create_colorbar(
             with resources.as_file(font_trav) as font_path:
                 font = ImageFont.truetype(str(font_path), int(12 * colorbar_scale))
         except Exception:
-            warnings.warn("Roboto font not found in package resources; falling back to default font", UserWarning)
+            warnings.warn("Roboto font not found in package resources; falling back to default font",
+                          UserWarning, stacklevel=2)
             font = ImageFont.load_default()
     else:
         try:
@@ -198,10 +256,18 @@ def create_colorbar(
 
 
 def load_roboto_font(size=14):
-    """Load bundled Roboto-Regular.ttf from package resources.
+    """Load the bundled Roboto font from package resources.
 
-    Returns a PIL ImageFont instance. Falls back to ImageFont.load_default()
-    if the bundled font isn't available.
+    Parameters
+    ----------
+    size : int, optional
+        Requested point size.
+
+    Returns
+    -------
+    PIL.ImageFont.FreeTypeFont or PIL.ImageFont.ImageFont or None
+        A PIL font object; falls back to ``ImageFont.load_default()`` or
+        ``None`` if fonts cannot be loaded.
     """
     try:
         # resources was imported earlier in this module
@@ -209,7 +275,8 @@ def load_roboto_font(size=14):
         with resources.as_file(font_trav) as font_path:
             return ImageFont.truetype(str(font_path), size)
     except Exception:
-        warnings.warn("Roboto font not found in package resources; falling back to default font", UserWarning)
+        warnings.warn("Roboto font not found in package resources; falling back to default font", UserWarning,
+                      stacklevel=2)
         try:
             return ImageFont.load_default()
         except Exception:

@@ -1,7 +1,18 @@
 """Shared shader sources inside the gl package."""
 
 def get_default_shaders():
-    """Return the default vertex and fragment shader sources (GLSL 330)."""
+    """Return the default GLSL 330 vertex and fragment shader sources.
+
+    These shaders are intended for desktop OpenGL (GLSL 330) use in the
+    offline snapshot renderer. The returned strings contain full GLSL
+    shader sources for vertex and fragment stages.
+
+    Returns
+    -------
+    vertex_shader, fragment_shader : tuple[str, str]
+        Tuple containing the vertex shader and fragment shader source code
+        as plain strings.
+    """
     vertex_shader = """
 
         #version 330
@@ -106,7 +117,18 @@ def get_default_shaders():
 
 
 def get_webgl_shaders():
-    """Return the default vertex and fragment shader sources (GLSL 330)."""
+    """Return vertex and fragment shader source strings suitable for WebGL/Three.js.
+
+    These shader snippets are small GLSL pieces that expect Three.js to
+    provide built-in attributes/uniforms (e.g. projectionMatrix,
+    modelViewMatrix, normalMatrix). They are used by the Jupyter
+    pythreejs-based viewer.
+
+    Returns
+    -------
+    vertex_shader, fragment_shader : tuple[str, str]
+        Vertex and fragment shader source strings for WebGL / Three.js.
+    """
 
     # Only declare custom attributes - Three.js provides position, normal, matrices
     # Don't declare position, normal, *Matrix
@@ -190,5 +212,4 @@ def get_webgl_shaders():
     """
 
     return vertex_shader, fragment_shader
-
 

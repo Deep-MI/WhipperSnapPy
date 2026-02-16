@@ -19,6 +19,7 @@ Dependencies:
 """
 
 import logging
+
 import numpy as np
 import pythreejs as p3js
 from ipywidgets import HTML, VBox
@@ -48,50 +49,54 @@ def plot3d(
 ):
     """Create an interactive 3D notebook viewer using pythreejs (Three.js).
 
-    This creates a browser-based interactive 3D viewer for Jupyter notebooks.
-    Works in all Jupyter environments (browser, JupyterLab, Colab, VS Code).
-
-    Note: This is different from the desktop GUI (launched with --interactive flag).
+    This function prepares geometry and color information (via
+    :func:`whippersnappy.geometry.prepare_geometry`) and constructs a
+    pythreejs renderer and controls wrapped in an ``ipywidgets.VBox`` for
+    display inside a Jupyter notebook.
 
     Parameters
     ----------
     meshpath : str
-        Path to surface file
-    overlaypath : str, optional
-        Path to overlay file
-    annotpath : str, optional
-        Path to annotation file
-    curvpath : str, optional
-        Path to curvature file
-    labelpath : str, optional
-        Path to label file
-    minval : float, optional
-        Minimum threshold for coloring
-    maxval : float, optional
-        Maximum value for color saturation
-    invert : bool, default False
-        Invert color map
-    scale : float, default 1.85
-        Global scaling factor
-    color_mode : ColorSelection, optional
-        Select which values to color
-    width : int, default 800
-        Canvas width
-    height : int, default 800
-        Canvas height
+        Path to the surface file (FreeSurfer-style surface, e.g. "lh.white").
+    overlaypath : str or None, optional
+        Path to a per-vertex overlay (thickness/curvature) file.
+    annotpath : str or None, optional
+        Path to a FreeSurfer .annot file for categorical labeling.
+    curvpath : str or None, optional
+        Path to a curvature file used as grayscale texture for unlabeled regions.
+    labelpath : str or None, optional
+        Path to a label file used to mask out vertices.
+    minval, maxval : float or None, optional
+        Threshold and saturation values used for color mapping (passed to
+        :func:`prepare_geometry`). If ``None``, sensible defaults are chosen.
+    invert : bool, optional, default False
+        If True, invert the overlay color map.
+    scale : float, optional, default 1.85
+        Global geometry scale applied during preparation.
+    color_mode : ColorSelection or None, optional
+        Which sign of overlay values to color (BOTH/POSITIVE/NEGATIVE).
+        If None, defaults to ``ColorSelection.BOTH``.
+    width, height : int, optional, default 800
+        Canvas dimensions for the generated renderer.
 
     Returns
     -------
-    viewer : ipywidgets.VBox
-        Interactive 3D viewer widget
+    ipywidgets.VBox
+        A widget containing the pythreejs Renderer and a small info panel.
 
-    Examples
-    --------
-    In a notebook:
+    Raises
+    ------
+    ValueError, FileNotFoundError
+        Errors originating from :func:`prepare_geometry` (for example when
+        input arrays don't match the mesh vertex count) are propagated.
+
+    Example
+    -------
+    In a Jupyter notebook::
 
         from whippersnappy import plot3d
         from IPython.display import display
-        viewer = plot3d('path/to/lh.white', curvpath='path/to/lh.curv')
+        viewer = plot3d('fsaverage/surf/lh.white', overlaypath='fsaverage/surf/lh.thickness')
         display(viewer)
     """
 
@@ -170,7 +175,28 @@ def plot3d(
 
 
 def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals):
-    """Custom lighting shader - fixed for Three.js."""
+    """Create a pythreejs.Mesh using custom shader material and buffers.
+
+    The function builds a BufferGeometry with position, color and normal
+    attributes, attaches an index buffer, and creates a ShaderMaterial
+    using the WebGL shader snippets returned by :func:`get_webgl_shaders`.
+
+    Parameters
+    ----------
+    vertices : numpy.ndarray
+        Array of shape (N, 3) with vertex positions (float32).
+    faces : numpy.ndarray
+        Integer face index array shape (M, 3) or flattened (3*M,) dtype uint32.
+    colors : numpy.ndarray
+        Array of shape (N, 3) with per-vertex RGB colors (float32).
+    normals : numpy.ndarray
+        Array of shape (N, 3) with per-vertex normals (float32).
+
+    Returns
+    -------
+    pythreejs.Mesh
+        Mesh object ready to be inserted into a pythreejs.Scene.
+    """
 
     vertices = vertices.astype(np.float32)
     colors = colors.astype(np.float32)

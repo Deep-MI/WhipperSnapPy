@@ -23,20 +23,24 @@ from PyQt6.QtWidgets import (
 
 
 class ConfigWindow(QWidget):
-    """
-    Encapsulates the Qt widget for the parameter configuration.
+    """Qt configuration window for interactive parameter tuning.
+
+    The configuration window exposes sliders and text boxes to adjust the
+    f-threshold and f-max parameters used by the renderer. The widget is
+    intended to run alongside the OpenGL window and to push updated values
+    to the renderer via polling from the main loop.
 
     Parameters
     ----------
-    parent : QWidget
-        This widget's parent, if any (usually none).
-    screen_dims : tuple
-        Integers specifying screen dims in pixels; used to always position
-        the window in the top-right corner, if given.
-    initial_fthresh_value : float
-        Initial fthreshold value is 2.0.
-    initial_fmax_value : float
-        Initial fmax value is 4.0.
+    parent : QWidget, optional
+        Parent Qt widget. Defaults to ``None``.
+    screen_dims : tuple or None, optional
+        (width, height) of the available screen; used to position the
+        window in the top-right corner when provided.
+    initial_fthresh_value : float, optional
+        Initial threshold value (default 2.0).
+    initial_fmax_value : float, optional
+        Initial fmax value (default 4.0).
     """
 
     def __init__(
@@ -153,11 +157,15 @@ class ConfigWindow(QWidget):
             self.setGeometry(0, 0, self.window_size[0], self.window_size[1])
 
     def fthresh_slider_value_cb(self):
-        """
-        Callback function for user-modified fthresh slider.
+        """Handle changes from the f-threshold slider.
 
-        This function is triggered when the user modifies the fthresh slider. It
-        stores the selected value and updates the corresponding user input box.
+        This slot is connected to the slider's valueChanged signal. It maps the
+        slider tick value into the configured value range and updates the
+        text input box accordingly.
+
+        Returns
+        -------
+        None
         """
         self.current_fthresh_value = self.convert_value_to_range(
             self.fthresh_slider.value(),
@@ -167,22 +175,16 @@ class ConfigWindow(QWidget):
         self.fthresh_value_box.setText(str(self.current_fthresh_value))
 
     def fthresh_value_cb(self, new_value):
-        """
-        Callback function for user input of fthresh value.
-
-        This function is triggered when the user inputs a value for fthresh. It
-        stores the selected value and updates the corresponding slider.
+        """Handle text input changes for f-threshold.
 
         Parameters
         ----------
         new_value : float or str
-            The new value input by the user. It can be a float or a string that
-            can be converted to a float.
+            The new value input by the user. May be a float or numeric string.
 
         Returns
         -------
         None
-            This function does not return any value.
         """
         # Do not react to invalid values:
         try:
@@ -200,11 +202,11 @@ class ConfigWindow(QWidget):
         self.fthresh_slider.setValue(int(slider_fthresh_value))
 
     def fmax_slider_value_cb(self):
-        """
-        Callback function for user-modified fmax slider.
+        """Handle changes from the f-max slider and update the text box.
 
-        This function is triggered when the user modifies the fmax slider. It
-        stores the selected value and updates the corresponding user input box.
+        Returns
+        -------
+        None
         """
         self.current_fmax_value = self.convert_value_to_range(
             self.fmax_slider.value(),
@@ -214,22 +216,16 @@ class ConfigWindow(QWidget):
         self.fmax_value_box.setText(str(self.current_fmax_value))
 
     def fmax_value_cb(self, new_value):
-        """
-        Callback function for user input of fmax value.
-
-        This function is triggered when the user inputs a value for fmax. It
-        stores the selected value and updates the corresponding slider.
+        """Handle text input changes for f-max.
 
         Parameters
         ----------
         new_value : float or str
-            The new value input by the user. It can be a float or a string that
-            can be converted to a float.
+            New value provided by the user.
 
         Returns
         -------
-            None
-                This function does not return any value.
+        None
         """
         # Do not react to invalid values:
         try:
@@ -247,25 +243,21 @@ class ConfigWindow(QWidget):
         self.fmax_slider.setValue(int(slider_fmax_value))
 
     def convert_value_to_range(self, value, old_limits, new_limits):
-        """
-        Convert a given number from one range to another.
-
-        This is useful for transforming values from the original range to that
-        of the slider widget tick range and vice-versa.
+        """Map ``value`` from ``old_limits`` to ``new_limits``.
 
         Parameters
         ----------
         value : float
             Value to be converted.
         old_limits : tuple
-            Minimum and maximum values that define the source range.
+            (min, max) source range.
         new_limits : tuple
-            Minimum and maximum values that define the target range.
+            (min, max) target range.
 
         Returns
         -------
-        new_value : float
-            Converted value.
+        float
+            Value mapped into ``new_limits``.
         """
         old_range = old_limits[1] - old_limits[0]
         new_range = new_limits[1] - new_limits[0]
@@ -274,40 +266,38 @@ class ConfigWindow(QWidget):
         return new_value
 
     def get_fthresh_value(self):
-        """
-        Return the current stores value for fthresh.
+        """Return the currently selected f-threshold value.
 
         Returns
         -------
-        current_fthresh_value: float
-            Current fthresh value.
+        float
+            Current f-threshold value.
         """
         return self.current_fthresh_value
 
     def get_fmax_value(self):
-        """
-        Return the current stores value for fmax.
+        """Return the currently selected f-max value.
 
         Returns
         -------
-        current_fmax_value : float
-            Current fmax value.
+        float
+            Current f-max value.
         """
         return self.current_fmax_value
 
     def keyPressEvent(self, event):
-        """
-        Close the window when the ESC key is pressed.
+        """Handle key press events for the window.
+
+        The handler closes the window when the ESC key is pressed.
 
         Parameters
         ----------
         event : QKeyEvent
-            The key event object representing the key press.
+            Qt key event delivered by the framework.
 
         Returns
         -------
         None
-            This function return None.
         """
         if event.key() == Qt.Key.Escape:
             self.close()

@@ -22,15 +22,16 @@ Usage:
 """
 
 import argparse
+import logging
 import math
 import os
 import signal
 import threading
-import logging
 
 import glfw
 import OpenGL.GL as gl
 import pyrr
+
 try:
     from PyQt6.QtWidgets import QApplication
 except Exception:
@@ -68,36 +69,49 @@ def show_window(
     curvname="curv",
     specular=True,
 ):
-    """
-    Start an interactive window in which an overlay can be viewed.
+    """Start a live interactive OpenGL window for viewing a hemisphere.
+
+    The function initializes a GLFW window and renders the requested
+    hemisphere with any provided overlay/annotation. It polls for
+    configuration updates from the separate configuration GUI and updates
+    the rendered scene accordingly.
 
     Parameters
     ----------
-    hemi : str
-        Hemisphere; one of: ['lh', 'rh'].
-    overlaypath : str
-        Path to the overlay file for the specified hemi (FreeSurfer format).
-    annotpath : str
-        Path to the annotation file for the specified hemi (FreeSurfer format).
-    sdir : str
-       Subject dir containing surf files.
-    caption : str
-       Caption text to be placed on the image.
-    invert : bool
-       Invert color (blue positive, red negative).
-    labelname : str
-       Label for masking, usually cortex.label.
-    surfname : str
-       Surface to display values on, usually pial_semi_inflated from fsaverage.
-    curvname : str
-       Curvature file for texture in non-colored regions (default curv).
-    specular : bool, optional
-       If True, enable specular.
+    hemi : {'lh','rh'}
+        Hemisphere to display.
+    overlaypath : str or None, optional
+        Path to a per-vertex overlay file (e.g. thickness). If ``None`` no
+        overlay will be applied.
+    annotpath : str or None, optional
+        Path to a .annot file providing categorical labels for vertices.
+    sdir : str or None, optional
+        Subject directory containing `surf/` and `label/` subdirectories.
+    caption : str or None, optional
+        Caption text to display in the viewer window.
+    invert : bool, optional, default False
+        Invert the overlay color mapping.
+    labelname : str, optional, default 'cortex.label'
+        Label filename used to mask vertices.
+    surfname : str or None, optional
+        Surface basename (e.g. 'white'); if ``None`` the function will try
+        to auto-detect a suitable surface in ``sdir``.
+    curvname : str or None, optional, default 'curv'
+        Curvature filename used to texture non-colored regions.
+    specular : bool, optional, default True
+        Enable specular highlights in the shader.
 
     Returns
     -------
-    None
-        This function does not return any value.
+    bool
+        ``False`` if the window/context could not be created, ``None`` on
+        normal termination. The function primarily drives an interactive
+        event loop and does not return programmatic geometry objects.
+
+    Raises
+    ------
+    FileNotFoundError
+        If a requested surface file cannot be located in ``sdir``.
     """
     global current_fthresh_, current_fmax_, app_, app_window_, app_window_closed_
 
@@ -190,11 +204,47 @@ def show_window(
 
 
 def config_app_exit_handler():
+    """Mark the configuration application as closed.
+
+    This handler is connected to the configuration app's about-to-quit
+    signal and sets a module-level flag that the main OpenGL loop polls to
+    terminate cleanly.
+
+    Returns
+    -------
+    None
+    """
     global app_window_closed_
     app_window_closed_ = True
 
 
 def run():
+    """Command-line entry point for the WhipperSnapPy snapshot/interactive tool.
+
+    Parses command-line arguments, validates argument combinations, and
+    either launches a non-interactive snapshot generation (``snap4``) or
+    starts the interactive viewer and configuration GUI.
+
+    Behavior
+    --------
+    - Validates that either overlay or annotation inputs are provided for
+      both hemispheres (or raises ``ValueError``).
+    - In non-interactive mode calls :func:`whippersnappy.snap4` to produce
+      and optionally save a composed image.
+    - In interactive mode spawns the OpenGL viewer thread and launches the
+      PyQt6-based configuration window in the main thread.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        For invalid or mutually exclusive argument combinations.
+    ImportError
+        If interactive mode is requested but PyQt6 is not available.
+    """
     global current_fthresh_, current_fmax_, app_, app_window_
     # Configure basic logging for CLI invocation so messages from module loggers
     # are visible to end users. Avoid configuring on import by doing this here.

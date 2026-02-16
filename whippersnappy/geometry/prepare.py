@@ -15,7 +15,24 @@ from whippersnappy.utils.types import ColorSelection
 
 
 def normalize_mesh(v, scale=1.0):
-    """Normalize mesh vertex coordinates."""
+    """Center and scale mesh vertex coordinates to a unit cube.
+
+    The function recenters the vertices around the origin and scales them so
+    that the maximum extent fits into a unit cube, optionally applying an
+    additional scale factor.
+
+    Parameters
+    ----------
+    v : numpy.ndarray
+        Vertex coordinate array of shape (n_vertices, 3).
+    scale : float, optional
+        Additional multiplicative scale applied after normalization.
+
+    Returns
+    -------
+    numpy.ndarray
+        Normalized vertex coordinates with same shape as ``v``.
+    """
     bbmax = np.max(v, axis=0)
     bbmin = np.min(v, axis=0)
     v = v - 0.5 * (bbmax + bbmin)
@@ -24,7 +41,20 @@ def normalize_mesh(v, scale=1.0):
 
 
 def vertex_normals(v, t):
-    """Compute vertex normals."""
+    """Compute per-vertex normals from triangle connectivity.
+
+    Parameters
+    ----------
+    v : numpy.ndarray
+        Vertex coordinates (n_vertices, 3).
+    t : numpy.ndarray
+        Triangle indices (n_faces, 3).
+
+    Returns
+    -------
+    numpy.ndarray
+        Per-vertex unit normals (n_vertices, 3).
+    """
     v0 = v[t[:, 0], :]
     v1 = v[t[:, 1], :]
     v2 = v[t[:, 2], :]
@@ -56,7 +86,51 @@ def prepare_geometry(
     scale=1.85,
     color_mode=ColorSelection.BOTH,
 ):
-    """Prepare meshdata for upload to GPU."""
+    """Prepare vertex and color arrays for GPU upload.
+
+    This function loads a surface geometry from ``surfpath``, optionally
+    loads an overlay (mgh/curv) or annotation (.annot) and produces an
+    interleaved vertex array containing positions, normals and colors
+    suitable for uploading to OpenGL (vertex buffer objects).
+
+    Parameters
+    ----------
+    surfpath : str
+        Path to the surface file.
+    overlaypath : str or None, optional
+        Path to an overlay (mgh/curv) file providing per-vertex scalar
+        values used for coloring.
+    annotpath : str or None, optional
+        Path to a FreeSurfer .annot file for categorical labeling.
+    curvpath : str or None, optional
+        Path to curvature data used as fallback texture.
+    labelpath : str or None, optional
+        Path to a label file used to mask vertices.
+    minval, maxval : float or None, optional
+        Threshold and saturation values for overlay scaling.
+    invert : bool, optional, default False
+        Invert color mapping.
+    scale : float, optional, default 1.85
+        Geometry scaling factor applied by ``normalize_mesh``.
+    color_mode : ColorSelection, optional, default ColorSelection.BOTH
+        Which sign(s) of overlay values to use for coloring.
+
+    Returns
+    -------
+    vertexdata : numpy.ndarray
+        Nx9 array (position x3, normal x3, color x3) ready for GPU upload.
+    triangles : numpy.ndarray
+        Mx3 uint32 triangle index array.
+    fmin, fmax : float or None
+        Final threshold and saturation values used for color mapping.
+    pos, neg : bool or None
+        Flags indicating whether positive/negative overlay values are present.
+
+    Raises
+    ------
+    ValueError
+        If overlay or annotation arrays do not match the surface vertex count.
+    """
     surf = read_geometry(surfpath, read_metadata=False)
     vertices = normalize_mesh(np.array(surf[0], dtype=np.float32), scale)
     triangles = np.array(surf[1], dtype=np.uint32)
@@ -68,7 +142,8 @@ def prepare_geometry(
     if curvpath:
         curv = read_morph_data(curvpath)
         if curv.shape[0] != num_vertices:
-            warnings.warn(f"Curvature file {curvpath} has {curv.shape[0]} values, but mesh has {num_vertices}.")
+            warnings.warn(f"Curvature file {curvpath} has {curv.shape[0]} values, but mesh has {num_vertices}.",
+                          stacklevel=2)
         else:
             sulcmap = binary_color(curv, 0.0, color_low=0.5, color_high=0.33)
 

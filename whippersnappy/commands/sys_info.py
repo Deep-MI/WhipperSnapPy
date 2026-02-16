@@ -4,7 +4,21 @@ from .. import sys_info
 
 
 def run():
-    """Run sys_info() command."""
+    """Run the sys_info command-line helper.
+
+    Parses CLI arguments and delegates to the package-level `sys_info`
+    function which prints system and dependency information.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+        This function prints information to stdout via the `sys_info`
+        helper and does not return a value.
+    """
     parser = argparse.ArgumentParser(
         prog=f"{__package__.split('.')[0]}-sys_info", description="sys_info"
     )
