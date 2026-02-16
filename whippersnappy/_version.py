@@ -5,4 +5,4 @@ try:
     __version__ = version(__package__)
 except Exception:
     # Fallback when package is not installed (e.g., running from source)
-    __version__ = "1.4.0-dev"
+    __version__ = "dev"

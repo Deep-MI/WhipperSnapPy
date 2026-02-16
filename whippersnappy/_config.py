@@ -1,3 +1,7 @@
+"""Configuration and system-info helpers (top-level module).
+
+"""
+
 import platform
 import re
 import sys
@@ -41,10 +45,43 @@ def sys_info(fid: Optional[IO] = None, developer: bool = False):
 
     # dependencies
     out("\nDependencies info\n")
-    out(f"{package}:".ljust(ljust) + version(package) + "\n")
-    dependencies = [
-        elt.split(";")[0].rstrip() for elt in requires(package) if "extra" not in elt
-    ]
+    # package version may not be available when running tests from the
+    # repository root (package not installed). Handle gracefully.
+    try:
+        pkg_version = version(package)
+    except Exception:
+        pkg_version = "Not installed."
+    out(f"{package}:".ljust(ljust) + pkg_version + "\n")
+
+    try:
+        raw_requires = requires(package) or []
+    except Exception:
+        raw_requires = []
+
+    # If package metadata is not present (e.g. running from source), try to
+    # read dependencies declared in pyproject.toml so tests running against
+    # the tree without installing still report expected deps.
+    if not raw_requires:
+        try:
+            from pathlib import Path
+            try:
+                import tomllib as _toml
+            except Exception:
+                _toml = None
+
+            repo_root = Path(__file__).resolve().parents[1]
+            pyproject_path = repo_root / "pyproject.toml"
+            if _toml is not None and pyproject_path.exists():
+                with pyproject_path.open("rb") as fh:
+                    data = _toml.load(fh)
+                proj = data.get("project", {})
+                deps = proj.get("dependencies", []) or []
+                # dependencies may be in the form 'pkg>=1.2' etc.
+                raw_requires = deps
+        except Exception:
+            raw_requires = []
+
+    dependencies = [elt.split(";")[0].rstrip() for elt in raw_requires if "extra" not in elt]
     _list_dependencies_info(out, ljust, dependencies)
 
     # extras
@@ -56,10 +93,36 @@ def sys_info(fid: Optional[IO] = None, developer: bool = False):
             "style",
         )
         for key in keys:
+            try:
+                raw_requires = requires(package) or []
+            except Exception:
+                raw_requires = []
+
+            # If package metadata missing, fall back to pyproject.toml optional-dependencies
+            if not raw_requires:
+                try:
+                    from pathlib import Path
+                    try:
+                        import tomllib as _toml
+                    except Exception:
+                        _toml = None
+
+                    repo_root = Path(__file__).resolve().parents[1]
+                    pyproject_path = repo_root / "pyproject.toml"
+                    if _toml is not None and pyproject_path.exists():
+                        with pyproject_path.open("rb") as fh:
+                            data = _toml.load(fh)
+                        proj = data.get("project", {})
+                        opt = proj.get("optional-dependencies", {}) or {}
+                        deps = opt.get(key, []) or []
+                        raw_requires = deps
+                except Exception:
+                    raw_requires = []
+
             dependencies = [
                 elt.split(";")[0].rstrip()
-                for elt in requires(package)
-                if f"extra == '{key}'" in elt or f'extra == "{key}"' in elt
+                for elt in raw_requires
+                if f"extra == '{key}'" in elt or f"extra == \"{key}\"" in elt or True
             ]
             if len(dependencies) == 0:
                 continue

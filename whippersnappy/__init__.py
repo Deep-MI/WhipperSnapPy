@@ -45,7 +45,7 @@ Features:
 
 from ._version import __version__  # noqa: F401
 from .snap import snap1, snap4
-from .utils._config import sys_info  # noqa: F401
+from ._config import sys_info  # noqa: F401
 from .utils.types import ViewType
 
 # 3D plotting for notebooks (Three.js-based, works in all Jupyter environments)
