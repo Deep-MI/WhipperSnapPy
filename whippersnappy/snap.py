@@ -121,8 +121,8 @@ def snap1(
         If required surface files cannot be found when deriving from
         SUBJECTS_DIR in multi-view helpers.
 
-    Example
-    -------
+    Examples
+    --------
     >>> from whippersnappy import snap1
     >>> img = snap1('fsaverage/surf/lh.white', overlaypath='fsaverage/surf/lh.thickness')
     >>> img.save('/tmp/lh.png')
@@ -349,8 +349,8 @@ def snap4(
     FileNotFoundError
         When required surface files are not found.
 
-    Example
-    -------
+    Examples
+    --------
     >>> from whippersnappy import snap4
     >>> img = snap4(
     >>>          lhoverlaypath='fsaverage/surf/lh.thickness',

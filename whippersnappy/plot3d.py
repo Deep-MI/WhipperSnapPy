@@ -90,8 +90,8 @@ def plot3d(
         Errors originating from :func:`prepare_geometry` (for example when
         input arrays don't match the mesh vertex count) are propagated.
 
-    Example
-    -------
+    Examples
+    --------
     In a Jupyter notebook::
 
         from whippersnappy import plot3d

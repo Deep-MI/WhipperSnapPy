@@ -162,10 +162,6 @@ class ConfigWindow(QWidget):
         This slot is connected to the slider's valueChanged signal. It maps the
         slider tick value into the configured value range and updates the
         text input box accordingly.
-
-        Returns
-        -------
-        None
         """
         self.current_fthresh_value = self.convert_value_to_range(
             self.fthresh_slider.value(),
@@ -181,10 +177,6 @@ class ConfigWindow(QWidget):
         ----------
         new_value : float or str
             The new value input by the user. May be a float or numeric string.
-
-        Returns
-        -------
-        None
         """
         # Do not react to invalid values:
         try:
@@ -202,12 +194,7 @@ class ConfigWindow(QWidget):
         self.fthresh_slider.setValue(int(slider_fthresh_value))
 
     def fmax_slider_value_cb(self):
-        """Handle changes from the f-max slider and update the text box.
-
-        Returns
-        -------
-        None
-        """
+        """Handle changes from the f-max slider and update the text box."""
         self.current_fmax_value = self.convert_value_to_range(
             self.fmax_slider.value(),
             self.fmax_slider_tick_limits,
@@ -222,10 +209,6 @@ class ConfigWindow(QWidget):
         ----------
         new_value : float or str
             New value provided by the user.
-
-        Returns
-        -------
-        None
         """
         # Do not react to invalid values:
         try:
@@ -294,10 +277,6 @@ class ConfigWindow(QWidget):
         ----------
         event : QKeyEvent
             Qt key event delivered by the framework.
-
-        Returns
-        -------
-        None
         """
         if event.key() == Qt.Key.Escape:
             self.close()

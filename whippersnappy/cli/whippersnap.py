@@ -209,10 +209,6 @@ def config_app_exit_handler():
     This handler is connected to the configuration app's about-to-quit
     signal and sets a module-level flag that the main OpenGL loop polls to
     terminate cleanly.
-
-    Returns
-    -------
-    None
     """
     global app_window_closed_
     app_window_closed_ = True
@@ -224,19 +220,12 @@ def run():
     Parses command-line arguments, validates argument combinations, and
     either launches a non-interactive snapshot generation (``snap4``) or
     starts the interactive viewer and configuration GUI.
-
-    Behavior
-    --------
     - Validates that either overlay or annotation inputs are provided for
       both hemispheres (or raises ``ValueError``).
     - In non-interactive mode calls :func:`whippersnappy.snap4` to produce
       and optionally save a composed image.
     - In interactive mode spawns the OpenGL viewer thread and launches the
       PyQt6-based configuration window in the main thread.
-
-    Returns
-    -------
-    None
 
     Raises
     ------
