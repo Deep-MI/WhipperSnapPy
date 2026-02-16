@@ -99,7 +99,6 @@ def plot3d(
         viewer = plot3d('fsaverage/surf/lh.white', overlaypath='fsaverage/surf/lh.thickness')
         display(viewer)
     """
-
     # Load and prepare mesh data
     color_mode = color_mode or ColorSelection.BOTH
     meshdata, triangles, fmin, fmax, pos, neg = prepare_geometry(
@@ -197,7 +196,6 @@ def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals):
     pythreejs.Mesh
         Mesh object ready to be inserted into a pythreejs.Scene.
     """
-
     vertices = vertices.astype(np.float32)
     colors = colors.astype(np.float32)
     normals = normals.astype(np.float32)

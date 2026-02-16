@@ -1,6 +1,4 @@
-"""Configuration and system-info helpers (top-level module).
-
-"""
+"""Configuration and system-info helpers (top-level module)."""
 
 import platform
 import re
@@ -23,7 +21,6 @@ def sys_info(fid: Optional[IO] = None, developer: bool = False):
     developer : bool, default=False
         If True, display information about optional dependencies.
     """
-
     ljust = 26
     out = partial(print, end="", file=fid)
     package = __package__.split(".")[0]
@@ -143,7 +140,6 @@ def _list_dependencies_info(out: Callable, ljust: int, dependencies: list[str]):
         list of dependencies
 
     """
-
     for dep in dependencies:
         # handle dependencies with version specifiers
         specifiers_pattern = r"(~=|==|!=|<=|>=|<|>|===)"

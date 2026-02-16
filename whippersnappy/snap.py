@@ -1,6 +1,4 @@
-"""Snapshot (static rendering) API for WhipperSnapPy.
-
-"""
+"""Snapshot (static rendering) API for WhipperSnapPy."""
 
 import logging
 import os
