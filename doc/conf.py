@@ -101,6 +101,26 @@ autodoc_member_order = "groupwise"
 autodoc_warningiserror = True
 autoclass_content = "class"
 
+# Mock modules that may not be available in the doc builder environment
+# (PyQt6, OpenGL, GLFW, pythreejs, etc.). Adjust this list if your builder
+# provides any of these packages.
+autodoc_mock_imports = [
+    "PyQt6",
+    "PyQt6.QtWidgets",
+    "PyQt6.QtCore",
+    "PyQt6.QtGui",
+    "glfw",
+    "OpenGL",
+    "OpenGL.GL",
+    "OpenGL.GL.shaders",
+    "pythreejs",
+    "ipywidgets",
+    "pyopengl",
+    "pyrr",
+    "PIL",
+    "matplotlib",
+]
+
 # -- intersphinx -------------------------------------------------------------
 intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org/stable", None),

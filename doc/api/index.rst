@@ -8,7 +8,8 @@ API References
     :toctree: generated/
 
 
-    config_app.ConfigWindow
-    core
+    snap
+    plot3d
+    gui.config_app.ConfigWindow
     cli.whippersnap
  
