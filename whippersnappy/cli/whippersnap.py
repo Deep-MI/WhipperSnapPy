@@ -33,14 +33,13 @@ import OpenGL.GL as gl
 import pyrr
 from PyQt6.QtWidgets import QApplication
 
-from whippersnappy.config_app import ConfigWindow
-from whippersnappy.core import (
-    get_surf_name,
+from whippersnappy import snap4
+from whippersnappy.geometry import get_surf_name, prepare_geometry
+from whippersnappy.gl import (
     init_window,
-    prepare_geometry,
     setup_shader,
-    snap4,
 )
+from whippersnappy.gui import ConfigWindow
 
 # Global variables for config app configuration state:
 current_fthresh_ = None
@@ -366,7 +365,7 @@ def run():
 # pip3 install pyopengl glfw pillow numpy pyrr
 # xvfb-run python3 test4.py
 
-# instead of the above one could really do headless off screen rendering via
+# instead of the above one could really do headless off-screen rendering via
 # EGL (preferred) or OSMesa. The latter looks doable. EGL looks tricky.
 # EGL is part of any modern NVIDIA driver
 # OSMesa needs to be installed, but should work almost everywhere
