@@ -29,8 +29,8 @@ def snap1(
     curvpath=None,
     view=ViewType.LEFT,
     viewmat=None,
-    width=None,
-    height=None,
+    width=700,
+    height=500,
     fthresh=None,
     fmax=None,
     caption=None,
@@ -51,7 +51,7 @@ def snap1(
 ):
     """Render a single static snapshot of a surface view.
 
-    This function opens an (offscreen) OpenGL context, uploads the provided
+    This function opens an OpenGL context, uploads the provided
     surface geometry and colors (overlay or annotation), renders the scene
     for a single view, captures the framebuffer, and returns a PIL Image
     containing the rendered brain view. When ``outpath`` is provided the
@@ -62,8 +62,7 @@ def snap1(
     meshpath : str
         Path to the surface file (FreeSurfer-format, e.g. "lh.white").
     outpath : str or None, optional
-        When provided, the resulting image is saved to this path. If ``None``
-        the PIL Image object is returned.
+        When provided, the resulting image is saved to this path.
     overlaypath : str or None, optional
         Path to overlay/mgh file providing per-vertex values to color the
         surface. If ``None``, coloring falls back to curvature/annotation.
@@ -77,9 +76,8 @@ def snap1(
         Which pre-defined view to render (left, right, front, ...). Default is ``ViewType.LEFT``.
     viewmat : 4x4 matrix-like, optional
         Optional view matrix to override the pre-defined view.
-    width, height : int or None, optional
-        Requested overall canvas width/height in pixels. If ``None`` defaults
-        are used (700x500 reference).
+    width, height : int, optional
+        Requested overall canvas width/height in pixels. Defaults to (700x500).
     fthresh, fmax : float or None, optional
         Threshold and saturation values for overlay coloring.
     caption, caption_x, caption_y, caption_scale : str/float, optional
@@ -105,10 +103,8 @@ def snap1(
 
     Returns
     -------
-    PIL.Image.Image or None
-        If ``outpath`` is ``None`` the function returns a PIL Image object
-        containing the rendered snapshot. If ``outpath`` is provided the
-        image is saved to disk and ``None`` is returned.
+    PIL.Image.Image
+        Returns a PIL Image object containing the rendered snapshot.
 
     Raises
     ------
@@ -129,9 +125,7 @@ def snap1(
     """
     ref_width = 700
     ref_height = 500
-    wwidth = ref_width if width is None else width
-    wheight = ref_height if height is None else height
-    ui_scale = min(wwidth / ref_width, wheight / ref_height)
+    ui_scale = min(width / ref_width, height / ref_height)
 
     if not glfw.init():
         logger.error("Could not init glfw!")
@@ -140,23 +134,25 @@ def snap1(
     mode = glfw.get_video_mode(primary_monitor)
     screen_width = mode.size.width
     screen_height = mode.size.height
-    if wwidth > screen_width:
-        logger.info("Requested width %d exceeds screen width %d, expect black bars", wwidth, screen_width)
-    elif wheight > screen_height:
-        logger.info("Requested height %d exceeds screen height %d, expect black bars", wheight, screen_height)
+    if width > screen_width:
+        logger.info("Requested width %d exceeds screen width %d, expect black bars", width, screen_width)
+    elif height > screen_height:
+        logger.info("Requested height %d exceeds screen height %d, expect black bars", height, screen_height)
 
-    image = Image.new("RGB", (wwidth, wheight))
+    image = Image.new("RGB", (width, height))
 
     bwidth = int(540 * brain_scale * ui_scale)
     bheight = int(450 * brain_scale * ui_scale)
-    brain_display_width = min(bwidth, wwidth)
-    brain_display_height = min(bheight, wheight)
+    brain_display_width = min(bwidth, width)
+    brain_display_height = min(bheight, height)
+    logger.debug("Requested (width,height) = (%s,%s)", width, height)
+    logger.debug("Screen (width,height)    = (%s,%s)", screen_width, screen_height)
+    logger.debug("Brain (width,height)     = (%s,%s)", bwidth, bheight)
+    logger.debug("B-Display (width,height) = (%s,%s)", brain_display_width, brain_display_height)
 
-    window = _gl.init_window(brain_display_width, brain_display_height, "WhipperSnapPy 2.0", visible=True)
+    window = _gl.init_window(brain_display_width, brain_display_height, "WhipperSnapPy", visible=True)
     if not window:
         return False
-
-    transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
     meshdata, triangles, fthresh, fmax, pos, neg = prepare_geometry(
         meshpath,
@@ -191,15 +187,17 @@ def snap1(
 
     gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     transform_loc = gl.glGetUniformLocation(shader, "transform")
+    # Small translation to move the brain into the view frustum
+    transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
     view_mats = get_view_matrices()
     viewmat = transl * (view_mats[view] if viewmat is None else viewmat)
     gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, viewmat)
     gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
 
-    im1 = _gl.capture_window(brain_display_width, brain_display_height)
+    im1 = _gl.capture_window(window)
 
-    brain_x = 0 if wwidth < bwidth else (wwidth - bwidth) // 2
-    brain_y = 0 if wheight < bheight else (wheight - bheight) // 2
+    brain_x = 0 if width < bwidth else (width - bwidth) // 2
+    brain_y = 0 if height < bheight else (height - bheight) // 2
     image.paste(im1, (brain_x, brain_y))
 
     bar = None
@@ -229,17 +227,17 @@ def snap1(
 
     if orientation == OrientationType.HORIZONTAL:
         if bar is not None:
-            bx = int(0.5 * (image.width - bar_w)) if colorbar_x is None else int(colorbar_x * wwidth)
+            bx = int(0.5 * (image.width - bar_w)) if colorbar_x is None else int(colorbar_x * width)
             if colorbar_y is None:
                 gap_and_caption = (gap + text_h) if caption and caption_y is None else 0
                 by = image.height - bottom_pad - gap_and_caption - bar_h
             else:
-                by = int(colorbar_y * wheight)
+                by = int(colorbar_y * height)
             image.paste(bar, (bx, by))
 
         if caption:
-            cx = int(0.5 * (image.width - text_w)) if caption_x is None else int(caption_x * wwidth)
-            cy = image.height - bottom_pad - text_h if caption_y is None else int(caption_y * wheight)
+            cx = int(0.5 * (image.width - text_w)) if caption_x is None else int(caption_x * width)
+            cy = image.height - bottom_pad - text_h if caption_y is None else int(caption_y * height)
             ImageDraw.Draw(image).text((cx, cy), caption, (220, 220, 220), font=font, anchor="lt")
     else:
         if bar is not None:
@@ -247,8 +245,8 @@ def snap1(
                 gap_and_caption = (gap + text_h) if caption and caption_x is None else 0
                 bx = image.width - right_pad - gap_and_caption - bar_w
             else:
-                bx = int(colorbar_x * wwidth)
-            by = int(0.5 * (image.height - bar_h)) if colorbar_y is None else int(colorbar_y * wheight)
+                bx = int(colorbar_x * width)
+            by = int(0.5 * (image.height - bar_h)) if colorbar_y is None else int(colorbar_y * height)
             image.paste(bar, (bx, by))
 
         if caption:
@@ -257,18 +255,15 @@ def snap1(
             rotated_caption = temp_caption_img.rotate(90, expand=True, fillcolor=(0, 0, 0, 0))
             rotated_w, rotated_h = rotated_caption.size
 
-            cx = image.width - right_pad - rotated_w if caption_x is None else int(caption_x * wwidth)
-            cy = int(0.5 * (image.height - rotated_h)) if caption_y is None else int(caption_y * wheight)
+            cx = image.width - right_pad - rotated_w if caption_x is None else int(caption_x * width)
+            cy = int(0.5 * (image.height - rotated_h)) if caption_y is None else int(caption_y * height)
             image.paste(rotated_caption, (cx, cy), rotated_caption)
 
-    if outpath is None:
-        glfw.terminate()
-        return image
-
-    logger.info("Saving snapshot to %s", outpath)
-    image.save(outpath)
+    if outpath:
+        logger.info("Saving snapshot to %s", outpath)
+        image.save(outpath)
     glfw.terminate()
-    return None
+    return image
 
 
 def snap4(
@@ -295,7 +290,7 @@ def snap4(
 
     This convenience function renders four views (top/bottom for each
     hemisphere), stitches them together into a single PIL Image and returns
-    it (or saves it to ``outpath`` when provided). It is typically used to
+    it (and saves it to ``outpath`` when provided). It is typically used to
     produce publication-ready overview figures composed from both
     hemispheres.
 
@@ -325,7 +320,7 @@ def snap4(
     colorbar : bool, optional
         Whether to draw a colorbar on the composed image. Default is ``True``.
     outpath : str or None, optional
-        If provided, save composed image to this path and return ``None``.
+        If provided, save composed image to this path.
     font_file : str or None, optional
         Path to a font to use for captions.
     specular : bool, optional
@@ -337,9 +332,8 @@ def snap4(
 
     Returns
     -------
-    PIL.Image.Image or None
-        Composed image of the four views, or ``None`` if ``outpath`` was
-        provided and the image was written to disk.
+    PIL.Image.Image
+        Composed image of the four views.
 
     Raises
     ------
@@ -454,7 +448,7 @@ def snap4(
         gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, transl * viewmat)
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
         try:
-            im1 = _gl.capture_window(wwidth, wheight)
+            im1 = _gl.capture_window(window)
             logger.debug("Captured image 1 size: %s", im1.size)
         except Exception as e:
             logger.error("capture_window failed: %s", e)
@@ -473,7 +467,7 @@ def snap4(
         gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, transl * viewmat)
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
         try:
-            im2 = _gl.capture_window(wwidth, wheight)
+            im2 = _gl.capture_window(window)
             logger.debug("Captured image 2 size: %s", im2.size)
         except Exception as e:
             logger.error("capture_window failed: %s", e)
@@ -522,16 +516,11 @@ def snap4(
             ypos = int(0.5 * (image.height - bar.height))
             image.paste(bar, (xpos, ypos))
 
-    # If outpath is None, return the PIL Image object directly (no disk I/O)
-    if outpath is None:
-        glfw.terminate()
-        return image
-
     # Otherwise save to disk
     if outpath:
         logger.info("Saving snapshot to %s", outpath)
         image.save(outpath)
 
     glfw.terminate()
-    return None
+    return image
 

@@ -3,7 +3,7 @@
 Contains the implementation of OpenGL helpers used by the package.
 """
 
-import sys
+import logging
 
 import glfw
 import OpenGL.GL as gl
@@ -12,6 +12,9 @@ from PIL import Image
 
 from .camera import make_model, make_projection, make_view
 from .shaders import get_default_shaders
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def create_vao():
@@ -232,34 +235,64 @@ def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0)
 
     return shader
 
-
-def capture_window(width, height):
+def capture_window(window):
     """Read the current GL framebuffer and return it as a PIL.Image (RGB).
 
-    On macOS (retina) this function reads at double resolution and downscales
-    the result to compensate for pixel-density differences.
+    This function captures the framebuffer for the provided GLFW `window`
+    and returns an RGB :class:`PIL.Image.Image`. On HiDPI displays (e.g.
+    macOS Retina) the framebuffer may be larger than the logical window
+    size; the function will downscale the captured physical framebuffer to
+    logical pixel dimensions when a non-1.0 monitor content scale is
+    detected.
 
     Parameters
     ----------
-    width, height : int
-        Desired output image dimensions.
+    window : GLFWwindow
+        GLFW window handle whose current OpenGL context/framebuffer will be
+        read. The function calls :func:`glfw.get_framebuffer_size` to obtain
+        the read dimensions and :func:`glfw.get_primary_monitor` /
+        :func:`glfw.get_monitor_content_scale` to detect the display scale.
 
     Returns
     -------
     PIL.Image.Image
-        RGB image containing the captured framebuffer content.
+        RGB image containing the captured framebuffer content. On standard
+        (1x) displays the returned image has the same dimensions as the
+        framebuffer. On HiDPI displays the image is downscaled to logical
+        window dimensions (framebuffer size divided by the monitor content
+        scale) using ``Image.Resampling.LANCZOS``.
+
+    Notes
+    -----
+    - The function uses ``glReadPixels`` with ``GL_PACK_ALIGNMENT=1`` and
+      converts the raw bytes into a PIL image, performing a vertical flip
+      to convert OpenGL's bottom-left origin to the image top-left origin.
+    - Prefer :func:`glfw.get_window_content_scale` or
+      :func:`glfw.get_monitor_content_scale` to detect per-window/monitor
+      scaling. The function currently uses the primary monitor's content
+      scale as a heuristic for HiDPI detection.
+    - If strict static analyzers complain about ``Image.FLIP_TOP_BOTTOM``
+      you can switch to ``Image.Transpose.FLIP_TOP_BOTTOM`` for newer
+      Pillow versions.
     """
-    if sys.platform == "darwin":
-        rwidth = 2 * width
-        rheight = 2 * height
-    else:
-        rwidth = width
-        rheight = height
+    # Get primary monitor
+    monitor = glfw.get_primary_monitor()
+    # Get scale factors
+    x_scale, y_scale = glfw.get_monitor_content_scale(monitor)
+    # Get framebuffer size
+    width, height = glfw.get_framebuffer_size(window)
+
+    logger.debug("Framebuffer size = (%s,%s)", width, height)
+    logger.debug("Monitor scale    = (%s,%s)", x_scale, y_scale)
 
     gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-    img_buf = gl.glReadPixels(0, 0, rwidth, rheight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
-    image = Image.frombytes("RGB", (rwidth, rheight), img_buf)
+    img_buf = gl.glReadPixels(0, 0, width, height, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+    image = Image.frombytes("RGB", (width, height), img_buf)
     image = image.transpose(Image.FLIP_TOP_BOTTOM)
-    if sys.platform == "darwin":
-        image.thumbnail((0.5 * rwidth, 0.5 * rheight), Image.Resampling.LANCZOS)
+
+    if x_scale != 1 or y_scale != 1:
+        rwidth = int(round(width / x_scale))
+        rheight = int(round(height / y_scale))
+        logger.debug("Rescale to       = (%s,%s)", rwidth, rheight)
+        image.thumbnail((rwidth, rheight), Image.Resampling.LANCZOS)
     return image
