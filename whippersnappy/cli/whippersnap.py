@@ -38,13 +38,12 @@ except Exception:
     # GUI dependency missing; handle at runtime when interactive mode is requested
     QApplication = None
 
-from whippersnappy import snap4
-from whippersnappy.geometry import get_surf_name, prepare_geometry
-from whippersnappy.gl import (
-    init_window,
-    setup_shader,
+from .. import snap4
+from ..geometry import get_surf_name, prepare_geometry
+from ..gl import (
+    init_window, render_scene, setup_shader, capture_window, get_view_matrices
 )
-from whippersnappy.gui import ConfigWindow
+from ..gui import ConfigWindow
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -119,7 +118,8 @@ def show_window(
     weight = 600
     window = init_window(wwidth, weight, "WhipperSnapPy", visible=True)
     if not window:
-        return False
+        logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
+        raise RuntimeError("Could not create any GLFW window/context. OpenGL context unavailable.")
 
     if surfname is None:
         logger.info("No surf_name provided. Looking for options in surf directory...")
@@ -155,9 +155,7 @@ def show_window(
     logger.info("\nKeys:\nLeft - Right : Rotate Geometry\nESC          : Quit\n")
 
     ypos = 0
-    while glfw.get_key(
-        window, glfw.KEY_ESCAPE
-    ) != glfw.PRESS and not glfw.window_should_close(window):
+    while glfw.get_key(window, glfw.KEY_ESCAPE) != glfw.PRESS and not glfw.window_should_close(window):
         # Terminate if config app window was closed:
         if app_window_closed_:
             break
@@ -181,9 +179,7 @@ def show_window(
                     current_fthresh_,
                     current_fmax_,
                 )
-                shader = setup_shader(
-                    meshdata, triangles, wwidth, weight, specular=specular
-                )
+                shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
 
         transformLoc = gl.glGetUniformLocation(shader, "transform")
         gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewLeft)
@@ -196,7 +192,6 @@ def show_window(
 
         # Draw
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
-
         glfw.swap_buffers(window)
 
     glfw.terminate()

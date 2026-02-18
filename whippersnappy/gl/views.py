@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from whippersnappy.utils.types import ViewType
+from ..utils.types import ViewType
 
 
 def get_view_matrices():

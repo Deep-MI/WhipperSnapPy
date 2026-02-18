@@ -9,9 +9,9 @@ import warnings
 
 import numpy as np
 
-from whippersnappy.geometry.read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
-from whippersnappy.utils.colormap import binary_color, heat_color, mask_label, mask_sign, rescale_overlay
-from whippersnappy.utils.types import ColorSelection
+from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
+from ..utils.colormap import binary_color, heat_color, mask_label, mask_sign, rescale_overlay
+from ..utils.types import ColorSelection
 
 
 def normalize_mesh(v, scale=1.0):
@@ -231,3 +231,80 @@ def prepare_geometry(
 
     vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
     return vertexdata, triangles, fmin, fmax, pos, neg
+
+
+def prepare_and_validate_geometry(
+    meshpath,
+    overlaypath,
+    annotpath,
+    curvpath,
+    labelpath,
+    fthresh,
+    fmax,
+    invert,
+    scale,
+    color_mode,
+):
+    """Load and validate mesh geometry and overlay/annotation inputs.
+
+    This is a small wrapper around :func:`prepare_geometry`
+    that performs the same overlay presence validation used throughout the
+    static snapshot helpers.
+
+    Parameters
+    ----------
+    meshpath, overlaypath, annotpath, curvpath, labelpath : str or None
+        Paths passed through to :func:`prepare_geometry`.
+    fthresh, fmax : float or None
+        Threshold and saturation values passed to the geometry preparer.
+    invert : bool
+        Passed to the geometry preparer.
+    scale : float
+        Scaling factor passed to the geometry preparer.
+    color_mode : ColorSelection
+        Which sign of overlay to display (POSITIVE/NEGATIVE/BOTH).
+
+    Returns
+    -------
+    tuple
+        ``(meshdata, triangles, fthresh, fmax, pos, neg)`` as returned by
+        :func:`prepare_geometry`.
+
+    Raises
+    ------
+    ValueError
+        If the overlay contains no values appropriate for ``color_mode``.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    meshdata, triangles, out_fthresh, out_fmax, pos, neg = prepare_geometry(
+        meshpath,
+        overlaypath,
+        annotpath,
+        curvpath,
+        labelpath,
+        fthresh,
+        fmax,
+        invert,
+        scale=scale,
+        color_mode=color_mode,
+    )
+
+    # Validate overlay presence similar to previous inline checks
+    if overlaypath is not None:
+        if color_mode == ColorSelection.POSITIVE:
+            if not pos and neg:
+                logger.error("Overlay has no values to display with positive color_mode")
+                raise ValueError("Overlay has no values to display with positive color_mode")
+            neg = False
+        elif color_mode == ColorSelection.NEGATIVE:
+            if pos and not neg:
+                logger.error("Overlay has no values to display with negative color_mode")
+                raise ValueError("Overlay has no values to display with negative color_mode")
+            pos = False
+        if not pos and not neg:
+            logger.error("Overlay has no values to display")
+            raise ValueError("Overlay has no values to display")
+
+    return meshdata, triangles, out_fthresh, out_fmax, pos, neg
+

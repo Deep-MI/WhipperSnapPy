@@ -13,6 +13,7 @@ from .utils import (
     capture_window,
     compile_shader_program,
     create_vao,
+    create_window_with_fallback,
     init_window,
     set_camera_uniforms,
     set_default_gl_state,

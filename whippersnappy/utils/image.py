@@ -3,8 +3,8 @@
 import numpy as np
 from PIL import Image, ImageDraw
 
-from whippersnappy.utils.colormap import heat_color
-from whippersnappy.utils.types import OrientationType
+from .colormap import heat_color
+from .types import OrientationType
 
 try:
     # Prefer stdlib importlib.resources
@@ -282,3 +282,62 @@ def load_roboto_font(size=14):
         except Exception:
             return None
 
+
+def draw_colorbar(image, bar, orientation, x=None, y=None):
+    """Paste a colorbar image onto the target image at the specified position.
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        The target image to paste onto.
+    bar : PIL.Image.Image
+        The colorbar image to paste.
+    orientation : OrientationType
+        Orientation of the colorbar (HORIZONTAL/VERTICAL).
+    x, y : int or None, optional
+        Position to paste the colorbar. If None, defaults to centered at bottom (horizontal) or right (vertical).
+    """
+    if bar is None:
+        return
+    if orientation == OrientationType.HORIZONTAL:
+        bx = int(0.5 * (image.width - bar.width)) if x is None else x
+        by = image.height - bar.height - 10 if y is None else y
+        image.paste(bar, (bx, by))
+    else:
+        bx = image.width - bar.width - 10 if x is None else x
+        by = int(0.5 * (image.height - bar.height)) if y is None else y
+        image.paste(bar, (bx, by))
+
+
+def draw_caption(image, caption, font, orientation, x=None, y=None):
+    """Draw a caption string onto the image at the specified position and orientation.
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        The target image to draw onto.
+    caption : str
+        The caption text to draw.
+    font : PIL.ImageFont
+        Font to use for the caption.
+    orientation : OrientationType
+        Orientation of the caption (HORIZONTAL/VERTICAL).
+    x, y : int or None, optional
+        Position to draw the caption. If None, defaults to centered at bottom (horizontal) or right (vertical).
+    """
+    if not caption or font is None:
+        return
+    text_w, text_h = text_size(caption, font)
+    draw = ImageDraw.Draw(image)
+    if orientation == OrientationType.HORIZONTAL:
+        cx = int(0.5 * (image.width - text_w)) if x is None else x
+        cy = image.height - text_h - 10 if y is None else y
+        draw.text((cx, cy), caption, (220, 220, 220), font=font, anchor="lt")
+    else:
+        temp_caption_img = Image.new("RGBA", (text_w, text_h), (0, 0, 0, 0))
+        ImageDraw.Draw(temp_caption_img).text((0, 0), caption, font=font, anchor="lt")
+        rotated_caption = temp_caption_img.rotate(90, expand=True, fillcolor=(0, 0, 0, 0))
+        rotated_w, rotated_h = rotated_caption.size
+        cx = image.width - rotated_w - 10 if x is None else x
+        cy = int(0.5 * (image.height - rotated_h)) if y is None else y
+        image.paste(rotated_caption, (cx, cy), rotated_caption)

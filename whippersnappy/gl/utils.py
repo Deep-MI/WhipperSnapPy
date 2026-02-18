@@ -193,6 +193,36 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     return window
 
 
+def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=True):
+    """Create a GLFW window, preferring a visible window and falling back to an invisible one.
+
+    Parameters
+    ----------
+    width : int
+        Requested window width in logical pixels.
+    height : int
+        Requested window height in logical pixels.
+    title : str, optional
+        Window title. Default is ``'WhipperSnapPy'``.
+    visible : bool, optional
+        Prefer a visible window when True (default). If creation fails the
+        function will retry with an invisible/offscreen window.
+
+    Returns
+    -------
+    GLFWwindow or None
+        The created GLFW window handle, or ``None`` if creation failed.
+    """
+    window = init_window(width, height, title, visible=visible)
+    if not window and visible:
+        logger.warning("Could not create visible GLFW window; retrying with invisible window (offscreen).")
+        window = init_window(width, height, title, visible=False)
+    if not window:
+        logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
+        raise RuntimeError("Could not create any GLFW window/context. OpenGL context unavailable.")
+    return window
+
+
 def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0):
     """Create shader program, upload mesh and initialize camera & lighting.
 
@@ -296,3 +326,36 @@ def capture_window(window):
         logger.debug("Rescale to       = (%s,%s)", rwidth, rheight)
         image.thumbnail((rwidth, rheight), Image.Resampling.LANCZOS)
     return image
+
+def render_scene(shader, triangles, transform):
+    """Render a single draw call using the supplied shader/indices.
+
+    Parameters
+    ----------
+    shader : int
+        OpenGL shader program handle.
+    triangles : numpy.ndarray
+        Element/index array used for the draw call.
+    transform : array-like
+        4x4 transform matrix (model/view/projection combined) to upload to
+        the shader uniform named ``transform``.
+
+    Raises
+    ------
+    RuntimeError
+        If a GL error occurs during rendering.
+    """
+    try:
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+    except Exception as exc:
+        logger.error("glClear failed: %s", exc)
+        raise RuntimeError(f"glClear failed: {exc}")
+
+    transform_loc = gl.glGetUniformLocation(shader, "transform")
+    gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, transform)
+    gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
+
+    err = gl.glGetError()
+    if err != gl.GL_NO_ERROR:
+        logger.error("OpenGL error after draw: %s", err)
+        raise RuntimeError(f"OpenGL error after draw: {err}")

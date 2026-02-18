@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 
-from whippersnappy.utils.types import ColorSelection
+from .types import ColorSelection
 
 # Module logger
 logger = logging.getLogger(__name__)
