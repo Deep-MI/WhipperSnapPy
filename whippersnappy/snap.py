@@ -302,6 +302,8 @@ def snap4(
         Ambient lighting strength. Default is ``0``.
     brain_scale : float, optional
         Scaling factor passed to geometry preparation. Default is ``1.85``.
+    color_mode : ColorSelection, optional
+        Which sign of overlay to color (POSITIVE/NEGATIVE/BOTH). Default is ``ColorSelection.BOTH``.
 
     Returns
     -------
