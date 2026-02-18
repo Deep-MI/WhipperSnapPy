@@ -9,9 +9,9 @@ import warnings
 
 import numpy as np
 
-from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 from ..utils.colormap import binary_color, heat_color, mask_label, mask_sign, rescale_overlay
 from ..utils.types import ColorSelection
+from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 
 
 def normalize_mesh(v, scale=1.0):

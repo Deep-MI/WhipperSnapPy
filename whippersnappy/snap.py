@@ -5,15 +5,14 @@ import os
 
 import glfw
 import pyrr
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageFont
 
 from .geometry import get_surf_name
-from .utils.image import create_colorbar, load_roboto_font, text_size, draw_colorbar, draw_caption
-from .utils.types import ColorSelection, OrientationType, ViewType
-
-from .gl.views import get_view_matrices
-from .gl.utils import render_scene, create_window_with_fallback, capture_window, setup_shader
 from .geometry.prepare import prepare_and_validate_geometry
+from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader
+from .gl.views import get_view_matrices
+from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
+from .utils.types import ColorSelection, OrientationType, ViewType
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -178,8 +177,20 @@ def snap1(
     brain_y = max(0, (height - brain_display_height) // 2)
     image.paste(capture_window(window), (brain_x, brain_y))
 
-    bar = create_colorbar(fthresh, fmax, invert, orientation, colorbar_scale * ui_scale, pos, neg, font_file=font_file) if overlaypath is not None and colorbar else None
-    font = load_roboto_font(int(20 * caption_scale * ui_scale)) if font_file is None else ImageFont.truetype(font_file, int(20 * caption_scale * ui_scale)) if caption else None
+    bar = (
+        create_colorbar(
+            fthresh, fmax, invert, orientation, colorbar_scale * ui_scale, pos, neg, font_file=font_file
+        )
+        if overlaypath is not None and colorbar
+        else None
+    )
+    font = (
+        load_roboto_font(int(20 * caption_scale * ui_scale))
+        if font_file is None
+        else ImageFont.truetype(font_file, int(20 * caption_scale * ui_scale))
+        if caption
+        else None
+    )
 
     # Compute positions to avoid overlap, unless explicit positions are given
     text_w, text_h = text_size(caption, font) if caption and font else (0, 0)
@@ -364,7 +375,8 @@ def snap4(
 
         try:
             meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
-                meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert, scale=brain_scale, color_mode=color_mode
+                meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert,
+                scale=brain_scale, color_mode=color_mode
             )
         except Exception as e:
             logger.error("prepare_geometry failed for %s: %s", meshpath, e)
@@ -422,7 +434,11 @@ def snap4(
     bottom_pad = 20
     gap = 4
     caption_y = image.height - bottom_pad - text_h
-    bar = create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg) if lhannotpath is None and rhannotpath is None and colorbar else None
+    bar = (
+        create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg)
+        if lhannotpath is None and rhannotpath is None and colorbar
+        else None
+    )
     bar_h = bar.height if bar is not None else 0
     if bar is not None and caption:
         bar_y = image.height - bottom_pad - text_h - gap - bar_h

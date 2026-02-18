@@ -349,7 +349,7 @@ def render_scene(shader, triangles, transform):
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
     except Exception as exc:
         logger.error("glClear failed: %s", exc)
-        raise RuntimeError(f"glClear failed: {exc}")
+        raise RuntimeError(f"glClear failed: {exc}") from exc
 
     transform_loc = gl.glGetUniformLocation(shader, "transform")
     gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, transform)

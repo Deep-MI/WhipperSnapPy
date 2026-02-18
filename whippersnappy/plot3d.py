@@ -24,10 +24,9 @@ import numpy as np
 import pythreejs as p3js
 from ipywidgets import HTML, VBox
 
-from .utils.types import ColorSelection
-
 from .geometry import prepare_geometry
 from .gl import get_webgl_shaders
+from .utils.types import ColorSelection
 
 # Module logger
 logger = logging.getLogger(__name__)

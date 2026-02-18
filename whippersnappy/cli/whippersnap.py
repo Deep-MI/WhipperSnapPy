@@ -15,17 +15,14 @@ Usage:
                              -sd $SURF_SUBJECT_DIR -o $OUTPUT_PATH
 
 (See help for full list of arguments.)
-
-@Author1    : Martin Reuter
-@Author2    : Ahmed Faisal Abdelrahman
-@Created    : 16.03.2022
 """
 
 import argparse
 import logging
-import math
 import os
 import signal
+import sys
+import tempfile
 import threading
 
 import glfw
@@ -39,11 +36,11 @@ except Exception:
     QApplication = None
 
 from .. import snap4
+from .._version import __version__
 from ..geometry import get_surf_name, prepare_geometry
-from ..gl import (
-    init_window, render_scene, setup_shader, capture_window, get_view_matrices
-)
+from ..gl import get_view_matrices, init_window, setup_shader
 from ..gui import ConfigWindow
+from ..utils.types import ViewType
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -102,21 +99,21 @@ def show_window(
 
     Returns
     -------
-    bool
-        ``False`` if the window/context could not be created, ``None`` on
-        normal termination. The function primarily drives an interactive
-        event loop and does not return programmatic geometry objects.
+    None
+        The function primarily drives an interactive event loop and does not return programmatic geometry objects.
 
     Raises
     ------
+    RuntimeError
+        If the window/context could not be created.
     FileNotFoundError
         If a requested surface file cannot be located in ``sdir``.
     """
     global current_fthresh_, current_fmax_, app_, app_window_, app_window_closed_
 
     wwidth = 720
-    weight = 600
-    window = init_window(wwidth, weight, "WhipperSnapPy", visible=True)
+    wheight = 600
+    window = init_window(wwidth, wheight, "WhipperSnapPy", visible=True)
     if not window:
         logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
         raise RuntimeError("Could not create any GLFW window/context. OpenGL context unavailable.")
@@ -139,18 +136,17 @@ def show_window(
     if labelname:
         labelpath = os.path.join(sdir, "label", hemi + "." + labelname)
 
-    # set up matrices to show object left and right side:
-    rot_z = pyrr.Matrix44.from_z_rotation(-0.5 * math.pi)
-    rot_x = pyrr.Matrix44.from_x_rotation(0.5 * math.pi)
-    viewLeft = rot_x * rot_z
-    # rot_y = pyrr.Matrix44.from_y_rotation(math.pi)
-    # viewRight = rot_y * viewLeft
+    # set up canonical view matrix for the selected hemisphere
+    view_mats = get_view_matrices()
+    viewmat = view_mats[ViewType.LEFT]  # fallback
+    if hemi == "rh":
+        viewmat = view_mats[ViewType.RIGHT]
     rot_y = pyrr.Matrix44.from_y_rotation(0)
 
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
         meshpath, overlaypath, annotpath, curvpath, labelpath, current_fthresh_, current_fmax_
     )
-    shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
+    shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
     logger.info("\nKeys:\nLeft - Right : Rotate Geometry\nESC          : Quit\n")
 
@@ -174,15 +170,16 @@ def show_window(
                 meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
                     meshpath,
                     overlaypath,
+                    annotpath,
                     curvpath,
                     labelpath,
                     current_fthresh_,
                     current_fmax_,
                 )
-                shader = setup_shader(meshdata, triangles, wwidth, weight, specular=specular)
+                shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
         transformLoc = gl.glGetUniformLocation(shader, "transform")
-        gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewLeft)
+        gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewmat)
 
         if glfw.get_key(window, glfw.KEY_RIGHT) == glfw.PRESS:
             ypos = ypos + 0.0004
@@ -195,7 +192,9 @@ def show_window(
         glfw.swap_buffers(window)
 
     glfw.terminate()
-    app_.quit()
+    # Do NOT call app_.quit() here; QApplication teardown must be handled in the main thread.
+    # Only set app_window_closed_ = True in this thread.
+    app_window_closed_ = True
 
 
 def config_app_exit_handler():
@@ -238,10 +237,14 @@ def run():
     global current_fthresh_, current_fmax_, app_, app_window_
     # Configure basic logging for CLI invocation so messages from module loggers
     # are visible to end users. Avoid configuring on import by doing this here.
-    import logging as _logging
-    _logging.basicConfig(level=_logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}"
+    )
     parser.add_argument(
         "-lh",
         "--lh_overlay",
@@ -291,7 +294,7 @@ def run():
         "-o",
         "--output_path",
         type=str,
-        default="/tmp/whippersnappy_snap.png",
+        default=os.path.join(tempfile.gettempdir(), "whippersnappy_snap.png"),
         help="Absolute path to the output file (snapshot image), "
         "if not running interactive mode.",
     )
@@ -304,8 +307,14 @@ def run():
         action="store_true",
         default=False,
         help="Switch off colorbar.")
-    parser.add_argument("--fmax", type=float, default=4.0)
-    parser.add_argument("--fthresh", type=float, default=2.0)
+    parser.add_argument("--fmax",
+        type=float,
+        default=4.0,
+        help="Overlay saturation value (default: 4.0)")
+    parser.add_argument("--fthresh",
+        type=float,
+        default=2.0,
+        help="Overlay threshold value (default: 2.0)")
     parser.add_argument(
         "-i",
         "--interactive",
@@ -326,39 +335,29 @@ def run():
 
     args = parser.parse_args()
 
-    # check for mutually exclusive arguments
-    if (args.lh_overlay or args.rh_overlay) and (args.lh_annot or args.rh_annot):
-        msg = "Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time."
-        logger.error(msg)
-        raise ValueError(msg)
-    # check if at least one variant is present
-    if args.lh_overlay is None and args.rh_overlay is None and args.lh_annot is None and args.rh_annot is None:
-        msg = "Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present."
-        logger.error(msg)
-        raise ValueError(msg)
-    # check if both hemis are present
-    if (args.lh_overlay is None and args.rh_overlay is not None) or \
-         (args.lh_overlay is not None and args.rh_overlay is None) or \
-         (args.lh_annot is None and args.rh_annot is not None) or \
-         (args.lh_annot is not None and args.rh_annot is None):
-        msg = "If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa)."
-        logger.error(msg)
-        raise ValueError(msg)
+    try:
+        # check for mutually exclusive arguments
+        if (args.lh_overlay or args.rh_overlay) and (args.lh_annot or args.rh_annot):
+            msg = "Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot arguments at the same time."
+            logger.error(msg)
+            raise ValueError(msg)
+        # check if at least one variant is present
+        if args.lh_overlay is None and args.rh_overlay is None and args.lh_annot is None and args.rh_annot is None:
+            msg = "Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present."
+            logger.error(msg)
+            raise ValueError(msg)
+        # check if both hemis are present
+        if (args.lh_overlay is None and args.rh_overlay is not None) or \
+             (args.lh_overlay is not None and args.rh_overlay is None) or \
+             (args.lh_annot is None and args.rh_annot is not None) or \
+             (args.lh_annot is not None and args.rh_annot is None):
+            msg = "If lh_overlay or lh_annot is present, rh_overlay or rh_annot must also be present (and vice versa)."
+            logger.error(msg)
+            raise ValueError(msg)
+    except ValueError as e:
+        parser.error(str(e))
 
-    logger.info(f"Left hemisphere overlay: {args.lh_overlay}")
-    logger.info(f"Right hemisphere overlay: {args.rh_overlay}")
-    logger.info(f"Left hemisphere annotation: {args.lh_annot}")
-    logger.info(f"Right hemisphere annotation: {args.rh_annot}")
-    logger.info(f"Subject directory: {args.sdir}")
-    logger.info(f"Surface name: {args.surf_name}")
-    logger.info(f"Output path: {args.output_path}")
-    logger.info(f"Caption: {args.caption}")
-    logger.info(f"Colorbar: {'enabled' if not args.no_colorbar else 'disabled'}")
-    logger.info(f"fmax: {args.fmax}")
-    logger.info(f"fthresh: {args.fthresh}")
-    logger.info(f"Interactive mode: {'enabled' if args.interactive else 'disabled'}")
-    logger.info(f"Color scale inversion: {'enabled' if args.invert else 'disabled'}")
-    logger.info(f"Specular reflection: {'enabled' if args.specular else 'disabled'}")
+    logger.debug("Parsed args: %s", vars(args))
 
     #
     if not args.interactive:
@@ -381,6 +380,12 @@ def run():
         current_fthresh_ = args.fthresh
         current_fmax_ = args.fmax
 
+        # Ensure GUI toolkit is available
+        if QApplication is None:
+            print("ERROR: Interactive mode requires PyQt6. Install it (pip install PyQt6)"
+                  " or run without --interactive.", file=sys.stderr)
+            sys.exit(1)
+
         # Starting interactive OpenGL window in a separate thread:
         thread = threading.Thread(
             target=show_window,
@@ -399,17 +404,10 @@ def run():
         )
         thread.start()
 
-        # Ensure GUI toolkit is available
-        if QApplication is None:
-            raise ImportError(
-                "Interactive mode requires PyQt6. Install it (pip install PyQt6) "
-                "or run without --interactive."
-            )
-
         # Setting up and running config app window (must be main thread):
         app_ = QApplication([])
         app_.setStyle("Fusion")  # the default
-        app_.signals.aboutToQuit.connect(config_app_exit_handler)
+        app_.aboutToQuit.connect(config_app_exit_handler)
 
         screen_geometry = app_.primaryScreen().availableGeometry()
         app_window_ = ConfigWindow(
