@@ -148,7 +148,6 @@ def snap1(
     brain_display_width = min(bwidth, width)
     brain_display_height = min(bheight, height)
     logger.debug("Requested (width,height) = (%s,%s)", width, height)
-    logger.debug("Screen (width,height)    = (%s,%s)", screen_width, screen_height)
     logger.debug("Brain (width,height)     = (%s,%s)", bwidth, bheight)
     logger.debug("B-Display (width,height) = (%s,%s)", brain_display_width, brain_display_height)
 
