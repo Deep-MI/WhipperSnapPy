@@ -21,7 +21,7 @@ A full copy of the license can be found `on GitHub <project license_>`_.
 Contents
 --------
 
-- Snap1: Capture a single shapshot of a surface with an overlay
+- Snap1: Capture a single snapshot of a surface with an overlay
 - Snap4: Capture 4x4 surface plots (front & back, left and right) of a Free- or FastSurfer brain surface with an overlay
 - Plot3d: Interactive 3D WebGL visualization in IPython notebooks
 - OpenGL QT GUI for interactive visualization
