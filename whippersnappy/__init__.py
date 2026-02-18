@@ -44,6 +44,7 @@ Features:
 """
 
 import os
+import sys
 
 def _check_display():
     """Return True if a working X11 display connection can be opened."""
