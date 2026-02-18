@@ -258,6 +258,11 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         "GLFW context creation failed entirely (no display?). "
         "Attempting EGL headless context."
     )
+    if sys.platform == "darwin":
+        raise RuntimeError(
+            "Could not create any OpenGL context via GLFW on macOS. "
+            "Ensure you are running with a display available."
+        )
     try:
         from .egl_context import EGLContext
         ctx = EGLContext(width, height)

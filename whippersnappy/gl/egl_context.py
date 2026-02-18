@@ -25,6 +25,9 @@ Typical usage (internal, called from ``create_window_with_fallback``)::
 import ctypes
 import logging
 import os
+import sys
+if sys.platform == "darwin":
+    raise ImportError("EGL is not available on macOS; use GLFW/CGL instead.")
 
 # Must be set before OpenGL.GL is imported anywhere in the process.
 # If already set (e.g. user set it, or GLFW succeeded), respect it.

@@ -47,6 +47,9 @@ import os
 
 def _check_display():
     """Return True if a working X11 display connection can be opened."""
+    # macOS uses CGL/Cocoa — GLFW handles context creation natively, no EGL needed
+    if sys.platform == "darwin":
+        return True
     display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     if not display:
         return False
