@@ -43,6 +43,7 @@ _EGL_HEIGHT               = 0x3056
 _EGL_OPENGL_API           = 0x30A2
 _EGL_CONTEXT_MAJOR_VERSION = 0x3098
 _EGL_CONTEXT_MINOR_VERSION = 0x30FB
+_EGL_PLATFORM_DEVICE_EXT  = 0x313F
 
 
 def _check_egl_available():
