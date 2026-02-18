@@ -24,6 +24,13 @@ Typical usage (internal, called from ``create_window_with_fallback``)::
 
 import ctypes
 import logging
+import os
+
+# Must be set before OpenGL.GL is imported anywhere in the process.
+# If already set (e.g. user set it, or GLFW succeeded), respect it.
+# We set it here because this module is only imported when EGL is needed.
+if os.environ.get("PYOPENGL_PLATFORM") != "egl":
+    os.environ["PYOPENGL_PLATFORM"] = "egl"
 
 import OpenGL.GL as gl
 from PIL import Image

@@ -258,12 +258,20 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         "GLFW context creation failed entirely (no display?). "
         "Attempting EGL headless context."
     )
+    # GLFW proved the display is unusable. Force EGL platform now so that
+    # PyOpenGL uses the EGL backend. This must happen before egl_context
+    # imports OpenGL.GL — but since utils.py already imported it, we need
+    # to also reset PyOpenGL's platform object.
+    os.environ["PYOPENGL_PLATFORM"] = "egl"
+    _force_pyopengl_egl_platform()
+
     try:
+        from .egl_context import EGLContext
         ctx = EGLContext(width, height)
         ctx.make_current()
         _egl_context = ctx
         logger.info("Using EGL headless context — no display server required.")
-        return None   # callers treat None as "EGL is active"
+        return None
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError(
             "Could not create any OpenGL context (tried GLFW visible, "
@@ -413,3 +421,24 @@ def render_scene(shader, triangles, transform):
     if err != gl.GL_NO_ERROR:
         logger.error("OpenGL error after draw: %s", err)
         raise RuntimeError(f"OpenGL error after draw: {err}")
+
+def _force_pyopengl_egl_platform():
+    """Switch PyOpenGL's active platform to EGL at runtime.
+
+    PyOpenGL caches its platform object at first import. When GLFW fails
+    and we fall back to EGL, we need to replace the cached platform so
+    that subsequent GL calls use the EGL context rather than expecting a
+    GLX context. This is only called once, when the fallback triggers.
+    """
+    try:
+        import OpenGL.platform
+        import OpenGL.platform.egl as egl_platform_module
+        new_platform = egl_platform_module.EGLPlatform()
+        OpenGL.platform.PLATFORM = new_platform
+        # Also patch the GL function resolver to use the new platform
+        import OpenGL.GL
+        OpenGL.GL.glGetError.__self__.__class__.__bases__   # touch the class
+        logger.debug("Switched PyOpenGL platform to EGL.")
+    except Exception as e:
+        logger.warning("Could not switch PyOpenGL platform to EGL: %s", e)
+        # Not fatal — gl.glGetError() in make_current may still work
