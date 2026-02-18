@@ -39,7 +39,7 @@ dependencies = [
     'numpy>=1.21',
     'pyrr',
     'pillow',
-    'pyopengl==3.1.6',
+    'pyopengl>=3.1.8',
     'nibabel',
     'psutil'
 ]

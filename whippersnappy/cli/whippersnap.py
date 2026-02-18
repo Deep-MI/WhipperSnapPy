@@ -39,7 +39,6 @@ from .. import snap4
 from .._version import __version__
 from ..geometry import get_surf_name, prepare_geometry
 from ..gl import get_view_matrices, init_window, setup_shader
-from ..gui import ConfigWindow
 from ..utils.types import ViewType
 
 # Module logger
@@ -377,6 +376,14 @@ def run():
             specular=args.specular,
         )
     else:
+        try:
+            from ..gui import ConfigWindow  # lazy import
+        except ModuleNotFoundError as e:
+            raise RuntimeError(
+                "Interactive mode requires the optional dependency PyQt6. "
+                "Install with: pip install 'whippersnappy[gui]'"
+            ) from e
+
         current_fthresh_ = args.fthresh
         current_fmax_ = args.fmax
 

@@ -5,10 +5,6 @@ during runtime using a simple GUI window.
 
 Dependencies:
     PyQt6
-
-@Author    : Ahmed Faisal Abdelrahman
-@Created   : 20.03.2022
-
 """
 
 from PyQt6.QtCore import Qt
