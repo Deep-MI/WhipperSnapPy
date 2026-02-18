@@ -43,6 +43,32 @@ Features:
 
 """
 
+import os
+
+def _check_display():
+    """Return True if a working X11 display connection can be opened."""
+    display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    if not display:
+        return False
+    try:
+        import ctypes, ctypes.util
+        libx11 = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
+        libx11.XOpenDisplay.restype = ctypes.c_void_p
+        libx11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        libx11.XCloseDisplay.restype = None
+        libx11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+        dpy = libx11.XOpenDisplay(display.encode())
+        if dpy:
+            libx11.XCloseDisplay(dpy)
+            return True
+        return False
+    except Exception:
+        return False
+
+if "PYOPENGL_PLATFORM" not in os.environ:
+    if not _check_display():
+        os.environ["PYOPENGL_PLATFORM"] = "egl"
+
 from ._config import sys_info  # noqa: F401
 from ._version import __version__  # noqa: F401
 from .snap import snap1, snap4
