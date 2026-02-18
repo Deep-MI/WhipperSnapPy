@@ -265,6 +265,11 @@ class EGLContext:
         ):
             raise RuntimeError("eglMakeCurrent failed.")
 
+        # Force PyOpenGL to discover and cache the context we just made current.
+        # PyOpenGL's contextdata module only recognizes contexts it has "seen"
+        # via at least one GL call; glGetError() is the cheapest trigger.
+        gl.glGetError()
+
         # Build FBO so rendering is directed off-screen
         self.fbo = gl.glGenFramebuffers(1)
         gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.fbo)
