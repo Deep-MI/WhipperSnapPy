@@ -10,7 +10,7 @@ Welcome to whippersnappy's documentation!
 =========================================
 
 WhipperSnapPY is a small Python OpenGL program to render
-FreeSurfer and FastSurfer surface models and color overlays and generate screen shots.
+FreeSurfer and FastSurfer surface models with color overlays or parcellations and generate screen shots.
 
 License
 -------
@@ -21,16 +21,17 @@ A full copy of the license can be found `on GitHub <project license_>`_.
 Contents
 --------
 
-- Capture 4x4 surface plots (front & back, left and right)
-- OpenGL window for interactive visualization
+- Snap1: Capture a single shapshot of a surface with an overlay
+- Snap4: Capture 4x4 surface plots (front & back, left and right) of a Free- or FastSurfer brain surface with an overlay
+- Plot3d: Interactive 3D WebGL visualization in IPython notebooks
+- OpenGL QT GUI for interactive visualization
 
 Note, that currently no off-screen rendering is supported. Even in snap mode an invisible window will be created to render the openGL output and capture the contents to an image. In order to run this on a headless server, inside Docker, or via ssh we recommend to install xvfb and run
 
 .. code-block:: bash
 
    apt update && apt install -y python3 python3-pip xvfb
-   pip3 install pyopengl glfw pillow numpy pyrr PyQt5==5.15.6
-   pip3 install .
+   pip3 install whippersnappy
    xvfb-run whippersnap ...
 
 Installation
