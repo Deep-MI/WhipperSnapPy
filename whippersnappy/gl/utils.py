@@ -13,7 +13,6 @@ from PIL import Image
 
 from .camera import make_model, make_projection, make_view
 from .shaders import get_default_shaders
-from .egl_context import EGLContext
 
 # Module logger
 logger = logging.getLogger(__name__)
