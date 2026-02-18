@@ -27,7 +27,6 @@ from .utils import (
     terminate_context,
 )
 from .views import get_view_matrices, get_view_matrix
-from .egl_context import EGLContext
 
 __all__ = [
     'create_vao', 'compile_shader_program', 'setup_buffers', 'setup_vertex_attributes',
@@ -35,5 +34,5 @@ __all__ = [
     'init_window', 'render_scene', 'setup_shader', 'capture_window',
     'make_model', 'make_projection', 'make_view',
     'get_default_shaders', 'get_view_matrices', 'get_view_matrix',
-    'get_webgl_shaders', 'terminate_context', 'EGLContext',
+    'get_webgl_shaders', 'terminate_context',
 ]
