@@ -125,17 +125,21 @@ def snap1(
     ref_height = 500
     ui_scale = min(width / ref_width, height / ref_height)
 
-    if not glfw.init():
-        logger.error("Could not init glfw!")
-        raise RuntimeError("Could not initialize GLFW; OpenGL context unavailable")
-    primary_monitor = glfw.get_primary_monitor()
-    mode = glfw.get_video_mode(primary_monitor)
-    screen_width = mode.size.width
-    screen_height = mode.size.height
-    if width > screen_width:
-        logger.info("Requested width %d exceeds screen width %d, expect black bars", width, screen_width)
-    elif height > screen_height:
-        logger.info("Requested height %d exceeds screen height %d, expect black bars", height, screen_height)
+    # Screen size check only makes sense with a real display; skip on headless.
+    # create_window_with_fallback will handle context creation + EGL fallback.
+    try:
+        if glfw.init():
+            primary_monitor = glfw.get_primary_monitor()
+            if primary_monitor:
+                mode = glfw.get_video_mode(primary_monitor)
+                if width > mode.size.width:
+                    logger.info("Requested width %d exceeds screen width %d, expect black bars",
+                                width, mode.size.width)
+                elif height > mode.size.height:
+                    logger.info("Requested height %d exceeds screen height %d, expect black bars",
+                                height, mode.size.height)
+    except Exception:
+        pass  # headless — no monitor info available, that's fine
 
     image = Image.new("RGB", (width, height))
 
@@ -382,7 +386,7 @@ def snap4(
             )
         except Exception as e:
             logger.error("prepare_geometry failed for %s: %s", meshpath, e)
-            glfw.terminate()
+            terminate_context(window)
             return None
 
         # Diagnostics about mesh data
@@ -401,7 +405,7 @@ def snap4(
             logger.debug("Shader setup complete")
         except Exception as e:
             logger.error("setup_shader failed: %s", e)
-            glfw.terminate()
+            terminate_context(window)
             return None
 
         render_scene(shader, triangles, transl * view_left)
