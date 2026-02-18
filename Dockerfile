@@ -1,18 +1,17 @@
 FROM ubuntu:24.04
 
-# Install packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 pip xvfb libglib2.0-0 libxkbcommon-x11-0 libgl1 libegl1 \
-    libfontconfig1 libdbus-1-3 && \
+    python3 pip \
+    libegl1 \
+    libglib2.0-0 libfontconfig1 libdbus-1-3 && \
   apt clean && \
-  rm -rf /var/libs/apt/lists/* /tmp/* /var/tmp/*
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install python packages
 RUN pip install --upgrade pip
 RUN pip install pyopengl glfw pillow numpy pyrr
 
 COPY . /WhipperSnapPy
 RUN pip install /WhipperSnapPy
 
-ENTRYPOINT ["xvfb-run","whippersnap"]
+ENTRYPOINT ["whippersnap"]
 CMD ["--help"]

@@ -9,7 +9,7 @@ from PIL import Image, ImageFont
 
 from .geometry import get_surf_name
 from .geometry.prepare import prepare_and_validate_geometry
-from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader
+from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader, terminate_context
 from .gl.views import get_view_matrices
 from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
 from .utils.types import ColorSelection, OrientationType, ViewType
@@ -234,7 +234,7 @@ def snap1(
     if outpath:
         logger.info("Saving snapshot to %s", outpath)
         image.save(outpath)
-    glfw.terminate()
+    terminate_context(window)
     return image
 
 
@@ -457,6 +457,6 @@ def snap4(
         logger.info("Saving snapshot to %s", outpath)
         image.save(outpath)
 
-    glfw.terminate()
+    terminate_context(window)
     return image
 

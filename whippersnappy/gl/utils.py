@@ -12,9 +12,13 @@ from PIL import Image
 
 from .camera import make_model, make_projection, make_view
 from .shaders import get_default_shaders
+from .egl_context import EGLContext
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+# Module-level EGL context handle (None when GLFW is used instead)
+_egl_context: "EGLContext | None" = None
 
 
 def create_vao():
@@ -167,7 +171,8 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     title : str, optional, default 'PyOpenGL'
         Window title.
     visible : bool, optional, default True
-        If False create an invisible/offscreen window (useful for headless rendering).
+        If False create an invisible/offscreen window (useful for headless
+        rendering when a display is available but no screen is needed).
 
     Returns
     -------
@@ -194,33 +199,97 @@ def init_window(width, height, title="PyOpenGL", visible=True):
 
 
 def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=True):
-    """Create a GLFW window, preferring a visible window and falling back to an invisible one.
+    """Create an OpenGL context, trying GLFW first and EGL as a fallback.
+
+    The function attempts context creation in this priority order:
+
+    1. **GLFW visible window** — normal path on workstations.
+    2. **GLFW invisible window** — when a display exists but no screen
+       is needed (e.g. a remote desktop session).
+    3. **EGL pbuffer** — fully headless; no display server required.
+       Works with NVIDIA/AMD GPU drivers and Mesa (llvmpipe) on CPU-only
+       systems.  Requires ``libegl1`` (already installed in the Docker
+       image) and ``pyopengl >= 3.1``.
+
+    When EGL is used the module-level ``_egl_context`` is set and
+    ``make_current()`` is called so that subsequent OpenGL calls work
+    identically to the GLFW path.
 
     Parameters
     ----------
     width : int
-        Requested window width in logical pixels.
+        Render target width in pixels.
     height : int
-        Requested window height in logical pixels.
+        Render target height in pixels.
     title : str, optional
-        Window title. Default is ``'WhipperSnapPy'``.
+        Window title (used for GLFW paths only). Default is ``'WhipperSnapPy'``.
     visible : bool, optional
-        Prefer a visible window when True (default). If creation fails the
-        function will retry with an invisible/offscreen window.
+        Prefer a visible window. Default is ``True``.
 
     Returns
     -------
     GLFWwindow or None
-        The created GLFW window handle, or ``None`` if creation failed.
+        GLFW window handle when GLFW succeeded, ``None`` when EGL is used
+        (the context is already current via ``_egl_context.make_current()``).
+
+    Raises
+    ------
+    RuntimeError
+        If all three methods fail to produce a usable OpenGL context.
     """
+    global _egl_context
+
+    # --- Step 1: GLFW visible window ---
     window = init_window(width, height, title, visible=visible)
-    if not window and visible:
-        logger.warning("Could not create visible GLFW window; retrying with invisible window (offscreen).")
+    if window:
+        return window
+
+    # --- Step 2: GLFW invisible window ---
+    if visible:
+        logger.warning(
+            "Could not create visible GLFW window; retrying with invisible window."
+        )
         window = init_window(width, height, title, visible=False)
-    if not window:
-        logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
-        raise RuntimeError("Could not create any GLFW window/context. OpenGL context unavailable.")
-    return window
+        if window:
+            return window
+
+    # --- Step 3: EGL headless pbuffer ---
+    logger.warning(
+        "GLFW context creation failed entirely (no display?). "
+        "Attempting EGL headless context."
+    )
+    try:
+        ctx = EGLContext(width, height)
+        ctx.make_current()
+        _egl_context = ctx
+        logger.info("Using EGL headless context — no display server required.")
+        return None   # callers treat None as "EGL is active"
+    except (ImportError, RuntimeError) as exc:
+        raise RuntimeError(
+            "Could not create any OpenGL context (tried GLFW visible, "
+            f"GLFW invisible, EGL pbuffer). Last error: {exc}"
+        ) from exc
+
+
+def terminate_context(window):
+    """Release the active OpenGL context regardless of how it was created.
+
+    This is a drop-in replacement for ``glfw.terminate()`` that also
+    handles the EGL path.  Call it at the end of every rendering function
+    instead of calling ``glfw.terminate()`` directly.
+
+    Parameters
+    ----------
+    window : GLFWwindow or None
+        The GLFW window handle returned by ``create_window_with_fallback``,
+        or ``None`` when EGL is active.
+    """
+    global _egl_context
+    if _egl_context is not None:
+        _egl_context.destroy()
+        _egl_context = None
+    else:
+        glfw.terminate()
 
 
 def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0):
@@ -266,50 +335,33 @@ def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0)
     return shader
 
 def capture_window(window):
-    """Read the current GL framebuffer and return it as a PIL.Image (RGB).
+    """Read the current GL framebuffer and return it as a PIL Image (RGB).
 
-    This function captures the framebuffer for the provided GLFW `window`
-    and returns an RGB :class:`PIL.Image.Image`. On HiDPI displays (e.g.
-    macOS Retina) the framebuffer may be larger than the logical window
-    size; the function will downscale the captured physical framebuffer to
-    logical pixel dimensions when a non-1.0 monitor content scale is
-    detected.
+    Works for both GLFW windows and EGL headless contexts.  When EGL is
+    active (``window`` is ``None``) the pixels are read from the FBO that
+    was set up by :class:`~whippersnappy.gl.egl_context.EGLContext`; in
+    that case there is no HiDPI scaling to account for.
 
     Parameters
     ----------
-    window : GLFWwindow
-        GLFW window handle whose current OpenGL context/framebuffer will be
-        read. The function calls :func:`glfw.get_framebuffer_size` to obtain
-        the read dimensions and :func:`glfw.get_primary_monitor` /
-        :func:`glfw.get_monitor_content_scale` to detect the display scale.
+    window : GLFWwindow or None
+        GLFW window handle, or ``None`` when an EGL context is active.
 
     Returns
     -------
     PIL.Image.Image
-        RGB image containing the captured framebuffer content. On standard
-        (1x) displays the returned image has the same dimensions as the
-        framebuffer. On HiDPI displays the image is downscaled to logical
-        window dimensions (framebuffer size divided by the monitor content
-        scale) using ``Image.Resampling.LANCZOS``.
-
-    Notes
-    -----
-    - The function uses ``glReadPixels`` with ``GL_PACK_ALIGNMENT=1`` and
-      converts the raw bytes into a PIL image, performing a vertical flip
-      to convert OpenGL's bottom-left origin to the image top-left origin.
-    - Prefer :func:`glfw.get_window_content_scale` or
-      :func:`glfw.get_monitor_content_scale` to detect per-window/monitor
-      scaling. The function currently uses the primary monitor's content
-      scale as a heuristic for HiDPI detection.
-    - If strict static analyzers complain about ``Image.FLIP_TOP_BOTTOM``
-      you can switch to ``Image.Transpose.FLIP_TOP_BOTTOM`` for newer
-      Pillow versions.
+        RGB image of the rendered frame, with the vertical flip applied so
+        that the origin is at the top-left (image convention).
     """
-    # Get primary monitor
+    global _egl_context
+
+    # --- EGL path: read directly from the FBO ---
+    if _egl_context is not None:
+        return _egl_context.read_pixels()
+
+    # --- GLFW path: read from the default framebuffer ---
     monitor = glfw.get_primary_monitor()
-    # Get scale factors
     x_scale, y_scale = glfw.get_monitor_content_scale(monitor)
-    # Get framebuffer size
     width, height = glfw.get_framebuffer_size(window)
 
     logger.debug("Framebuffer size = (%s,%s)", width, height)
@@ -325,7 +377,9 @@ def capture_window(window):
         rheight = int(round(height / y_scale))
         logger.debug("Rescale to       = (%s,%s)", rwidth, rheight)
         image.thumbnail((rwidth, rheight), Image.Resampling.LANCZOS)
+
     return image
+
 
 def render_scene(shader, triangles, transform):
     """Render a single draw call using the supplied shader/indices.
