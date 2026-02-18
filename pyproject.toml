@@ -41,7 +41,6 @@ dependencies = [
     'pillow',
     'pyopengl==3.1.6',
     'nibabel',
-    'PyQt6',
     'psutil'
 ]
 
@@ -70,6 +69,9 @@ notebook = [
     'pythreejs',    # Three.js for interactive 3D (works in all Jupyter environments)
     'ipywidgets',   # Required for pythreejs
 ]
+gui = [
+    'PyQt6',
+]
 style = [
     'bibclean',
     'codespell',
@@ -87,6 +89,7 @@ all = [
     'whippersnappy[style]',
     'whippersnappy[test]',
     'whippersnappy[notebook]',
+    'whippersnappy[gui]',
 ]
 full = [
     'whippersnappy[all]',
