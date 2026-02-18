@@ -46,17 +46,6 @@ _EGL_CONTEXT_MINOR_VERSION = 0x30FB
 _EGL_PLATFORM_DEVICE_EXT  = 0x313F
 
 
-def _check_egl_available():
-    """Raise ImportError with a helpful message if EGL bindings are absent."""
-    try:
-        from OpenGL import EGL as _EGL  # noqa: F401
-    except (ImportError, AttributeError) as exc:
-        raise ImportError(
-            "OpenGL.EGL is not available. Make sure pyopengl >= 3.1 is "
-            "installed and libegl1 (or equivalent) is present on the system."
-        ) from exc
-
-
 class EGLContext:
     """A headless OpenGL 3.3 Core context backed by an EGL pbuffer + FBO.
 
@@ -87,19 +76,16 @@ class EGLContext:
     """
 
     def __init__(self, width: int, height: int):
-        _check_egl_available()
-        from OpenGL import EGL
-
-        self._EGL = EGL
         self.width = width
         self.height = height
+        self._libegl = None
         self._display = None
         self._surface = None
         self._context = None
+        self._config = None
         self.fbo = None
         self._rbo_color = None
         self._rbo_depth = None
-
         self._init_egl()
 
     # ------------------------------------------------------------------
@@ -274,9 +260,8 @@ class EGLContext:
         Must be called before any OpenGL commands.  Creates and binds an
         FBO backed by two renderbuffers (RGBA color + depth/stencil).
         """
-        EGL = self._EGL
-        if not EGL.eglMakeCurrent(
-            self._display, self._surface, self._surface, self._context
+        if not self._libegl.eglMakeCurrent(
+                self._display, self._surface, self._surface, self._context
         ):
             raise RuntimeError("eglMakeCurrent failed.")
 
