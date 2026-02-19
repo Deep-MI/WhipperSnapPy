@@ -82,7 +82,7 @@ if "PYOPENGL_PLATFORM" not in os.environ:
 
 from ._config import sys_info  # noqa: F401, E402
 from ._version import __version__  # noqa: F401, E402
-from .snap import snap1, snap4  # noqa: E402
+from .snap import snap1, snap4, snap_rotate  # noqa: E402
 from .utils.types import ViewType  # noqa: E402
 
 # 3D plotting for notebooks (Three.js-based, works in all Jupyter environments)
@@ -98,6 +98,7 @@ __all__ = [
     "sys_info",
     "snap1",
     "snap4",
+    "snap_rotate",
 ]
 
 if _has_plot3d:

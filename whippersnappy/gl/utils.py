@@ -4,6 +4,7 @@ Contains the implementation of OpenGL helpers used by the package.
 """
 
 import logging
+import os
 import sys
 from typing import Any
 

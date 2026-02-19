@@ -6,7 +6,7 @@ import logging
 import os
 import tempfile
 
-from .. import snap1
+from .. import snap1, snap_rotate
 from .._version import __version__
 from ..utils.types import ColorSelection, OrientationType, ViewType
 
@@ -22,7 +22,8 @@ def run():
         prog="whippersnap1",
         description=(
             "Render a single-view screenshot of any triangular surface mesh "
-            "(FreeSurfer or otherwise) without a GUI."
+            "(FreeSurfer or otherwise) without a GUI. "
+            "Pass --rotate to produce a 360° rotation video instead."
         ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -39,8 +40,12 @@ def run():
     parser.add_argument(
         "-o", "--output",
         type=str,
-        default=os.path.join(tempfile.gettempdir(), "whippersnappy_snap1.png"),
-        help="Output PNG path. Defaults to a temp file.",
+        default=None,
+        help=(
+            "Output file path. For snapshots defaults to a temp .png file; "
+            "for rotation videos defaults to a temp .mp4 file. "
+            "Use .gif for an animated GIF (no ffmpeg required)."
+        ),
     )
 
     # --- Optional overlay / annotation / label / curv ---
@@ -89,31 +94,92 @@ def run():
     parser.add_argument("--font",    type=str,   default=None,
                         help="Path to a TTF font for captions.")
 
+    # --- Rotation video ---
+    rotate_group = parser.add_argument_group("rotation video (--rotate)")
+    rotate_group.add_argument(
+        "--rotate",
+        action="store_true",
+        help="Produce a 360° rotation video instead of a static snapshot.",
+    )
+    rotate_group.add_argument(
+        "--rotate-frames",
+        type=int,
+        default=72,
+        metavar="N",
+        help="Number of frames for a full rotation (default: 72, i.e. 5° per frame).",
+    )
+    rotate_group.add_argument(
+        "--rotate-fps",
+        type=int,
+        default=24,
+        metavar="FPS",
+        help="Frame rate of the output video (default: 24).",
+    )
+    rotate_group.add_argument(
+        "--rotate-start-view",
+        type=str,
+        default="left",
+        choices=list(_VIEW_CHOICES),
+        metavar="VIEW",
+        help="Starting view for the rotation (default: left).",
+    )
+
     args = parser.parse_args()
 
+    log = logging.getLogger(__name__)
+
     try:
-        img = snap1(
-            meshpath=args.meshpath,
-            outpath=args.output,
-            overlaypath=args.overlay,
-            annotpath=args.annot,
-            labelpath=args.label,
-            curvpath=args.curv,
-            view=_VIEW_CHOICES[args.view],
-            width=args.width,
-            height=args.height,
-            fthresh=args.fthresh,
-            fmax=args.fmax,
-            caption=args.caption,
-            invert=args.invert,
-            colorbar=not args.no_colorbar,
-            color_mode=_COLOR_CHOICES[args.color_mode],
-            orientation=_ORIENT_CHOICES[args.orientation],
-            font_file=args.font,
-            specular=args.specular,
-            brain_scale=args.brain_scale,
-            ambient=args.ambient,
-        )
-        logging.getLogger(__name__).info("Snapshot saved to %s (%dx%d)", args.output, img.width, img.height)
-    except (RuntimeError, FileNotFoundError, ValueError) as e:
+        if args.rotate:
+            outpath = args.output or os.path.join(
+                tempfile.gettempdir(), "whippersnappy_rotation.mp4"
+            )
+            snap_rotate(
+                meshpath=args.meshpath,
+                outpath=outpath,
+                n_frames=args.rotate_frames,
+                fps=args.rotate_fps,
+                width=args.width,
+                height=args.height,
+                overlaypath=args.overlay,
+                curvpath=args.curv,
+                annotpath=args.annot,
+                labelpath=args.label,
+                fthresh=args.fthresh,
+                fmax=args.fmax,
+                invert=args.invert,
+                specular=args.specular,
+                ambient=args.ambient,
+                brain_scale=args.brain_scale,
+                start_view=_VIEW_CHOICES[args.rotate_start_view],
+                color_mode=_COLOR_CHOICES[args.color_mode],
+            )
+            log.info("Rotation video saved to %s", outpath)
+        else:
+            outpath = args.output or os.path.join(
+                tempfile.gettempdir(), "whippersnappy_snap1.png"
+            )
+            img = snap1(
+                meshpath=args.meshpath,
+                outpath=outpath,
+                overlaypath=args.overlay,
+                annotpath=args.annot,
+                labelpath=args.label,
+                curvpath=args.curv,
+                view=_VIEW_CHOICES[args.view],
+                width=args.width,
+                height=args.height,
+                fthresh=args.fthresh,
+                fmax=args.fmax,
+                caption=args.caption,
+                invert=args.invert,
+                colorbar=not args.no_colorbar,
+                color_mode=_COLOR_CHOICES[args.color_mode],
+                orientation=_ORIENT_CHOICES[args.orientation],
+                font_file=args.font,
+                specular=args.specular,
+                brain_scale=args.brain_scale,
+                ambient=args.ambient,
+            )
+            log.info("Snapshot saved to %s (%dx%d)", outpath, img.width, img.height)
+    except (RuntimeError, FileNotFoundError, ValueError, ImportError) as e:
         parser.error(str(e))

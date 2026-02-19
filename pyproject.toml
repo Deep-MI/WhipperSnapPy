@@ -72,6 +72,10 @@ notebook = [
 gui = [
     'PyQt6',
 ]
+video = [
+    'imageio>=2.28',
+    'imageio-ffmpeg>=0.4.9',  # bundles its own ffmpeg binary
+]
 style = [
     'bibclean',
     'codespell',
@@ -90,6 +94,7 @@ all = [
     'whippersnappy[test]',
     'whippersnappy[notebook]',
     'whippersnappy[gui]',
+    'whippersnappy[video]',
 ]
 full = [
     'whippersnappy[all]',

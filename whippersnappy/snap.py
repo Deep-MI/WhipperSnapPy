@@ -4,6 +4,7 @@ import logging
 import os
 
 import glfw
+import numpy as np
 import pyrr
 from PIL import Image, ImageFont
 
@@ -477,3 +478,194 @@ def snap4(
         return image
     finally:
         terminate_context(window)
+
+
+def snap_rotate(
+    meshpath,
+    outpath,
+    n_frames=72,
+    fps=24,
+    width=700,
+    height=500,
+    overlaypath=None,
+    curvpath=None,
+    annotpath=None,
+    labelpath=None,
+    fthresh=None,
+    fmax=None,
+    invert=False,
+    specular=True,
+    ambient=0.0,
+    brain_scale=1.5,
+    start_view=ViewType.LEFT,
+    color_mode=ColorSelection.BOTH,
+):
+    """Render a rotating 360° video of a surface mesh.
+
+    Rotates the view around the vertical (Y) axis in ``n_frames`` equal
+    steps, captures each frame via OpenGL, and encodes the result into a
+    compressed video file using ``imageio`` with the ``ffmpeg`` backend
+    (provided by ``imageio-ffmpeg``).
+
+    An animated GIF can also be produced by passing an ``outpath`` ending
+    in ``.gif``; in that case ``imageio-ffmpeg`` is not required.
+
+    Parameters
+    ----------
+    meshpath : str
+        Path to the surface file (FreeSurfer binary format, e.g. ``lh.white``).
+    outpath : str
+        Destination file path.  The extension controls the output format:
+
+        * ``.mp4`` — H.264 MP4 (recommended, requires ``imageio-ffmpeg``).
+        * ``.webm`` — VP9 WebM (requires ``imageio-ffmpeg``).
+        * ``.gif`` — animated GIF (no ffmpeg required, but larger file).
+
+    n_frames : int, optional
+        Number of frames for a full 360° rotation. Default is ``72``
+        (one frame every 5°).
+    fps : int, optional
+        Output frame rate in frames per second. Default is ``24``.
+    width, height : int, optional
+        Render resolution in pixels. Defaults are ``700`` and ``500``.
+    overlaypath : str or None, optional
+        Path to per-vertex overlay file (e.g. thickness).
+    curvpath : str or None, optional
+        Path to curvature file for texturing non-colored regions.
+    annotpath : str or None, optional
+        Path to FreeSurfer ``.annot`` file.
+    labelpath : str or None, optional
+        Path to label file used to mask overlay values.
+    fthresh : float or None, optional
+        Overlay threshold value.
+    fmax : float or None, optional
+        Overlay saturation value.
+    invert : bool, optional
+        Invert the overlay color scale. Default is ``False``.
+    specular : bool, optional
+        Enable specular highlights. Default is ``True``.
+    ambient : float, optional
+        Ambient lighting strength. Default is ``0.0``.
+    brain_scale : float, optional
+        Geometry scale factor. Default is ``1.5``.
+    start_view : ViewType, optional
+        Pre-defined view to start the rotation from.
+        Default is ``ViewType.LEFT``.
+    color_mode : ColorSelection, optional
+        Which overlay sign to color (POSITIVE/NEGATIVE/BOTH).
+        Default is ``ColorSelection.BOTH``.
+
+    Returns
+    -------
+    str
+        The resolved ``outpath`` that was written.
+
+    Raises
+    ------
+    ImportError
+        If ``imageio`` or ``imageio-ffmpeg`` is not installed and a
+        video format (``.mp4``, ``.webm``) was requested.
+    RuntimeError
+        If the OpenGL context cannot be initialised.
+    ValueError
+        If the overlay contains no values for the chosen color mode.
+
+    Examples
+    --------
+    >>> from whippersnappy import snap_rotate
+    >>> snap_rotate(
+    ...     'fsaverage/surf/lh.white',
+    ...     '/tmp/rotation.mp4',
+    ...     overlaypath='fsaverage/surf/lh.thickness',
+    ... )
+    '/tmp/rotation.mp4'
+    """
+    ext = os.path.splitext(outpath)[1].lower()
+    use_gif = ext == ".gif"
+
+    if not use_gif:
+        try:
+            import imageio  # noqa: F401
+            import imageio_ffmpeg  # noqa: F401
+        except ImportError as exc:
+            raise ImportError(
+                f"Video output requires the 'imageio' and 'imageio-ffmpeg' packages. "
+                f"Install with: pip install 'whippersnappy[video]'\n"
+                f"Original error: {exc}"
+            ) from exc
+        import imageio
+    else:
+        try:
+            import imageio  # noqa: F401
+        except ImportError as exc:
+            raise ImportError(
+                "GIF output requires the 'imageio' package. "
+                "Install with: pip install 'whippersnappy[video]'"
+            ) from exc
+        import imageio
+
+    window = create_window_with_fallback(width, height, "WhipperSnapPy", visible=True)
+    try:
+        meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
+            meshpath,
+            overlaypath,
+            annotpath,
+            curvpath,
+            labelpath,
+            fthresh,
+            fmax,
+            invert,
+            scale=brain_scale,
+            color_mode=color_mode,
+        )
+        logger.info(
+            "Rendering %d frames at %dx%d (%.0f° per step) → %s",
+            n_frames, width, height, 360.0 / n_frames, outpath,
+        )
+
+        shader = setup_shader(meshdata, triangles, width, height,
+                              specular=specular, ambient=ambient)
+
+        transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
+        base_view = get_view_matrices()[start_view]
+
+        frames = []
+        for i in range(n_frames):
+            angle = 2 * np.pi * i / n_frames
+            rot = pyrr.Matrix44.from_y_rotation(angle)
+            viewmat = transl * rot * base_view
+            render_scene(shader, triangles, viewmat)
+            frames.append(np.array(capture_window(window)))
+            if (i + 1) % max(1, n_frames // 10) == 0:
+                logger.debug("  frame %d / %d", i + 1, n_frames)
+
+    finally:
+        terminate_context(window)
+
+    logger.info("Encoding %d frames to %s …", len(frames), outpath)
+    if use_gif:
+        # Pure-PIL GIF — no ffmpeg required
+        pil_frames = [Image.fromarray(f) for f in frames]
+        pil_frames[0].save(
+            outpath,
+            save_all=True,
+            append_images=pil_frames[1:],
+            loop=0,
+            duration=int(1000 / fps),
+            optimize=True,
+        )
+    else:
+        writer_kwargs = {
+            "fps": fps,
+            "codec": "libx264",
+            "quality": 6,
+            "pixelformat": "yuv420p",
+        }
+        if ext == ".webm":
+            writer_kwargs["codec"] = "libvpx-vp9"
+            writer_kwargs.pop("pixelformat", None)
+        imageio.mimwrite(outpath, frames, **writer_kwargs)
+
+    logger.info("Saved rotation video to %s", outpath)
+    return outpath
+
