@@ -37,6 +37,7 @@ root_doc = "index"
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.autosummary",
@@ -47,6 +48,12 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
 ]
+
+# Tell Sphinx to parse both .rst and .md files; MyST handles the Markdown side.
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 templates_path = ["_templates"]
 exclude_patterns = [

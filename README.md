@@ -1,57 +1,78 @@
 # WhipperSnapPy
 
-WhipperSnapPY is a small Python OpenGL program to render FreeSurfer and 
-FastSurfer surface models and color overlays and generate screen shots.
+WhipperSnapPy is a Python OpenGL program to render FreeSurfer and
+FastSurfer surface models with color overlays or parcellations and generate
+screenshots.
 
 ## Contents:
 
-- Capture 4x4 surface plots (front & back, left and right)
-- OpenGL window for interactive visualization (GUI)
-- Interactive 3D viewer for Jupyter notebooks with mouse-controlled rotation
+- `snap1` — single-view surface snapshot
+- `snap4` — four-view composed image (lateral/medial, both hemispheres)
+- `snap_rotate` — 360° rotation video (MP4, WebM, or GIF)
+- `plot3d` — interactive 3D WebGL viewer for Jupyter notebooks
+- `whippersnap` — desktop GUI with live Qt controls
 
 ## Installation:
 
-The `WhipperSnapPy` package can be installed from pypi via
-```
+The `WhipperSnapPy` package can be installed from PyPI via:
+
+```bash
 python3 -m pip install whippersnappy
 ```
 
-Note, that currently no off-screen rendering is natively supported. Even in snap 
-mode an invisible window will be created to render the openGL output
-and capture the contents to an image. In order to run this on a headless
-server, inside Docker, or via ssh we recommend to install xvfb and run
+For rotation video support (MP4/WebM):
 
+```bash
+pip install 'whippersnappy[video]'
 ```
-sudo apt update && apt install -y python3 python3-pip xvfb libxcb-xinerama0
-pip3 install pyopengl glfw pillow numpy pyrr PyQt6
-pip3 install whippersnappy
-xvfb-run whippersnap ...
+
+For the interactive desktop GUI:
+
+```bash
+pip install 'whippersnappy[gui]'
 ```
+
+For interactive 3D in Jupyter notebooks:
+
+```bash
+pip install 'whippersnappy[notebook]'
+```
+
+Off-screen (headless) rendering is supported natively via EGL on Linux — no
+`xvfb` required. See the [Docker guide](DOCKER.md) for headless usage.
 
 ## Usage:
 
 ### Local:
 
-After installing the Python package, the whippersnap program can be run using
-the installed command line tool such as in the following example:
-```
-whippersnap -lh $OVERLAY_DIR/$LH_OVERLAY_FILE \
-            -rh $OVERLAY_DIR/$RH_OVERLAY_FILE \
-            -sd $SURF_SUBJECT_DIR \
-            --fmax 4 --fthresh 2 --invert \
-            --caption caption.txt \
-            -o $OUTPUT_DIR/whippersnappy_image.png \
+After installing the Python package, the command-line tools can be run as in
+the following examples:
+
+```bash
+# Four-view batch rendering (both hemispheres)
+whippersnap4 -lh $LH_OVERLAY -rh $RH_OVERLAY \
+             -sd $SURF_SUBJECT_DIR \
+             --fmax 4 --fthresh 2 --invert \
+             --caption "My caption" \
+             -o $OUTPUT_DIR/snap4.png
+
+# Single-view snapshot
+whippersnap1 $SURF_SUBJECT_DIR/surf/lh.white \
+             --overlay $LH_OVERLAY \
+             --view left -o $OUTPUT_DIR/snap1.png
+
+# 360° rotation video
+whippersnap1 $SURF_SUBJECT_DIR/surf/lh.white \
+             --overlay $LH_OVERLAY \
+             --rotate -o $OUTPUT_DIR/rotation.mp4
 ```
 
-For more options see `whippersnap --help`. 
-Note, that adding the `--interactive` flag will start an interactive GUI that
-includes a visualization of one hemisphere side and a simple application through
-which color threshold values can be configured.
+For more options see `whippersnap4 --help` or `whippersnap1 --help`.
 
 ## Quick Imports
 
 ```python
-from whippersnappy import snap1, snap4, plot3d
+from whippersnappy import snap1, snap4, snap_rotate, plot3d
 ```
 
 ### Jupyter Notebooks:
@@ -96,7 +117,7 @@ For static publication-quality images:
 
 ```python
 from whippersnappy import snap1
-from whippersnappy.types import ViewType
+from whippersnappy.utils.types import ViewType
 from IPython.display import display
 
 img = snap1(
@@ -122,36 +143,43 @@ See `examples/whippersnappy_demo.ipynb` for complete examples.
 
 ### Desktop GUI:
 
-For interactive desktop application with GUI controls:
+For interactive desktop visualization with Qt controls:
 
 ```bash
-whippersnap --interactive -lh path/to/lh.white -rh path/to/rh.white
+whippersnap -lh /path/to/lh.thickness -sd /path/to/subject
 ```
 
-This launches a native desktop GUI (not a notebook) with sliders and controls.
+This launches a native desktop GUI with a live OpenGL window and a
+configuration panel for adjusting overlay thresholds at runtime.
+Requires `pip install 'whippersnappy[gui]'`.
 
 ### Docker:
 
-The whippersnap program can be run within a docker container to capture
-a snapshot by building the provided Docker image and running a container as
-follows:
-```
-docker build --rm=true -t whippersnappy -f ./Dockerfile .
-```
-```
-docker run --rm --init --name my_whippersnappy -v $SURF_SUBJECT_DIR:/surf_subject_dir \
-                                               -v $OVERLAY_DIR:/overlay_dir \
-                                               -v $OUTPUT_DIR:/output_dir \
-                                               --user $(id -u):$(id -g) whippersnappy:latest \
-                                               --lh_overlay /overlay_dir/$LH_OVERLAY_FILE \
-                                               --rh_overlay /overlay_dir/$RH_OVERLAY_FILE \
-                                               --sdir /surf_subject_dir \
-                                               --output_path /output_dir/whippersnappy_image.png
+The Docker image provides a fully headless EGL rendering environment — no
+display server or `xvfb` required.
+
+Build the image:
+
+```bash
+docker build --rm -t whippersnappy -f Dockerfile .
 ```
 
-In this example: `$SURF_SUBJECT_DIR` contains the surface files, `$OVERLAY_DIR` contains the overlays to be loaded on to the surfaces, `$OUTPUT_DIR` is the local output directory in which the snapshot will be saved, and `${LH/RH}_OVERLAY_FILE` point to the specific overlay files to load.
+Run a four-view batch snapshot:
 
-**Note:** The `--init` flag to Docker is needed for the `xvfb-run` tool to be used correctly for off-screen rendering.
+```bash
+docker run --rm --init \
+  -v /path/to/subject:/subject \
+  -v /path/to/output:/output \
+  --user $(id -u):$(id -g) \
+  whippersnappy \
+  -lh /subject/surf/lh.thickness \
+  -rh /subject/surf/rh.thickness \
+  -sd /subject \
+  -o /output/snap4.png
+```
+
+For single-view snapshots, rotation videos, annotation overlays, custom
+thresholds, and more examples see **[DOCKER.md](DOCKER.md)**.
 
 
 ## API Documentation
