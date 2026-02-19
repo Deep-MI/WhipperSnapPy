@@ -109,6 +109,7 @@ tracker = 'https://github.com/Deep-MI/WhipperSnapPy/issues'
 [project.scripts]
 whippersnap = 'whippersnappy.cli.whippersnap:run'
 whippersnap1 = 'whippersnappy.cli.whippersnap1:run'
+whippersnap4 = 'whippersnappy.cli.whippersnap4:run'
 whippersnappy-sys_info = 'whippersnappy.commands.sys_info:run'
 
 [tool.setuptools]
