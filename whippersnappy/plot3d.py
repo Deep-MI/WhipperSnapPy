@@ -45,6 +45,7 @@ def plot3d(
     color_mode=None,
     width=800,
     height=800,
+    ambient=0.1,
 ):
     """Create an interactive 3D notebook viewer using pythreejs (Three.js).
 
@@ -77,6 +78,8 @@ def plot3d(
         If None, defaults to ``ColorSelection.BOTH``.
     width, height : int, optional, default 800
         Canvas dimensions for the generated renderer.
+    ambient : float, optional, default 0.1
+        Ambient lighting strength for the shader (passed to Three.js uniform).
 
     Returns
     -------
@@ -119,7 +122,7 @@ def plot3d(
     vertices = vertices / max_extent * 2.0
 
     # Create Three.js mesh
-    mesh = create_threejs_mesh_with_custom_shaders(vertices, triangles, colors, normals)
+    mesh = create_threejs_mesh_with_custom_shaders(vertices, triangles, colors, normals, ambient=ambient)
 
     camera = p3js.PerspectiveCamera(
         position=[-5, 0, 0],
@@ -170,9 +173,7 @@ def plot3d(
 
     return viewer
 
-
-
-def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals):
+def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals, ambient=0.1):
     """Create a pythreejs.Mesh using custom shader material and buffers.
 
     The function builds a BufferGeometry with position, color and normal
@@ -189,6 +190,8 @@ def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals):
         Array of shape (N, 3) with per-vertex RGB colors (float32).
     normals : numpy.ndarray
         Array of shape (N, 3) with per-vertex normals (float32).
+    ambient : float, optional, default 0.1
+        Ambient lighting strength for the shader (passed to Three.js uniform).
 
     Returns
     -------
@@ -216,7 +219,7 @@ def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals):
         fragmentShader=fragment_shader,
         uniforms={
             'lightColor': {'value': [1.0, 1.0, 1.0]},
-            'ambientStrength': {'value': 0.1}
+            'ambientStrength': {'value': ambient}
         }
     )
 

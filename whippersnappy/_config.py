@@ -119,7 +119,7 @@ def sys_info(fid: Optional[IO] = None, developer: bool = False):
             dependencies = [
                 elt.split(";")[0].rstrip()
                 for elt in raw_requires
-                if f"extra == '{key}'" in elt or f"extra == \"{key}\"" in elt or True
+                if f"extra == '{key}'" in elt or f"extra == \"{key}\"" in elt
             ]
             if len(dependencies) == 0:
                 continue

@@ -65,13 +65,82 @@ def vertex_normals(v, t):
     cr1 = np.cross(v2mv1, -v1mv0)
     cr2 = np.cross(v0mv2, -v2mv1)
     n = np.zeros(v.shape)
-    np.add.at(n, t[:, 0], cr0)
-    np.add.at(n, t[:, 1], cr1)
-    np.add.at(n, t[:, 2], cr2)
+    #np.add.at(n, t[:, 0], cr0)
+    #np.add.at(n, t[:, 1], cr1)
+    #np.add.at(n, t[:, 2], cr2)
+    # Vectorized accumulation using bincount
+    idx = np.concatenate([t[:, 0], t[:, 1], t[:, 2]])
+    contribs = np.vstack([cr0, cr1, cr2])
+    n = np.empty((v.shape[0], 3), dtype=np.float64)
+    for j in range(3):
+        n[:, j] = np.bincount(idx, weights=contribs[:, j], minlength=v.shape[0])
     ln = np.sqrt(np.sum(n * n, axis=1))
     ln[ln < np.finfo(float).eps] = 1
     n = n / ln.reshape(-1, 1)
     return n
+
+
+def _estimate_thresholds_from_array(mapdata, minval=None, maxval=None):
+    """Estimate threshold and saturation values from an already-loaded array.
+
+    Parameters
+    ----------
+    mapdata : numpy.ndarray
+        Per-vertex overlay values.
+    minval : float or None, optional
+        If provided, used as-is; otherwise estimated as the minimum absolute
+        value in the data.
+    maxval : float or None, optional
+        If provided, used as-is; otherwise estimated as the maximum absolute
+        value in the data.
+
+    Returns
+    -------
+    minval : float
+        Threshold value (lower bound of the color scale).
+    maxval : float
+        Saturation value (upper bound of the color scale).
+    """
+    valabs = np.abs(mapdata)
+    if maxval is None:
+        maxval = float(np.max(valabs)) if np.any(valabs) else 0.0
+    if minval is None:
+        minval = float(max(0.0, np.min(valabs) if np.any(valabs) else 0.0))
+    return minval, maxval
+
+
+def estimate_overlay_thresholds(overlaypath, minval=None, maxval=None):
+    """Estimate threshold and saturation values from an overlay file.
+
+    Reads the overlay data and derives ``fmin`` / ``fmax`` from the absolute
+    values without performing any geometry or color work.  Both values are
+    returned unchanged when they are already provided by the caller, making
+    the function safe to call unconditionally.
+
+    Parameters
+    ----------
+    overlaypath : str
+        Path to the overlay file (.mgh or FreeSurfer morph format).
+    minval : float or None, optional
+        If provided, used as-is for the threshold; otherwise estimated as
+        the minimum absolute value in the overlay.
+    maxval : float or None, optional
+        If provided, used as-is for the saturation; otherwise estimated as
+        the maximum absolute value in the overlay.
+
+    Returns
+    -------
+    minval : float
+        Threshold value (lower bound of the color scale).
+    maxval : float
+        Saturation value (upper bound of the color scale).
+    """
+    _, file_extension = os.path.splitext(overlaypath)
+    if file_extension == ".mgh":
+        mapdata = read_mgh_data(overlaypath)
+    else:
+        mapdata = read_morph_data(overlaypath)
+    return _estimate_thresholds_from_array(mapdata, minval, maxval)
 
 
 def prepare_geometry(
@@ -171,11 +240,7 @@ def prepare_geometry(
                 "file."
             )
         else:
-            valabs = np.abs(mapdata)
-            if maxval is None:
-                maxval = np.max(valabs) if np.any(valabs) else 0
-            if minval is None:
-                minval = max(0.0, np.min(valabs) if np.any(valabs) else 0)
+            minval, maxval = _estimate_thresholds_from_array(mapdata, minval, maxval)
 
             mapdata = mask_sign(mapdata, color_mode)
             mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, minval, maxval)
@@ -198,12 +263,6 @@ def prepare_geometry(
                 "file."
             )
         else:
-            # If annot is shorter, pad with -1 (meaning 'no label') to match
-            # mesh vertices.
-            if annot.shape[0] < num_vertices:
-                pad_len = num_vertices - annot.shape[0]
-                annot = np.pad(annot, (0, pad_len), mode="constant", constant_values=-1)
-
             # Ensure integer type for safe indexing
             annot = annot.astype(np.int32)
 
