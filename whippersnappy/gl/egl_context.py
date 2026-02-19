@@ -26,6 +26,7 @@ import ctypes
 import logging
 import os
 import sys
+
 if sys.platform == "darwin":
     raise ImportError("EGL is not available on macOS; use GLFW/CGL instead.")
 
@@ -344,20 +345,24 @@ class EGLContext:
         libegl = self._libegl
         # GL cleanup first (context must be current)
         if self.fbo is not None:
-            gl.glDeleteFramebuffers(1, [self.fbo]);
+            gl.glDeleteFramebuffers(1, [self.fbo])
             self.fbo = None
         if self._rbo_color is not None:
-            gl.glDeleteRenderbuffers(1, [self._rbo_color]);
+            gl.glDeleteRenderbuffers(1, [self._rbo_color])
             self._rbo_color = None
         if self._rbo_depth is not None:
-            gl.glDeleteRenderbuffers(1, [self._rbo_depth]);
+            gl.glDeleteRenderbuffers(1, [self._rbo_depth])
             self._rbo_depth = None
         if self._display:
             libegl.eglMakeCurrent(self._display, None, None, None)
-            if self._context: libegl.eglDestroyContext(self._display, self._context)
-            if self._surface: libegl.eglDestroySurface(self._display, self._surface)
+            if self._context:
+                libegl.eglDestroyContext(self._display, self._context)
+            if self._surface:
+                libegl.eglDestroySurface(self._display, self._surface)
             libegl.eglTerminate(self._display)
-            self._display = self._context = self._surface = None
+            self._display = None
+            self._context = None
+            self._surface = None
         logger.debug("EGL context destroyed.")
 
     # Allow use as a context manager

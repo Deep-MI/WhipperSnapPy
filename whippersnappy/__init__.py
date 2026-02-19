@@ -46,6 +46,7 @@ Features:
 import os
 import sys
 
+
 def _check_display():
     """Return True if a display is available or the platform handles GL natively.
 
@@ -60,7 +61,8 @@ def _check_display():
     if not display:
         return False
     try:
-        import ctypes, ctypes.util
+        import ctypes
+        import ctypes.util
         libx11 = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
         libx11.XOpenDisplay.restype = ctypes.c_void_p
         libx11.XOpenDisplay.argtypes = [ctypes.c_char_p]
@@ -78,14 +80,14 @@ if "PYOPENGL_PLATFORM" not in os.environ:
     if not _check_display():
         os.environ["PYOPENGL_PLATFORM"] = "egl"
 
-from ._config import sys_info  # noqa: F401
-from ._version import __version__  # noqa: F401
-from .snap import snap1, snap4
-from .utils.types import ViewType
+from ._config import sys_info  # noqa: F401, E402
+from ._version import __version__  # noqa: F401, E402
+from .snap import snap1, snap4  # noqa: E402
+from .utils.types import ViewType  # noqa: E402
 
 # 3D plotting for notebooks (Three.js-based, works in all Jupyter environments)
 try:
-    from .plot3d import plot3d
+    from .plot3d import plot3d  # noqa: E402
     _has_plot3d = True
 except ImportError:
     _has_plot3d = False

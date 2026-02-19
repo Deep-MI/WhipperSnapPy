@@ -7,8 +7,7 @@ Functions are re-exported at package level for convenience, e.g.:
 
 """
 
-from . import _platform   # noqa: F401 — MUST be first; sets PYOPENGL_PLATFORM
-
+from . import _platform  # noqa: F401 — MUST be first; sets PYOPENGL_PLATFORM
 from .camera import make_model, make_projection, make_view
 from .shaders import get_default_shaders, get_webgl_shaders
 from .utils import (
