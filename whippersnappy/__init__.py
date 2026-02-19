@@ -47,9 +47,14 @@ import os
 import sys
 
 def _check_display():
-    """Return True if a working X11 display connection can be opened."""
-    # macOS uses CGL/Cocoa — GLFW handles context creation natively, no EGL needed
-    if sys.platform == "darwin":
+    """Return True if a display is available or the platform handles GL natively.
+
+    On macOS (CGL) and Windows (WGL) PyOpenGL does not use EGL, so we always
+    return True to avoid setting ``PYOPENGL_PLATFORM=egl`` on those systems.
+    On Linux we probe for an X11/Wayland display server.
+    """
+    if sys.platform != "linux":
+        # macOS uses CGL, Windows uses WGL — no EGL needed on either.
         return True
     display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     if not display:

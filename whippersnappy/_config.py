@@ -90,6 +90,7 @@ def sys_info(fid: Optional[IO] = None, developer: bool = False):
             "style",
         )
         for key in keys:
+            _from_pyproject = False
             try:
                 raw_requires = requires(package) or []
             except Exception:
@@ -113,14 +114,19 @@ def sys_info(fid: Optional[IO] = None, developer: bool = False):
                         opt = proj.get("optional-dependencies", {}) or {}
                         deps = opt.get(key, []) or []
                         raw_requires = deps
+                        _from_pyproject = True
                 except Exception:
                     raw_requires = []
 
-            dependencies = [
-                elt.split(";")[0].rstrip()
-                for elt in raw_requires
-                if f"extra == '{key}'" in elt or f"extra == \"{key}\"" in elt
-            ]
+            if _from_pyproject:
+                # pyproject.toml entries have no extras markers — use as-is
+                dependencies = [elt.split(";")[0].rstrip() for elt in raw_requires]
+            else:
+                dependencies = [
+                    elt.split(";")[0].rstrip()
+                    for elt in raw_requires
+                    if f"extra == '{key}'" in elt or f"extra == \"{key}\"" in elt
+                ]
             if len(dependencies) == 0:
                 continue
             out(f"\nOptional '{key}' info\n")

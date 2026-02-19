@@ -5,6 +5,7 @@ Contains the implementation of OpenGL helpers used by the package.
 
 import logging
 import sys
+from typing import Any
 
 import glfw
 import OpenGL.GL as gl
@@ -18,7 +19,7 @@ from .shaders import get_default_shaders
 logger = logging.getLogger(__name__)
 
 # Module-level EGL context handle (None when GLFW is used instead)
-_egl_context: "EGLContext | None" = None
+_egl_context: Any = None
 
 
 def create_vao():
@@ -253,15 +254,15 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         if window:
             return window
 
-    # --- Step 3: EGL headless pbuffer ---
+    # --- Step 3: EGL headless pbuffer (Linux only) ---
     logger.warning(
         "GLFW context creation failed entirely (no display?). "
         "Attempting EGL headless context."
     )
-    if sys.platform == "darwin":
+    if sys.platform != "linux":
         raise RuntimeError(
-            "Could not create any OpenGL context via GLFW on macOS. "
-            "Ensure you are running with a display available."
+            f"Could not create any OpenGL context via GLFW on {sys.platform}. "
+            "Ensure a display is available."
         )
     try:
         from .egl_context import EGLContext
@@ -292,7 +293,7 @@ def terminate_context(window):
     """
     global _egl_context
     if _egl_context is not None:
-        _egl_context.destroy()
+        _egl_context.destroy()  # type: ignore[union-attr]
         _egl_context = None
     else:
         glfw.terminate()
@@ -363,7 +364,7 @@ def capture_window(window):
 
     # --- EGL path: read directly from the FBO ---
     if _egl_context is not None:
-        return _egl_context.read_pixels()
+        return _egl_context.read_pixels()  # type: ignore[union-attr]
 
     # --- GLFW path: read from the default framebuffer ---
     monitor = glfw.get_primary_monitor()
@@ -376,7 +377,10 @@ def capture_window(window):
     gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
     img_buf = gl.glReadPixels(0, 0, width, height, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
     image = Image.frombytes("RGB", (width, height), img_buf)
-    image = image.transpose(Image.FLIP_TOP_BOTTOM)
+    # Image.Transpose.FLIP_TOP_BOTTOM is the preferred form since Pillow 9.1;
+    # fall back to the legacy integer constant for older installations.
+    _flip = getattr(Image, "Transpose", Image).FLIP_TOP_BOTTOM
+    image = image.transpose(_flip)
 
     if x_scale != 1 or y_scale != 1:
         rwidth = int(round(width / x_scale))
@@ -419,4 +423,3 @@ def render_scene(shader, triangles, transform):
     if err != gl.GL_NO_ERROR:
         logger.error("OpenGL error after draw: %s", err)
         raise RuntimeError(f"OpenGL error after draw: {err}")
-
