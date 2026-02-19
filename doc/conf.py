@@ -12,8 +12,6 @@ from datetime import date
 from importlib import import_module
 from typing import Dict, Optional
 
-# from sphinx_gallery.sorting import FileNameSortKey
-
 import whippersnappy
 
 project = "WhipperSnapPy"
@@ -280,6 +278,7 @@ def ensure_pandoc_installed(_):
         targetfolder=pandoc_dir,
         delete_installer=True,
     )
+
 
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
