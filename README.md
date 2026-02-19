@@ -39,7 +39,7 @@ pip install 'whippersnappy[notebook]'
 ```
 
 Off-screen (headless) rendering is supported natively via EGL on Linux — no
-`xvfb` required. See the [Docker guide](DOCKER.md) for headless usage.
+`xvfb` required. See the <a href="DOCKER.md">Docker guide</a> for headless usage.
 
 ## Usage:
 
@@ -179,7 +179,7 @@ docker run --rm --init \
 ```
 
 For single-view snapshots, rotation videos, annotation overlays, custom
-thresholds, and more examples see **[DOCKER.md](DOCKER.md)**.
+thresholds, and more examples see <a href="DOCKER.md"><strong>DOCKER.md</strong></a>.
 
 
 ## API Documentation
