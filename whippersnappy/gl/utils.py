@@ -240,6 +240,29 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
     """
     global _egl_context
 
+    # Fast-path: if _check_display() already determined there is no working
+    # display, skip the two doomed GLFW attempts and go straight to EGL.
+    # This avoids warning noise and wasted time in Docker/CI/headless SSH.
+    # The sys.platform guard is preserved — EGL is Linux-only.
+    if os.environ.get("PYOPENGL_PLATFORM") == "egl":
+        if sys.platform != "linux":
+            raise RuntimeError(
+                f"Could not create any OpenGL context via GLFW on {sys.platform}. "
+                "Ensure a display is available."
+            )
+        logger.info("No working display detected — using EGL headless directly.")
+        try:
+            from .egl_context import EGLContext
+            ctx = EGLContext(width, height)
+            ctx.make_current()
+            _egl_context = ctx
+            logger.info("Using EGL headless context — no display server required.")
+            return None
+        except (ImportError, RuntimeError) as exc:
+            raise RuntimeError(
+                f"EGL headless context failed: {exc}"
+            ) from exc
+
     # --- Step 1: GLFW visible window ---
     window = init_window(width, height, title, visible=visible)
     if window:
