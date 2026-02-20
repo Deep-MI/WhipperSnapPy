@@ -64,8 +64,13 @@ doc = [
     'nbsphinx',
     'IPython', # For syntax highlighting in notebooks
     'ipykernel',
+    # Needed to execute the tutorial notebook via nbsphinx:
+    'pooch>=1.6',
+    'pythreejs',
+    'ipywidgets',
 ]
 notebook = [
+    'pooch>=1.6',   # For downloading tutorial data files in the notebook
     'pythreejs',    # Three.js for interactive 3D (works in all Jupyter environments)
     'ipywidgets',   # Required for pythreejs
 ]

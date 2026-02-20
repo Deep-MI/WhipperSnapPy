@@ -139,7 +139,7 @@ display(img)
 - ✅ Fast performance
 - ✅ Identical to GUI version
 
-See `tutorials/whippersnappy_demo.ipynb` for complete examples.
+See `tutorials/whippersnappy_tutorial.ipynb` for complete examples.
 
 ### Desktop GUI:
 

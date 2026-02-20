@@ -37,6 +37,11 @@ jobs:
           python -m pip install --progress-bar off main/.[doc]
       - name: Display system information
         run: whippersnappy-sys_info --developer
+      - name: Cache WhipperSnapPy sample data
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/whippersnappy
+          key: sample-data-sub-rs-v2.0.0
       - name: Build doc
         run: TZ=UTC sphinx-build ./main/doc ./doc-build/dev -W --keep-going
       - name: Upload documentation

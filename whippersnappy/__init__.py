@@ -83,6 +83,7 @@ if "PYOPENGL_PLATFORM" not in os.environ:
 from ._config import sys_info  # noqa: F401, E402
 from ._version import __version__  # noqa: F401, E402
 from .snap import snap1, snap4, snap_rotate  # noqa: E402
+from .utils.datasets import fetch_sample_subject  # noqa: E402
 from .utils.types import ViewType  # noqa: E402
 
 # 3D plotting for notebooks (Three.js-based, works in all Jupyter environments)
@@ -99,9 +100,9 @@ __all__ = [
     "snap1",
     "snap4",
     "snap_rotate",
+    "fetch_sample_subject",
+    "ViewType",
 ]
 
 if _has_plot3d:
     __all__.append("plot3d")
-# Top-level convenience export for frequently used enum
-__all__.append("ViewType")
