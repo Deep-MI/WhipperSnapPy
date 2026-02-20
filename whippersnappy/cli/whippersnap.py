@@ -53,7 +53,6 @@ def show_window(
     overlaypath=None,
     annotpath=None,
     sdir=None,
-    caption=None,
     invert=False,
     labelname="cortex.label",
     surfname=None,
@@ -77,19 +76,18 @@ def show_window(
         Path to a ``.annot`` file providing categorical labels for vertices.
     sdir : str or None, optional
         Subject directory containing ``surf/`` and ``label/`` subdirectories.
-    caption : str or None, optional
-        Caption text to display in the viewer window.
-    invert : bool, optional, default False
-        Invert the overlay color mapping.
-    labelname : str, optional, default 'cortex.label'
-        Label filename used to mask vertices.
+    invert : bool, optional
+        Invert the overlay color mapping. Default is ``False``.
+    labelname : str, optional
+        Label filename used to mask vertices. Default is ``'cortex.label'``.
     surfname : str or None, optional
         Surface basename (e.g. ``'white'``); if ``None`` the function will
         auto-detect a suitable surface in ``sdir``.
-    curvname : str or None, optional, default 'curv'
+    curvname : str or None, optional
         Curvature filename used to texture non-colored regions.
-    specular : bool, optional, default True
-        Enable specular highlights in the shader.
+        Default is ``'curv'``.
+    specular : bool, optional
+        Enable specular highlights in the shader. Default is ``True``.
 
     Raises
     ------
@@ -126,7 +124,8 @@ def show_window(
     rot_y = pyrr.Matrix44.from_y_rotation(0)
 
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, current_fthresh_, current_fmax_
+        meshpath, overlaypath, annotpath, curvpath, labelpath, current_fthresh_, current_fmax_,
+        invert=invert,
     )
     shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
@@ -150,6 +149,7 @@ def show_window(
                 meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
                     meshpath, overlaypath, annotpath, curvpath, labelpath,
                     current_fthresh_, current_fmax_,
+                    invert=invert,
                 )
                 shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
@@ -296,17 +296,14 @@ def run():
 
     thread = threading.Thread(
         target=show_window,
-        args=(
-            "lh",
-            args.lh_overlay,
-            args.lh_annot,
-            args.sdir,
-            None,
-            False,
-            "cortex.label",
-            args.surf_name,
-            "curv",
-            args.specular,
+        args=("lh",),
+        kwargs=dict(
+            overlaypath=args.lh_overlay,
+            annotpath=args.lh_annot,
+            sdir=args.sdir,
+            invert=args.invert,
+            surfname=args.surf_name,
+            specular=args.specular,
         ),
     )
     thread.start()

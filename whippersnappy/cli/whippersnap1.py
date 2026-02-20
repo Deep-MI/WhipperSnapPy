@@ -52,11 +52,7 @@ def run():
     :func:`whippersnappy.snap1` (static snapshot) or
     :func:`whippersnappy.snap_rotate` (360° rotation video) depending on
     whether ``--rotate`` is passed.
-
-    Parameters
-    ----------
-    None
-        All input is read from ``sys.argv`` via :mod:`argparse`.
+    All input is read from ``sys.argv`` via :mod:`argparse`.
 
     Raises
     ------
