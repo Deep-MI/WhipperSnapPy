@@ -45,6 +45,8 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
     "sphinx_design",
+    "nbsphinx",
+    "IPython.sphinxext.ipython_console_highlighting",
 ]
 
 # .md files are included via '.. include:: :parser: myst_parser.sphinx_'
@@ -56,8 +58,8 @@ exclude_patterns = [
     "Thumbs.db",
     ".DS_Store",
     "**.ipynb_checkpoints",
-    "*.md",       # exclude symlinked .md files inside doc/
-    "../*.md",    # exclude root-level .md files
+    "README.md",      # symlinked from root — included inline via rst, not as a page
+    "../*.md",        # exclude root-level .md files
 ]
 
 templates_path = ["_templates"]
@@ -99,7 +101,8 @@ html_theme_options = {
 }
 
 # -- autosummary -------------------------------------------------------------
-autosummary_generate = True
+# API stubs use automodule directly — no generated/ dir needed.
+autosummary_generate = False
 
 # -- autodoc -----------------------------------------------------------------
 autodoc_typehints = "none"
@@ -188,6 +191,9 @@ numpydoc_validation_exclude = {  # regex to ignore during docstring check
     r"\.__iter__",
     r"\.__div__",
     r"\.__neg__",
+    # Imported third-party objects exposed in plot3d module
+    r"\.HTML$",
+    r"\.VBox$",
 }
 
 # -- sphinxcontrib-bibtex ----------------------------------------------------
@@ -257,6 +263,19 @@ def linkcode_resolve(domain: str, info: Dict[str, str]) -> Optional[str]:
 #     "within_subsection_order": FileNameSortKey,
 # }
 
+
+# -- nbsphinx ----------------------------------------------------------------
+# Re-execute notebooks during the Sphinx build so outputs appear in the docs.
+# Notebooks are executed with the kernel specified by nbsphinx_kernel_name.
+# The sample data is fetched from the GitHub release assets (or from the
+# local sub-rs/ directory in the repo when the release is not yet published).
+nbsphinx_execute = "auto"
+
+# Kernel to use for execution (must be installed: pip install ipykernel).
+nbsphinx_kernel_name = "python3"
+
+# Maximum execution time per cell (seconds).
+nbsphinx_timeout = 600
 
 # -- make sure pandoc gets installed -----------------------------------------
 from inspect import getsourcefile

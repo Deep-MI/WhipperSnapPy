@@ -6,6 +6,6 @@
 .. toctree::
    :hidden:
 
-   docker
+   DOCKER.md
+   tutorials/index
    api/index
-

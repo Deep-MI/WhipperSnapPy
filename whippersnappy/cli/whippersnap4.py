@@ -39,6 +39,40 @@ def run():
         If the OpenGL context cannot be initialised.
     FileNotFoundError
         If required surface files cannot be found.
+
+    Notes
+    -----
+    **Required:**
+
+    * ``-sd`` / ``--sdir`` — subject directory containing ``surf/`` and
+      ``label/`` subdirectories.
+    * One of the following (not both):
+
+      * ``-lh`` / ``--lh_overlay`` **and** ``-rh`` / ``--rh_overlay`` — per-vertex
+        scalar overlay files for left and right hemispheres (e.g. ``lh.thickness``).
+      * ``--lh_annot`` **and** ``--rh_annot`` — FreeSurfer ``.annot`` parcellation
+        files for left and right hemispheres.
+
+    **Output:**
+
+    * ``-o`` / ``--output_path`` — output image path (default: temp ``.png``).
+
+    **Overlay appearance:**
+
+    * ``--fthresh`` / ``--fmax`` — threshold and saturation values
+      (auto-estimated if not set).
+    * ``--invert`` — invert the color scale.
+    * ``--no-colorbar`` — suppress the color bar.
+    * ``-c`` / ``--caption`` — text label placed on the figure.
+
+    **Rendering:**
+
+    * ``-s`` / ``--surf_name`` — surface basename (e.g. ``white``);
+      auto-detected if not provided.
+    * ``--diffuse`` — use diffuse-only shading (no specular highlights).
+    * ``--brain-scale`` — geometry scale factor (default: 1.85).
+    * ``--ambient`` — ambient light strength (default: 0.0).
+    * ``--font`` — path to a TTF font file for captions.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

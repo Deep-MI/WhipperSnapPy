@@ -190,9 +190,35 @@ def run():
     Raises
     ------
     RuntimeError
-        If PyQt6 is not installed.
+        If PyQt6 is not installed (``pip install 'whippersnappy[gui]'``).
     ValueError
         For invalid or mutually exclusive argument combinations.
+
+    Notes
+    -----
+    **Required:**
+
+    * ``-sd`` / ``--sdir`` — subject directory containing ``surf/`` and
+      ``label/`` subdirectories.
+    * One of the following (not both):
+
+      * ``-lh`` / ``--lh_overlay`` **and** ``-rh`` / ``--rh_overlay`` — per-vertex
+        scalar overlay files.
+      * ``--lh_annot`` **and** ``--rh_annot`` — FreeSurfer ``.annot``
+        parcellation files.
+
+    **Optional:**
+
+    * ``-s`` / ``--surf_name`` — surface basename (e.g. ``white``);
+      auto-detected if not provided.
+    * ``-c`` / ``--caption`` — caption text shown in the viewer.
+    * ``--fthresh`` — overlay threshold (default: 2.0); adjustable live in the GUI.
+    * ``--fmax`` — overlay saturation (default: 4.0); adjustable live in the GUI.
+    * ``--invert`` — invert the color scale.
+    * ``--diffuse`` — use diffuse-only shading (no specular highlights).
+
+    Requires ``pip install 'whippersnappy[gui]'``.
+    For non-interactive four-view batch rendering use ``whippersnap4``.
     """
     global current_fthresh_, current_fmax_, app_, app_window_
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

@@ -1,5 +1,35 @@
 #!/usr/bin/env python3
-"""CLI entry point for single-mesh snapshot via snap1."""
+"""CLI entry point for single-mesh snapshot and rotation video via snap1/snap_rotate.
+
+Renders a single surface mesh from a chosen viewpoint and saves it as a PNG
+image. Alternatively, pass ``--rotate`` to produce a full 360° rotation video
+(MP4, WebM, or GIF).
+
+Usage::
+
+    # Static single-view snapshot (lateral view, thickness overlay)
+    whippersnap1 <subject_dir>/surf/lh.white \\
+        --overlay <subject_dir>/surf/lh.thickness \\
+        --curv   <subject_dir>/surf/lh.curv \\
+        --label  <subject_dir>/label/lh.cortex.label \\
+        --view left --fthresh 1.5 --fmax 4.0 \\
+        -o snap1.png
+
+    # 360° rotation video
+    whippersnap1 <subject_dir>/surf/lh.white \\
+        --overlay <subject_dir>/surf/lh.thickness \\
+        --rotate --rotate-frames 72 --rotate-fps 24 \\
+        -o rotation.mp4
+
+    # Parcellation annotation
+    whippersnap1 <subject_dir>/surf/lh.white \\
+        --annot <subject_dir>/label/lh.aparc.annot \\
+        --view lateral -o snap_annot.png
+
+See ``whippersnap1 --help`` for the full list of options.
+For four-view batch rendering use ``whippersnap4``.
+For the interactive GUI use ``whippersnap``.
+"""
 
 import argparse
 import logging
@@ -16,7 +46,53 @@ _COLOR_CHOICES = {c.name.lower(): c for c in ColorSelection}
 
 
 def run():
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    """Command-line entry point for single-view snapshot or rotation video.
+
+    Parses command-line arguments, validates them, and calls either
+    :func:`whippersnappy.snap1` (static snapshot) or
+    :func:`whippersnappy.snap_rotate` (360° rotation video) depending on
+    whether ``--rotate`` is passed.
+
+    Parameters
+    ----------
+    None
+        All input is read from ``sys.argv`` via :mod:`argparse`.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the mesh file or any overlay/annotation/label file cannot be found.
+    RuntimeError
+        If the OpenGL context cannot be initialised.
+    ValueError
+        For invalid argument combinations.
+
+    Notes
+    -----
+    **Snapshot options** (default mode):
+
+    * ``meshpath`` — path to the surface file (FreeSurfer binary, e.g. ``lh.white``).
+    * ``--overlay`` — per-vertex scalar overlay (e.g. ``lh.thickness``).
+    * ``--annot`` — FreeSurfer ``.annot`` parcellation file.
+    * ``--label`` — label file used to mask overlay values to the cortex.
+    * ``--curv`` — curvature file for sulcal depth shading of uncolored vertices.
+    * ``--view`` — camera direction: ``left``, ``right``, ``front``, ``back``,
+      ``top``, ``bottom`` (default: ``left``).
+    * ``--fthresh`` / ``--fmax`` — overlay threshold and saturation values.
+    * ``--invert`` — invert the color scale.
+    * ``--no-colorbar`` — suppress the color bar.
+    * ``--caption`` — text label placed on the image.
+    * ``--width`` / ``--height`` — output resolution in pixels (default: 700×500).
+    * ``-o`` / ``--output`` — output file path (default: temp ``.png``).
+
+    **Rotation video options** (pass ``--rotate``):
+
+    * ``--rotate-frames`` — number of frames for one full rotation (default: 72).
+    * ``--rotate-fps`` — output frame rate (default: 24).
+    * ``--rotate-start-view`` — starting camera direction (default: ``left``).
+    * ``-o`` — output path; extension controls format: ``.mp4``, ``.webm``,
+      or ``.gif`` (GIF requires no ffmpeg).
+    """
 
     parser = argparse.ArgumentParser(
         prog="whippersnap1",

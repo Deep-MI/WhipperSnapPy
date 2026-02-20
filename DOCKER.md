@@ -1,4 +1,4 @@
-# WhipperSnapPy — Docker Guide
+# Docker Guide
 
 The Docker image provides a fully headless rendering environment with EGL
 off-screen support. No display server or `xvfb` is required.

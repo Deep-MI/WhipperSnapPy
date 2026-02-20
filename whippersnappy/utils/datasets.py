@@ -29,6 +29,23 @@ _FILES = {
 }
 
 
+def _build_dict(base: Path) -> dict:
+    """Build the return dictionary of paths from a subject base directory."""
+    return {
+        "sdir":         str(base),
+        "lh_white":     str(base / "surf/lh.white"),
+        "lh_curv":      str(base / "surf/lh.curv"),
+        "lh_thickness": str(base / "surf/lh.thickness"),
+        "rh_white":     str(base / "surf/rh.white"),
+        "rh_curv":      str(base / "surf/rh.curv"),
+        "rh_thickness": str(base / "surf/rh.thickness"),
+        "lh_annot":     str(base / "label/lh.aparc.DKTatlas.mapped.annot"),
+        "lh_label":     str(base / "label/lh.cortex.label"),
+        "rh_annot":     str(base / "label/rh.aparc.DKTatlas.mapped.annot"),
+        "rh_label":     str(base / "label/rh.cortex.label"),
+    }
+
+
 def fetch_sample_subject() -> dict:
     """Download and cache the WhipperSnapPy sample subject (Rhineland Study).
 
@@ -36,6 +53,11 @@ def fetch_sample_subject() -> dict:
     OS-specific user cache directory and returns a dictionary of paths to
     all files. Files are only downloaded once; subsequent calls use the
     local cache.
+
+    If a ``sub-rs/`` directory with all required files is found next to the
+    package root (i.e. inside the source repository), it is used directly
+    without any network access. This allows the Sphinx doc build to work
+    before the GitHub release assets are published.
 
     Returns
     -------
@@ -80,6 +102,14 @@ def fetch_sample_subject() -> dict:
             "Install with: pip install 'whippersnappy[notebook]'"
         ) from e
 
+    # Use a local sub-rs/ directory (present in the source repo) when all
+    # required files are already there — no network access needed.
+    _pkg_root = Path(__file__).parent.parent.parent  # .../whippersnappy/
+    _local = _pkg_root / "sub-rs"
+    if _local.is_dir() and all((_local / p).exists() for p in _FILES):
+        return _build_dict(_local)
+
+    # Otherwise download from the GitHub release and cache in the OS cache dir.
     base = Path(pooch.os_cache("whippersnappy")) / "sub-rs"
 
     for rel_path, known_hash in _FILES.items():
@@ -91,17 +121,4 @@ def fetch_sample_subject() -> dict:
             path=base / rel.parent,
         )
 
-    return {
-        "sdir":         str(base),
-        "lh_white":     str(base / "surf/lh.white"),
-        "lh_curv":      str(base / "surf/lh.curv"),
-        "lh_thickness": str(base / "surf/lh.thickness"),
-        "rh_white":     str(base / "surf/rh.white"),
-        "rh_curv":      str(base / "surf/rh.curv"),
-        "rh_thickness": str(base / "surf/rh.thickness"),
-        "lh_annot":     str(base / "label/lh.aparc.DKTatlas.mapped.annot"),
-        "lh_label":     str(base / "label/lh.cortex.label"),
-        "rh_annot":     str(base / "label/rh.aparc.DKTatlas.mapped.annot"),
-        "rh_label":     str(base / "label/rh.cortex.label"),
-    }
-
+    return _build_dict(base)
