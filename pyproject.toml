@@ -70,9 +70,9 @@ doc = [
     'ipywidgets',
 ]
 notebook = [
-    'pooch>=1.6',   # For downloading tutorial data files in the notebook
     'pythreejs',    # Three.js for interactive 3D (works in all Jupyter environments)
     'ipywidgets',   # Required for pythreejs
+    'pooch>=1.6',
 ]
 gui = [
     'PyQt6',

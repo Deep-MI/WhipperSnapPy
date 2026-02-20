@@ -15,13 +15,13 @@ RELEASE_URL = (
 # GitHub release assets are flat (no subdirectories), so the URL uses only
 # the basename while pooch.retrieve() reconstructs the subdirectory locally.
 _FILES = {
-    "README.md":                             "sha256:ecb6ddf31cec17f3a8636fc3ecac90099c441228811efed56104e29fcd301bc5",
-    "surf/lh.white":                         "sha256:4ab049fb42ca882ba9b56f8fe0d0e8814973e7fa2e0575a794d8e468abf7d62f",
-    "surf/lh.curv":                          "sha256:9edbde57be8593cd9d89d9d1124e2175edd8ecfee55d53e066d89700c480b12a",
-    "surf/lh.thickness":                     "sha256:40ab3483284608c6c5cca2d3d794a60cd1bcbeb0140bb1ca6ad0fce7962c57c6",
-    "surf/rh.white":                         "sha256:43035c53a8b04bebe4e843c34f80588f253f79052a8dbf7194b706495b11f8d2",
-    "surf/rh.curv":                          "sha256:af2bc71133d7ef17ce1a3a6f4208d2495a5a4c96da00c80b59be03bb7c8ea83f",
-    "surf/rh.thickness":                     "sha256:50ec291c73928cd697156edd9e0e77f5c54d15c56cf84810d2564b496876e132",
+    "README.md":                            "sha256:ecb6ddf31cec17f3a8636fc3ecac90099c441228811efed56104e29fcd301bc5",
+    "surf/lh.white":                        "sha256:4ab049fb42ca882ba9b56f8fe0d0e8814973e7fa2e0575a794d8e468abf7d62f",
+    "surf/lh.curv":                         "sha256:9edbde57be8593cd9d89d9d1124e2175edd8ecfee55d53e066d89700c480b12a",
+    "surf/lh.thickness":                    "sha256:40ab3483284608c6c5cca2d3d794a60cd1bcbeb0140bb1ca6ad0fce7962c57c6",
+    "surf/rh.white":                        "sha256:43035c53a8b04bebe4e843c34f80588f253f79052a8dbf7194b706495b11f8d2",
+    "surf/rh.curv":                         "sha256:af2bc71133d7ef17ce1a3a6f4208d2495a5a4c96da00c80b59be03bb7c8ea83f",
+    "surf/rh.thickness":                    "sha256:50ec291c73928cd697156edd9e0e77f5c54d15c56cf84810d2564b496876e132",
     "label/lh.aparc.DKTatlas.mapped.annot": "sha256:4d48d33f4fd8278ab973a1552f6ea9c396dfc1791b707ed17ad8e761299c4960",
     "label/lh.cortex.label":                "sha256:79ae17fcfde6b2e0a75a0652fcc0f3c072e4ea62a541843b7338e01c598b0b6e",
     "label/rh.aparc.DKTatlas.mapped.annot": "sha256:12217166d8ef43ee1fa280511ec2ba0796c6885f527a4455b93760acc73ce273",
