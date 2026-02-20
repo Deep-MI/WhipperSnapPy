@@ -47,19 +47,20 @@ extensions = [
     "sphinx_design",
 ]
 
-# Tell Sphinx to parse both .rst and .md files; MyST handles the Markdown side.
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown",
-}
-
-templates_path = ["_templates"]
+# .md files are included via '.. include:: :parser: myst_parser.sphinx_'
+# in the RST stubs; they must NOT be registered as standalone Sphinx source
+# documents or autosectionlabel will produce duplicate-label warnings from
+# both the real file and the doc/ symlink.
 exclude_patterns = [
     "_build",
     "Thumbs.db",
     ".DS_Store",
     "**.ipynb_checkpoints",
+    "*.md",       # exclude symlinked .md files inside doc/
+    "../*.md",    # exclude root-level .md files
 ]
+
+templates_path = ["_templates"]
 
 # Sphinx will warn about all references where the target cannot be found.
 nitpicky = False
@@ -265,19 +266,17 @@ import os
 DOCS_DIRECTORY = os.path.dirname(os.path.abspath(getsourcefile(lambda: 0)))
 
 def ensure_pandoc_installed(_):
-    import pypandoc
-
-    # Download pandoc if necessary. If pandoc is already installed and on
-    # the PATH, the installed version will be used. Otherwise, we will
-    # download a copy of pandoc into docs/bin/ and add that to our PATH.
-    pandoc_dir = os.path.join(DOCS_DIRECTORY, "bin")
-    # Add dir containing pandoc binary to the PATH environment variable
-    if pandoc_dir not in os.environ["PATH"].split(os.pathsep):
-        os.environ["PATH"] += os.pathsep + pandoc_dir
-    pypandoc.ensure_pandoc_installed(
-        targetfolder=pandoc_dir,
-        delete_installer=True,
-    )
+    try:
+        import pypandoc
+        pandoc_dir = os.path.join(DOCS_DIRECTORY, "bin")
+        if pandoc_dir not in os.environ["PATH"].split(os.pathsep):
+            os.environ["PATH"] += os.pathsep + pandoc_dir
+        pypandoc.ensure_pandoc_installed(
+            targetfolder=pandoc_dir,
+            delete_installer=True,
+        )
+    except Exception:
+        pass  # pandoc already on PATH (CI) or download failed (local SSL) — continue
 
 
 def setup(app):
