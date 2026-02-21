@@ -20,7 +20,6 @@ which handles the routing automatically.
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -349,7 +348,6 @@ def read_ply_ascii(path):
     n_faces = None
     vertex_props = []   # ordered list of property names for the vertex element
     in_vertex = False
-    in_face = False
     header_end = 0
 
     for idx, line in enumerate(raw_lines):
@@ -362,17 +360,17 @@ def read_ply_ascii(path):
         if lower.startswith("element vertex"):
             n_verts = int(stripped.split()[2])
             in_vertex = True
-            in_face = False
         elif lower.startswith("element face"):
             n_faces = int(stripped.split()[2])
-            in_face = True
             in_vertex = False
         elif lower.startswith("property") and in_vertex:
             # e.g. "property float x"
             parts = stripped.split()
             if len(parts) >= 3:
                 vertex_props.append(parts[-1])
-        elif lower.startswith("element") and not lower.startswith("element vertex") and not lower.startswith("element face"):
+        elif (lower.startswith("element")
+              and not lower.startswith("element vertex")
+              and not lower.startswith("element face")):
             in_vertex = False
 
     if n_verts is None:
