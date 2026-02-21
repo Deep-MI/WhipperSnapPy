@@ -75,6 +75,12 @@ end_header
 3 1 2 3
 """
 
+_SAMPLES = {
+    ".off": _TETRA_OFF,
+    ".vtk": _TETRA_VTK,
+    ".ply": _TETRA_PLY,
+}
+
 
 def _write_tmp(content, suffix):
     """Write *content* to a named temp file, return its path."""
@@ -107,55 +113,31 @@ class TestReadOff:
             v, f = read_off(path)
         finally:
             os.unlink(path)
-        assert v.shape == (4, 3)
-        assert v.dtype == np.float32
-        assert f.shape == (4, 3)
-        assert f.dtype == np.uint32
+        assert v.shape == (4, 3) and v.dtype == np.float32
+        assert f.shape == (4, 3) and f.dtype == np.uint32
         np.testing.assert_array_equal(v, _expected_verts())
         np.testing.assert_array_equal(f, _expected_faces())
 
     def test_bundled_sample(self):
         """Verify the bundled tests/data/tetra.off file loads correctly."""
         here = os.path.dirname(__file__)
-        sample = os.path.join(here, "data", "tetra.off")
-        v, f = read_off(sample)
-        assert v.shape == (4, 3)
-        assert f.shape == (4, 3)
+        v, f = read_off(os.path.join(here, "data", "tetra.off"))
+        assert v.shape == (4, 3) and f.shape == (4, 3)
 
-    def test_bad_header_raises(self):
-        content = "NOFF\n4 4 6\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n3 0 1 2\n3 0 1 3\n3 0 2 3\n3 1 2 3\n"
-        path = _write_tmp(content, ".off")
-        try:
-            with pytest.raises(ValueError, match="OFF"):
-                read_off(path)
-        finally:
-            os.unlink(path)
-
-    def test_quad_face_raises(self):
-        content = "OFF\n4 1 4\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n4 0 1 2 3\n"
-        path = _write_tmp(content, ".off")
-        try:
-            with pytest.raises(ValueError, match="triangles"):
-                read_off(path)
-        finally:
-            os.unlink(path)
-
-    def test_out_of_range_indices_raises(self):
-        content = "OFF\n3 1 3\n0 0 0\n1 0 0\n0 1 0\n3 0 1 99\n"
-        path = _write_tmp(content, ".off")
-        try:
-            with pytest.raises(ValueError, match="out of range"):
-                read_off(path)
-        finally:
-            os.unlink(path)
-
-    def test_empty_file_raises(self):
-        path = _write_tmp("", ".off")
-        try:
-            with pytest.raises(ValueError, match="empty"):
-                read_off(path)
-        finally:
-            os.unlink(path)
+    def test_error_cases(self):
+        cases = [
+            ("", ".off", "empty"),
+            ("NOFF\n4 4 6\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n3 0 1 2\n3 0 1 3\n3 0 2 3\n3 1 2 3\n", ".off", "OFF"),
+            ("OFF\n4 1 4\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n4 0 1 2 3\n", ".off", "triangles"),
+            ("OFF\n3 1 3\n0 0 0\n1 0 0\n0 1 0\n3 0 1 99\n", ".off", "out of range"),
+        ]
+        for content, suffix, match in cases:
+            path = _write_tmp(content, suffix)
+            try:
+                with pytest.raises(ValueError, match=match):
+                    read_off(path)
+            finally:
+                os.unlink(path)
 
 
 # ---------------------------------------------------------------------------
@@ -169,55 +151,33 @@ class TestReadVtkAsciiPolydata:
             v, f = read_vtk_ascii_polydata(path)
         finally:
             os.unlink(path)
-        assert v.shape == (4, 3)
-        assert v.dtype == np.float32
-        assert f.shape == (4, 3)
-        assert f.dtype == np.uint32
+        assert v.shape == (4, 3) and v.dtype == np.float32
+        assert f.shape == (4, 3) and f.dtype == np.uint32
         np.testing.assert_array_equal(v, _expected_verts())
         np.testing.assert_array_equal(f, _expected_faces())
 
-    def test_binary_vtk_raises(self):
-        content = "# vtk DataFile Version 3.0\ntest\nBINARY\nDATASET POLYDATA\n"
-        path = _write_tmp(content, ".vtk")
-        try:
-            with pytest.raises(ValueError, match="BINARY"):
-                read_vtk_ascii_polydata(path)
-        finally:
-            os.unlink(path)
-
-    def test_non_polydata_raises(self):
-        content = "# vtk DataFile Version 3.0\ntest\nASCII\nDATASET UNSTRUCTURED_GRID\n"
-        path = _write_tmp(content, ".vtk")
-        try:
-            with pytest.raises(ValueError, match="POLYDATA"):
-                read_vtk_ascii_polydata(path)
-        finally:
-            os.unlink(path)
-
-    def test_quad_polygon_raises(self):
-        content = (
-            "# vtk DataFile Version 3.0\ntest\nASCII\nDATASET POLYDATA\n"
-            "POINTS 4 float\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n"
-            "POLYGONS 1 5\n4 0 1 2 3\n"
-        )
-        path = _write_tmp(content, ".vtk")
-        try:
-            with pytest.raises(ValueError, match="triangles"):
-                read_vtk_ascii_polydata(path)
-        finally:
-            os.unlink(path)
-
-    def test_missing_points_raises(self):
-        content = (
-            "# vtk DataFile Version 3.0\ntest\nASCII\nDATASET POLYDATA\n"
-            "POLYGONS 1 4\n3 0 1 2\n"
-        )
-        path = _write_tmp(content, ".vtk")
-        try:
-            with pytest.raises(ValueError, match="POINTS"):
-                read_vtk_ascii_polydata(path)
-        finally:
-            os.unlink(path)
+    def test_error_cases(self):
+        cases = [
+            ("# vtk DataFile Version 3.0\ntest\nBINARY\nDATASET POLYDATA\n", "BINARY"),
+            ("# vtk DataFile Version 3.0\ntest\nASCII\nDATASET UNSTRUCTURED_GRID\n", "POLYDATA"),
+            (
+                "# vtk DataFile Version 3.0\ntest\nASCII\nDATASET POLYDATA\n"
+                "POINTS 4 float\n0 0 0\n1 0 0\n0 1 0\n0 0 1\nPOLYGONS 1 5\n4 0 1 2 3\n",
+                "triangles",
+            ),
+            (
+                "# vtk DataFile Version 3.0\ntest\nASCII\nDATASET POLYDATA\n"
+                "POLYGONS 1 4\n3 0 1 2\n",
+                "POINTS",
+            ),
+        ]
+        for content, match in cases:
+            path = _write_tmp(content, ".vtk")
+            try:
+                with pytest.raises(ValueError, match=match):
+                    read_vtk_ascii_polydata(path)
+            finally:
+                os.unlink(path)
 
 
 # ---------------------------------------------------------------------------
@@ -231,10 +191,8 @@ class TestReadPlyAscii:
             v, f = read_ply_ascii(path)
         finally:
             os.unlink(path)
-        assert v.shape == (4, 3)
-        assert v.dtype == np.float32
-        assert f.shape == (4, 3)
-        assert f.dtype == np.uint32
+        assert v.shape == (4, 3) and v.dtype == np.float32
+        assert f.shape == (4, 3) and f.dtype == np.uint32
         np.testing.assert_array_equal(v, _expected_verts())
         np.testing.assert_array_equal(f, _expected_faces())
 
@@ -263,29 +221,10 @@ end_header
             v, f = read_ply_ascii(path)
         finally:
             os.unlink(path)
-        assert v.shape == (3, 3)
-        assert f.shape == (1, 3)
+        assert v.shape == (3, 3) and f.shape == (1, 3)
 
-    def test_binary_ply_raises(self):
-        content = "ply\nformat binary_little_endian 1.0\nelement vertex 4\nend_header\n"
-        path = _write_tmp(content, ".ply")
-        try:
-            with pytest.raises(ValueError, match="binary"):
-                read_ply_ascii(path)
-        finally:
-            os.unlink(path)
-
-    def test_not_ply_raises(self):
-        content = "OFF\n4 4 6\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n3 0 1 2\n"
-        path = _write_tmp(content, ".ply")
-        try:
-            with pytest.raises(ValueError, match="ply"):
-                read_ply_ascii(path)
-        finally:
-            os.unlink(path)
-
-    def test_quad_face_raises(self):
-        content = """\
+    def test_error_cases(self):
+        quad_ply = """\
 ply
 format ascii 1.0
 element vertex 4
@@ -301,37 +240,40 @@ end_header
 0.0 0.0 1.0
 4 0 1 2 3
 """
-        path = _write_tmp(content, ".ply")
-        try:
-            with pytest.raises(ValueError, match="triangles"):
-                read_ply_ascii(path)
-        finally:
-            os.unlink(path)
+        cases = [
+            ("ply\nformat binary_little_endian 1.0\nelement vertex 4\nend_header\n", "binary"),
+            ("OFF\n4 4 6\n0 0 0\n1 0 0\n0 1 0\n0 0 1\n3 0 1 2\n", "ply"),
+            (quad_ply, "triangles"),
+        ]
+        for content, match in cases:
+            path = _write_tmp(content, ".ply")
+            try:
+                with pytest.raises(ValueError, match=match):
+                    read_ply_ascii(path)
+            finally:
+                os.unlink(path)
 
 
 # ---------------------------------------------------------------------------
-# read_mesh dispatcher
+# read_mesh dispatcher + resolve_mesh routing (combined)
+# Each format is tested end-to-end through resolve_mesh (highest-level call).
+# read_mesh itself is only tested for error cases not covered above.
 # ---------------------------------------------------------------------------
 
-class TestReadMeshDispatcher:
-    def test_off_dispatch(self):
-        path = _write_tmp(_TETRA_OFF, ".off")
+class TestMeshDispatchAndRouting:
+    @pytest.mark.parametrize("suffix,content", list(_SAMPLES.items()))
+    def test_resolve_mesh_path(self, suffix, content):
+        """resolve_mesh routes each format to the right reader and returns correct dtypes."""
+        path = _write_tmp(content, suffix)
         try:
-            v, f = read_mesh(path)
+            v, f = resolve_mesh(path)
         finally:
             os.unlink(path)
-        assert v.shape == (4, 3)
+        assert v.shape == (4, 3) and v.dtype == np.float32
+        assert f.shape == (4, 3) and f.dtype == np.uint32
 
-    def test_vtk_dispatch(self):
-        path = _write_tmp(_TETRA_VTK, ".vtk")
-        try:
-            v, f = read_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-
-    def test_ply_dispatch(self):
-        path = _write_tmp(_TETRA_PLY, ".ply")
+    def test_case_insensitive_extension(self):
+        path = _write_tmp(_TETRA_OFF, ".OFF")
         try:
             v, f = read_mesh(path)
         finally:
@@ -342,60 +284,16 @@ class TestReadMeshDispatcher:
         with pytest.raises(ValueError, match="Unsupported"):
             read_mesh("/some/file.stl")
 
-    def test_case_insensitive_extension(self):
-        """Uppercase .OFF extension should be recognised."""
-        path = _write_tmp(_TETRA_OFF, ".OFF")
-        try:
-            v, f = read_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-
-
-# ---------------------------------------------------------------------------
-# resolve_mesh routing
-# ---------------------------------------------------------------------------
-
-class TestResolveMeshRouting:
-    def test_off_path_routed(self):
-        path = _write_tmp(_TETRA_OFF, ".off")
-        try:
-            v, f = resolve_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-        assert v.dtype == np.float32
-        assert f.shape == (4, 3)
-        assert f.dtype == np.uint32
-
-    def test_vtk_path_routed(self):
-        path = _write_tmp(_TETRA_VTK, ".vtk")
-        try:
-            v, f = resolve_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-
-    def test_ply_path_routed(self):
-        path = _write_tmp(_TETRA_PLY, ".ply")
-        try:
-            v, f = resolve_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-
     def test_array_tuple_still_works(self):
         v_in = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float32)
         f_in = np.array([[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]], dtype=np.uint32)
         v, f = resolve_mesh((v_in, f_in))
-        assert v.shape == (4, 3)
-        assert f.shape == (4, 3)
+        assert v.shape == (4, 3) and f.shape == (4, 3)
 
     def test_array_out_of_range_raises(self):
         v_in = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float32)
-        f_in = np.array([[0, 1, 99]], dtype=np.uint32)  # index 99 out of range
         with pytest.raises(ValueError, match="out of range"):
-            resolve_mesh((v_in, f_in))
+            resolve_mesh((v_in, np.array([[0, 1, 99]], dtype=np.uint32)))
 
 
 # ---------------------------------------------------------------------------
@@ -405,17 +303,11 @@ class TestResolveMeshRouting:
 def _make_surf_gii(verts, faces, suffix=".surf.gii"):
     """Write a minimal GIfTI surface file and return its path."""
     import nibabel as nib
-    _INTENT_POINTSET = 1008
-    _INTENT_TRIANGLE = 1009
     coords_da = nib.gifti.GiftiDataArray(
-        data=verts.astype(np.float32),
-        intent=_INTENT_POINTSET,
-        datatype="NIFTI_TYPE_FLOAT32",
+        data=verts.astype(np.float32), intent=1008, datatype="NIFTI_TYPE_FLOAT32",
     )
     faces_da = nib.gifti.GiftiDataArray(
-        data=faces.astype(np.int32),
-        intent=_INTENT_TRIANGLE,
-        datatype="NIFTI_TYPE_INT32",
+        data=faces.astype(np.int32), intent=1009, datatype="NIFTI_TYPE_INT32",
     )
     img = nib.gifti.GiftiImage(darrays=[coords_da, faces_da])
     fd, path = tempfile.mkstemp(suffix=suffix)
@@ -429,35 +321,39 @@ _F4 = np.array([[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]], dtype=np.uint32)
 
 
 class TestReadGiftiSurface:
-    def test_surf_gii_basic(self):
+    def test_basic_and_dispatch(self):
+        """read_gifti_surface, read_mesh, and resolve_mesh all load .surf.gii correctly."""
         path = _make_surf_gii(_V4, _F4, ".surf.gii")
         try:
             v, f = read_gifti_surface(path)
+            assert v.shape == (4, 3) and v.dtype == np.float32
+            assert f.shape == (4, 3) and f.dtype == np.uint32
+            np.testing.assert_allclose(v, _V4, atol=1e-6)
+            # dispatch through read_mesh and resolve_mesh also work
+            v2, _ = read_mesh(path)
+            assert v2.shape == (4, 3)
+            v3, f3 = resolve_mesh(path)
+            assert v3.dtype == np.float32 and f3.dtype == np.uint32
         finally:
             os.unlink(path)
-        assert v.shape == (4, 3)
-        assert v.dtype == np.float32
-        assert f.shape == (4, 3)
-        assert f.dtype == np.uint32
-        np.testing.assert_allclose(v, _V4, atol=1e-6)
-        np.testing.assert_array_equal(f, _F4)
 
     def test_plain_gii_extension(self):
-        """A .gii file with POINTSET+TRIANGLE should also be loaded as surface."""
         path = _make_surf_gii(_V4, _F4, ".gii")
         try:
             v, f = read_gifti_surface(path)
+            assert v.shape == (4, 3) and f.shape == (4, 3)
+            # dispatch also works for plain .gii
+            v2, _ = read_mesh(path)
+            assert v2.shape == (4, 3)
         finally:
             os.unlink(path)
-        assert v.shape == (4, 3)
-        assert f.shape == (4, 3)
 
-    def test_no_pointset_raises(self):
-        """A plain scalar .gii without POINTSET arrays should raise."""
+    def test_missing_arrays_raise(self):
+        """Missing POINTSET or TRIANGLE array raises a clear ValueError."""
         import nibabel as nib
+        # No POINTSET — only a scalar array
         scalar_da = nib.gifti.GiftiDataArray(
-            data=np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32),
-            intent=0,  # NIFTI_INTENT_NONE
+            data=np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32), intent=0,
         )
         img = nib.gifti.GiftiImage(darrays=[scalar_da])
         fd, path = tempfile.mkstemp(suffix=".gii")
@@ -469,48 +365,14 @@ class TestReadGiftiSurface:
         finally:
             os.unlink(path)
 
-    def test_no_triangle_raises(self):
-        """A .gii with only a POINTSET but no TRIANGLE array should raise."""
-        import nibabel as nib
-        coords_da = nib.gifti.GiftiDataArray(
-            data=_V4.astype(np.float32),
-            intent=1008,
-        )
-        img = nib.gifti.GiftiImage(darrays=[coords_da])
-        fd, path = tempfile.mkstemp(suffix=".gii")
+        # POINTSET but no TRIANGLE
+        coords_da = nib.gifti.GiftiDataArray(data=_V4.astype(np.float32), intent=1008)
+        img2 = nib.gifti.GiftiImage(darrays=[coords_da])
+        fd, path2 = tempfile.mkstemp(suffix=".gii")
         os.close(fd)
-        nib.save(img, path)
+        nib.save(img2, path2)
         try:
             with pytest.raises(ValueError, match="TRIANGLE"):
-                read_gifti_surface(path)
+                read_gifti_surface(path2)
         finally:
-            os.unlink(path)
-
-
-class TestReadMeshGiftiDispatch:
-    def test_surf_gii_dispatched(self):
-        path = _make_surf_gii(_V4, _F4, ".surf.gii")
-        try:
-            v, f = read_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-
-    def test_gii_dispatched(self):
-        path = _make_surf_gii(_V4, _F4, ".gii")
-        try:
-            v, f = read_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-
-    def test_resolve_mesh_surf_gii(self):
-        path = _make_surf_gii(_V4, _F4, ".surf.gii")
-        try:
-            v, f = resolve_mesh(path)
-        finally:
-            os.unlink(path)
-        assert v.shape == (4, 3)
-        assert v.dtype == np.float32
-        assert f.dtype == np.uint32
-
+            os.unlink(path2)

@@ -35,75 +35,21 @@ _INT_VALUES   = [0, 1, 3, 2]
 
 
 # ---------------------------------------------------------------------------
-# read_txt — float
+# read_txt
 # ---------------------------------------------------------------------------
 
-class TestReadTxtFloat:
-    def test_basic_floats(self):
-        content = "\n".join(str(v) for v in _FLOAT_VALUES) + "\n"
-        path = _write_tmp(content, ".txt")
+class TestReadTxt:
+    def test_float_basic(self):
+        path = _write_tmp("\n".join(str(v) for v in _FLOAT_VALUES) + "\n", ".txt")
         try:
             arr = read_txt(path)
         finally:
             os.unlink(path)
-        assert arr.shape == (4,)
-        assert arr.dtype == np.float32
+        assert arr.shape == (4,) and arr.dtype == np.float32
         np.testing.assert_allclose(arr, _FLOAT_VALUES, atol=1e-6)
 
-    def test_hash_comment_skipped(self):
-        content = "# this is a comment\n0.5\n1.5\n"
-        path = _write_tmp(content, ".txt")
-        try:
-            arr = read_txt(path)
-        finally:
-            os.unlink(path)
-        assert arr.shape == (2,)
-
-    def test_text_header_skipped(self):
-        content = "value\n0.1\n0.2\n0.3\n"
-        path = _write_tmp(content, ".txt")
-        try:
-            arr = read_txt(path)
-        finally:
-            os.unlink(path)
-        assert arr.shape == (3,)
-        np.testing.assert_allclose(arr, [0.1, 0.2, 0.3], atol=1e-6)
-
-    def test_csv_first_column_used(self):
-        content = "label,ignore\n1.0,extra\n2.0,extra\n"
-        path = _write_tmp(content, ".csv")
-        try:
-            arr = read_txt(path)
-        finally:
-            os.unlink(path)
-        assert arr.shape == (2,)
-
-    def test_empty_file_raises(self):
-        path = _write_tmp("", ".txt")
-        try:
-            with pytest.raises(ValueError, match="No numeric"):
-                read_txt(path)
-        finally:
-            os.unlink(path)
-
-    def test_bad_value_raises(self):
-        content = "1.0\nbadvalue\n3.0\n"
-        path = _write_tmp(content, ".txt")
-        try:
-            with pytest.raises(ValueError, match="Could not parse"):
-                read_txt(path)
-        finally:
-            os.unlink(path)
-
-
-# ---------------------------------------------------------------------------
-# read_txt — integer promotion
-# ---------------------------------------------------------------------------
-
-class TestReadTxtInt:
-    def test_integer_values_promoted_to_int32(self):
-        content = "\n".join(str(v) for v in _INT_VALUES) + "\n"
-        path = _write_tmp(content, ".txt")
+    def test_integer_promoted_to_int32(self):
+        path = _write_tmp("\n".join(str(v) for v in _INT_VALUES) + "\n", ".txt")
         try:
             arr = read_txt(path)
         finally:
@@ -112,79 +58,95 @@ class TestReadTxtInt:
         np.testing.assert_array_equal(arr, _INT_VALUES)
 
     def test_mixed_float_stays_float32(self):
-        content = "0\n1\n2.5\n3\n"
-        path = _write_tmp(content, ".txt")
+        path = _write_tmp("0\n1\n2.5\n3\n", ".txt")
         try:
             arr = read_txt(path)
         finally:
             os.unlink(path)
         assert arr.dtype == np.float32
 
+    def test_headers_and_comments_skipped(self):
+        # hash comment, text header, CSV first column
+        for content, suffix, expected_len in [
+            ("# comment\n0.5\n1.5\n", ".txt", 2),
+            ("value\n0.1\n0.2\n0.3\n", ".txt", 3),
+            ("label,ignore\n1.0,extra\n2.0,extra\n", ".csv", 2),
+        ]:
+            path = _write_tmp(content, suffix)
+            try:
+                arr = read_txt(path)
+            finally:
+                os.unlink(path)
+            assert arr.shape == (expected_len,)
+
+    def test_error_cases(self):
+        for content, match in [
+            ("", "No numeric"),
+            ("1.0\nbadvalue\n3.0\n", "Could not parse"),
+        ]:
+            path = _write_tmp(content, ".txt")
+            try:
+                with pytest.raises(ValueError, match=match):
+                    read_txt(path)
+            finally:
+                os.unlink(path)
+
 
 # ---------------------------------------------------------------------------
 # read_npy / read_npz
 # ---------------------------------------------------------------------------
 
-class TestReadNpy:
-    def test_basic(self):
+class TestReadNpyNpz:
+    def test_npy_basic(self):
         arr_in = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         fd, path = tempfile.mkstemp(suffix=".npy")
         os.close(fd)
         np.save(path, arr_in)
         try:
-            arr = read_npy(path)
+            np.testing.assert_array_equal(read_npy(path), arr_in)
         finally:
             os.unlink(path)
-        np.testing.assert_array_equal(arr, arr_in)
 
-    def test_2d_raises(self):
-        arr_in = np.ones((3, 4), dtype=np.float32)
+    def test_npy_column_vector_squeezed(self):
         fd, path = tempfile.mkstemp(suffix=".npy")
         os.close(fd)
-        np.save(path, arr_in)
+        np.save(path, np.ones((5, 1), dtype=np.float32))
+        try:
+            assert read_npy(path).shape == (5,)
+        finally:
+            os.unlink(path)
+
+    def test_npy_2d_raises(self):
+        fd, path = tempfile.mkstemp(suffix=".npy")
+        os.close(fd)
+        np.save(path, np.ones((3, 4), dtype=np.float32))
         try:
             with pytest.raises(ValueError, match="1-D"):
                 read_npy(path)
         finally:
             os.unlink(path)
 
-    def test_column_vector_squeezed(self):
-        """Shape (N,1) should be squeezed to (N,) successfully."""
-        arr_in = np.ones((5, 1), dtype=np.float32)
-        fd, path = tempfile.mkstemp(suffix=".npy")
-        os.close(fd)
-        np.save(path, arr_in)
-        try:
-            arr = read_npy(path)
-        finally:
-            os.unlink(path)
-        assert arr.shape == (5,)
-
-
-class TestReadNpz:
-    def test_data_key(self):
+    def test_npz_data_key_and_fallback(self):
         arr_in = np.array([0, 1, 2], dtype=np.int32)
+        # named 'data' key
         fd, path = tempfile.mkstemp(suffix=".npz")
         os.close(fd)
         np.savez(path, data=arr_in, other=np.zeros(3))
         try:
-            arr = read_npz(path)
+            np.testing.assert_array_equal(read_npz(path), arr_in)
         finally:
             os.unlink(path)
-        np.testing.assert_array_equal(arr, arr_in)
-
-    def test_first_array_fallback(self):
-        arr_in = np.array([9.0, 8.0], dtype=np.float32)
-        fd, path = tempfile.mkstemp(suffix=".npz")
+        # first-array fallback
+        arr2 = np.array([9.0, 8.0], dtype=np.float32)
+        fd, path2 = tempfile.mkstemp(suffix=".npz")
         os.close(fd)
-        np.savez(path, arr_0=arr_in)
+        np.savez(path2, arr_0=arr2)
         try:
-            arr = read_npz(path)
+            np.testing.assert_array_equal(read_npz(path2), arr2)
         finally:
-            os.unlink(path)
-        np.testing.assert_array_equal(arr, arr_in)
+            os.unlink(path2)
 
-    def test_empty_raises(self):
+    def test_npz_empty_raises(self):
         fd, path = tempfile.mkstemp(suffix=".npz")
         os.close(fd)
         np.savez(path)
@@ -197,57 +159,32 @@ class TestReadNpz:
 
 # ---------------------------------------------------------------------------
 # read_overlay dispatcher
+# Dispatch is implicitly covered by TestResolveOverlayRouting below; here we
+# only test the error cases and the gifti rejection that are not exercised
+# through resolve_overlay.
 # ---------------------------------------------------------------------------
 
 class TestReadOverlayDispatcher:
-    def test_txt_dispatched(self):
-        path = _write_tmp("1.0\n2.0\n3.0\n", ".txt")
-        try:
-            arr = read_overlay(path)
-        finally:
-            os.unlink(path)
-        assert arr.shape == (3,)
+    def test_unknown_extension_raises(self):
+        with pytest.raises(ValueError, match="Unsupported"):
+            read_overlay("/some/file.xyz")
 
-    def test_csv_dispatched(self):
-        path = _write_tmp("0.5\n1.5\n", ".csv")
+    def test_case_insensitive_extension(self):
+        path = _write_tmp("1.0\n2.0\n", ".TXT")
         try:
-            arr = read_overlay(path)
+            assert read_overlay(path).shape == (2,)
         finally:
             os.unlink(path)
-        assert arr.shape == (2,)
-
-    def test_npy_dispatched(self):
-        arr_in = np.array([1.0, 2.0], dtype=np.float32)
-        fd, path = tempfile.mkstemp(suffix=".npy")
-        os.close(fd)
-        np.save(path, arr_in)
-        try:
-            arr = read_overlay(path)
-        finally:
-            os.unlink(path)
-        np.testing.assert_array_equal(arr, arr_in)
-
-    def test_npz_dispatched(self):
-        arr_in = np.array([0, 1, 2], dtype=np.int32)
-        fd, path = tempfile.mkstemp(suffix=".npz")
-        os.close(fd)
-        np.savez(path, data=arr_in)
-        try:
-            arr = read_overlay(path)
-        finally:
-            os.unlink(path)
-        np.testing.assert_array_equal(arr, arr_in)
 
     def test_surface_gii_rejected_with_helpful_error(self):
-        """A .surf.gii passed to read_gifti (overlay reader) should raise clearly."""
         import nibabel as nib
         coords_da = nib.gifti.GiftiDataArray(
             data=np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]], dtype=np.float32),
-            intent=1008,  # POINTSET
+            intent=1008,
         )
         faces_da = nib.gifti.GiftiDataArray(
             data=np.array([[0,1,2],[0,1,3]], dtype=np.int32),
-            intent=1009,  # TRIANGLE
+            intent=1009,
         )
         img = nib.gifti.GiftiImage(darrays=[coords_da, faces_da])
         fd, path = tempfile.mkstemp(suffix=".surf.gii")
@@ -260,91 +197,71 @@ class TestReadOverlayDispatcher:
         finally:
             os.unlink(path)
 
-    def test_unknown_extension_raises(self):
-        with pytest.raises(ValueError, match="Unsupported"):
-            read_overlay("/some/file.xyz")
-
-    def test_case_insensitive_extension(self):
-        path = _write_tmp("1.0\n2.0\n", ".TXT")
-        try:
-            arr = read_overlay(path)
-        finally:
-            os.unlink(path)
-        assert arr.shape == (2,)
-
 
 # ---------------------------------------------------------------------------
 # resolve_overlay / resolve_bg_map / resolve_roi routing via inputs.py
 # ---------------------------------------------------------------------------
 
 class TestResolveOverlayRouting:
-    """Verify that resolve_overlay and resolve_bg_map pick up .txt/.npy files."""
+    """End-to-end: file path → resolve_overlay / resolve_bg_map / resolve_roi."""
 
-    def test_txt_path_routed_as_float(self):
-        content = "0.1\n0.5\n0.9\n0.3\n"
-        path = _write_tmp(content, ".txt")
+    @pytest.mark.parametrize("suffix,content,n", [
+        (".txt",  "0.1\n0.5\n0.9\n0.3\n", 4),
+        (".csv",  "0.5\n1.5\n",            2),
+    ])
+    def test_txt_csv_routed(self, suffix, content, n):
+        path = _write_tmp(content, suffix)
         try:
-            arr = resolve_overlay(path, n_vertices=4)
+            arr = resolve_overlay(path, n_vertices=n)
         finally:
             os.unlink(path)
-        assert arr.shape == (4,)
-        assert arr.dtype == np.float32
+        assert arr.shape == (n,) and arr.dtype == np.float32
 
-    def test_npy_path_routed(self):
+    def test_npy_routed(self):
         arr_in = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         fd, path = tempfile.mkstemp(suffix=".npy")
         os.close(fd)
         np.save(path, arr_in)
         try:
-            arr = resolve_overlay(path, n_vertices=3)
+            np.testing.assert_array_equal(resolve_overlay(path, n_vertices=3), arr_in)
         finally:
             os.unlink(path)
-        np.testing.assert_array_equal(arr, arr_in)
 
     def test_shape_mismatch_raises(self):
-        content = "0.1\n0.5\n"
-        path = _write_tmp(content, ".txt")
+        path = _write_tmp("0.1\n0.5\n", ".txt")
         try:
             with pytest.raises(ValueError, match="vertices"):
                 resolve_overlay(path, n_vertices=5)
         finally:
             os.unlink(path)
 
-    def test_bg_map_txt_routed(self):
-        content = "1\n-1\n1\n-1\n"
-        path = _write_tmp(content, ".txt")
+    def test_bg_map_and_roi_routed(self):
+        """resolve_bg_map and resolve_roi also correctly route .txt and .npy."""
+        # bg_map from txt — always float32
+        path = _write_tmp("1\n-1\n1\n-1\n", ".txt")
         try:
             arr = resolve_bg_map(path, n_vertices=4)
         finally:
             os.unlink(path)
-        assert arr.shape == (4,)
-        assert arr.dtype == np.float32  # always cast to float32 by resolve_bg_map
+        assert arr.shape == (4,) and arr.dtype == np.float32
 
-    def test_roi_from_bool_npy(self):
-        """Boolean .npy array is a valid ROI input after resolve_roi casts it."""
+        # roi from bool npy
         arr_in = np.array([True, False, True, True])
-        fd, path = tempfile.mkstemp(suffix=".npy")
+        fd, path2 = tempfile.mkstemp(suffix=".npy")
         os.close(fd)
-        np.save(path, arr_in)
+        np.save(path2, arr_in)
         try:
-            # resolve_roi receives a str path; _load_overlay_from_file loads npy
-            # and returns the array; then resolve_roi casts it to bool.
-            arr = resolve_roi(path, n_vertices=4)
+            roi = resolve_roi(path2, n_vertices=4)
         finally:
-            os.unlink(path)
-        assert arr.dtype == bool
-        np.testing.assert_array_equal(arr, arr_in)
+            os.unlink(path2)
+        assert roi.dtype == bool
+        np.testing.assert_array_equal(roi, arr_in)
 
-    def test_label_txt_integer_values(self):
-        """Integer .txt file (parcellation) should be loadable as overlay."""
-        content = "3\n0\n1\n3\n"
-        path = _write_tmp(content, ".txt")
+    def test_integer_txt_as_overlay(self):
+        """Integer txt (parcellation) values are numerically preserved."""
+        path = _write_tmp("3\n0\n1\n3\n", ".txt")
         try:
-            # resolve_overlay casts to float32; original int32 from read_txt
             arr = resolve_overlay(path, n_vertices=4)
         finally:
             os.unlink(path)
-        assert arr.shape == (4,)
-        # Values should be preserved numerically
         np.testing.assert_array_equal(arr, [3.0, 0.0, 1.0, 3.0])
-
