@@ -27,9 +27,13 @@ For single-view non-interactive snapshots use ``whippersnap1``.
 import argparse
 import logging
 import os
-import signal
 import sys
-import threading
+
+if __name__ == "__main__" and __package__ is None:
+    # Replace the current process with `python -m whippersnappy.cli.whippersnap`
+    # so that relative imports work. os.execv replaces this process in-place
+    # (no child process, no blocking wait, signals work correctly).
+    os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap"] + sys.argv[1:])
 
 import glfw
 import OpenGL.GL as gl
@@ -49,11 +53,10 @@ from ..utils.types import ViewType
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Global state shared between the GL thread and the Qt main thread
+# Global state shared between the GL render loop and the Qt config panel.
+# All access is from the main thread — no locking needed.
 current_fthresh_ = None
 current_fmax_ = None
-app_ = None
-app_window_ = None
 app_window_closed_ = False
 
 
@@ -66,109 +69,129 @@ def show_window(
     invert=False,
     specular=True,
     view=ViewType.LEFT,
+    app=None,
+    config_window=None,
 ):
-    """Start a live interactive OpenGL window for viewing a triangular mesh.
+    """Start a live interactive OpenGL+Qt window for viewing a triangular mesh.
 
-    The function initializes a GLFW window and renders the provided mesh
-    with any supplied overlay or annotation.  It polls for threshold updates
-    from the Qt configuration panel and re-renders whenever the thresholds
-    change.
-
-    ``mesh`` is a fully resolved path (or ``(vertices, faces)`` tuple);
-    all FreeSurfer path-building is performed in :func:`run` before this
-    function is called.
+    On macOS both GLFW/Cocoa and Qt require the main thread.  This function
+    creates a GLFW window, then hands control to a ``QTimer``-driven render
+    loop so that GLFW polling and Qt event processing share the main thread.
 
     Parameters
     ----------
     mesh : str or tuple of (array-like, array-like)
-        Path to any mesh file supported by :func:`whippersnappy.geometry.inputs.resolve_mesh`
-        (FreeSurfer binary, ``.off``, ``.vtk``, ``.ply``) **or** a
-        ``(vertices, faces)`` array tuple.
+        Path to any mesh file or a ``(vertices, faces)`` array tuple.
     overlay : str, array-like, or None, optional
-        Per-vertex scalar overlay — file path or (N,) array.
+        Per-vertex scalar overlay.
     annot : str, tuple, or None, optional
-        FreeSurfer ``.annot`` file path or ``(labels, ctab[, names])`` tuple.
+        FreeSurfer ``.annot`` file or ``(labels, ctab[, names])`` tuple.
     bg_map : str, array-like, or None, optional
-        Per-vertex scalar file or array for background shading (sign → light/dark).
+        Per-vertex scalar file or array for background shading.
     roi : str, array-like, or None, optional
-        FreeSurfer label file path or boolean (N,) array masking overlay coloring.
+        FreeSurfer label file or boolean array masking overlay coloring.
     invert : bool, optional
         Invert the overlay color mapping. Default is ``False``.
     specular : bool, optional
-        Enable specular highlights in the shader. Default is ``True``.
+        Enable specular highlights. Default is ``True``.
     view : ViewType, optional
         Initial camera view direction. Default is ``ViewType.LEFT``.
+    app : QApplication
+        The already-created ``QApplication`` instance.
+    config_window : ConfigWindow
+        The already-created Qt configuration panel.
 
     Raises
     ------
     RuntimeError
         If the GLFW window or OpenGL context could not be created.
     """
-    global current_fthresh_, current_fmax_, app_, app_window_, app_window_closed_
+    global current_fthresh_, current_fmax_, app_window_closed_
 
-    wwidth = 720
+    from PyQt6.QtCore import QTimer  # noqa: PLC0415
+
+    wwidth  = 720
     wheight = 600
-    window = init_window(wwidth, wheight, "WhipperSnapPy", visible=True)
+    window  = init_window(wwidth, wheight, "WhipperSnapPy", visible=True)
     if not window:
-        logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
-        raise RuntimeError("Could not create any GLFW window/context. OpenGL context unavailable.")
+        raise RuntimeError(
+            "Could not create a GLFW window/context. OpenGL context unavailable."
+        )
 
     view_mats = get_view_matrices()
-    viewmat = view_mats[view]
-    rot_y = pyrr.Matrix44.from_y_rotation(0)
+    viewmat   = view_mats[view]
+    rot_y     = pyrr.Matrix44.from_y_rotation(0)
+    ypos      = 0.0
 
-    meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        mesh, overlay, annot, bg_map, roi, current_fthresh_, current_fmax_,
+    meshdata, triangles, _fthresh, _fmax, _pos, _neg = prepare_geometry(
+        mesh, overlay, annot, bg_map, roi,
+        current_fthresh_, current_fmax_,
         invert=invert,
     )
     shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
-    logger.info("\nKeys:\nLeft - Right : Rotate Geometry\nESC          : Quit\n")
+    logger.info("Keys:  Left/Right arrows → rotate   ESC → quit")
 
-    ypos = 0
-    while glfw.get_key(window, glfw.KEY_ESCAPE) != glfw.PRESS and not glfw.window_should_close(window):
-        if app_window_closed_:
-            break
+    def _render_frame():
+        """Called by QTimer every frame; does one GLFW poll + one GL draw."""
+        global current_fthresh_, current_fmax_, app_window_closed_
+        nonlocal meshdata, triangles, shader, rot_y, ypos
+
+        # Check GLFW close conditions
+        if (
+            glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS
+            or glfw.window_should_close(window)
+            or app_window_closed_
+        ):
+            timer.stop()
+            glfw.terminate()
+            app.quit()
+            return
 
         glfw.poll_events()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-        if app_window_ is not None:
-            if (
-                app_window_.get_fthresh_value() != current_fthresh_
-                or app_window_.get_fmax_value() != current_fmax_
-            ):
-                current_fthresh_ = app_window_.get_fthresh_value()
-                current_fmax_ = app_window_.get_fmax_value()
-                meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
+        # Re-render if Qt sliders changed the thresholds
+        if config_window is not None:
+            new_fthresh = config_window.get_fthresh_value()
+            new_fmax    = config_window.get_fmax_value()
+            if new_fthresh != current_fthresh_ or new_fmax != current_fmax_:
+                current_fthresh_ = new_fthresh
+                current_fmax_    = new_fmax
+                meshdata, triangles, _fthresh, _fmax, _pos, _neg = prepare_geometry(
                     mesh, overlay, annot, bg_map, roi,
                     current_fthresh_, current_fmax_,
                     invert=invert,
                 )
-                shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
+                shader = setup_shader(
+                    meshdata, triangles, wwidth, wheight, specular=specular
+                )
 
-        transformLoc = gl.glGetUniformLocation(shader, "transform")
-        gl.glUniformMatrix4fv(transformLoc, 1, gl.GL_FALSE, rot_y * viewmat)
-
+        # Keyboard rotation
         if glfw.get_key(window, glfw.KEY_RIGHT) == glfw.PRESS:
-            ypos += 0.0004
+            ypos += 0.004
         if glfw.get_key(window, glfw.KEY_LEFT) == glfw.PRESS:
-            ypos -= 0.0004
+            ypos -= 0.004
         rot_y = pyrr.Matrix44.from_y_rotation(ypos)
 
+        transform_loc = gl.glGetUniformLocation(shader, "transform")
+        gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, rot_y * viewmat)
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
         glfw.swap_buffers(window)
 
-    glfw.terminate()
-    # Signal the main thread to tear down the Qt app
-    app_window_closed_ = True
+    # ~60 fps timer — fires every 16 ms on the main thread
+    timer = QTimer()
+    timer.timeout.connect(_render_frame)
+    timer.start(16)
+
+    app.exec()
 
 
 def config_app_exit_handler():
-    """Mark the configuration application as closed.
+    """Mark the configuration window as closed.
 
-    Connected to the Qt app's ``aboutToQuit`` signal so the OpenGL loop
-    in the worker thread terminates cleanly.
+    Connected to ``QApplication.aboutToQuit`` so the render timer stops
+    cleanly when the user closes the Qt panel.
     """
     global app_window_closed_
     app_window_closed_ = True
@@ -232,7 +255,7 @@ def run():
     Requires ``pip install 'whippersnappy[gui]'``.
     For non-interactive batch rendering use ``whippersnap4`` or ``whippersnap1``.
     """
-    global current_fthresh_, current_fmax_, app_, app_window_
+    global current_fthresh_, current_fmax_
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     _VIEW_CHOICES = {v.name.lower(): v for v in ViewType}
@@ -425,33 +448,38 @@ def run():
     current_fthresh_ = args.fthresh
     current_fmax_    = args.fmax
 
-    thread = threading.Thread(
-        target=show_window,
-        kwargs=dict(
-            mesh=mesh_path,
-            overlay=overlay,
-            annot=args.annot,
-            bg_map=bg_map,
-            roi=roi,
-            invert=args.invert,
-            specular=args.specular,
-            view=view,
-        ),
-    )
-    thread.start()
+    # Both QApplication/Qt and GLFW/Cocoa require the main thread on macOS.
+    # Create Qt objects here on the main thread, then pass them into
+    # show_window which drives rendering via a QTimer (no extra threads).
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    app.aboutToQuit.connect(config_app_exit_handler)
 
-    app_ = QApplication([])
-    app_.setStyle("Fusion")
-    app_.aboutToQuit.connect(config_app_exit_handler)
-
-    screen_geometry = app_.primaryScreen().availableGeometry()
-    app_window_ = ConfigWindow(
+    screen_geometry = app.primaryScreen().availableGeometry()
+    config_window = ConfigWindow(
         screen_dims=(screen_geometry.width(), screen_geometry.height()),
         initial_fthresh_value=current_fthresh_,
         initial_fmax_value=current_fmax_,
     )
+    config_window.show()
 
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-    app_window_.show()
-    app_.exec()
+    # show_window creates the GLFW window, sets up a QTimer render loop,
+    # then calls app.exec() — returns when either window is closed.
+    show_window(
+        mesh=mesh_path,
+        overlay=overlay,
+        annot=args.annot,
+        bg_map=bg_map,
+        roi=roi,
+        invert=args.invert,
+        specular=args.specular,
+        view=view,
+        app=app,
+        config_window=config_window,
+    )
+
+
+if __name__ == "__main__":
+    run()
+
 
