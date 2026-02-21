@@ -57,7 +57,7 @@ whippersnap4 -lh $LH_OVERLAY \
 Renders one view of any triangular surface mesh:
 
 ```bash
-whippersnap1 $SUBJECT_DIR/surf/lh.white \
+whippersnap1 --mesh $SUBJECT_DIR/surf/lh.white \
              --overlay $LH_OVERLAY \
              --bg-map  $SUBJECT_DIR/surf/lh.curv \
              --roi     $SUBJECT_DIR/label/lh.cortex.label \
@@ -65,8 +65,8 @@ whippersnap1 $SUBJECT_DIR/surf/lh.white \
              -o snap1.png
 
 # Also works with OFF / VTK / PLY
-whippersnap1 mesh.off --overlay values.mgh -o snap1.png
-whippersnap1 surface.surf.gii --overlay overlay.func.gii -o snap1.png
+whippersnap1 --mesh mesh.off --overlay values.mgh -o snap1.png
+whippersnap1 --mesh surface.surf.gii --overlay overlay.func.gii -o snap1.png
 ```
 
 ### Rotation video (`whippersnap1 --rotate`)
@@ -74,7 +74,7 @@ whippersnap1 surface.surf.gii --overlay overlay.func.gii -o snap1.png
 Renders a 360° animation of any triangular surface mesh:
 
 ```bash
-whippersnap1 $SUBJECT_DIR/surf/lh.white \
+whippersnap1 --mesh $SUBJECT_DIR/surf/lh.white \
              --overlay $LH_OVERLAY \
              --rotate \
              -o rotation.mp4

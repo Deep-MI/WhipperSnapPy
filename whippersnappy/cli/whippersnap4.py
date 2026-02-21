@@ -18,6 +18,10 @@ import logging
 import os
 import tempfile
 
+if __name__ == "__main__" and __package__ is None:
+    import sys
+    os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap4"] + sys.argv[1:])
+
 from .. import snap4
 from .._version import __version__
 
@@ -177,4 +181,9 @@ def run():
         )
     except (RuntimeError, FileNotFoundError, ValueError) as e:
         parser.error(str(e))
+
+
+if __name__ == "__main__":
+    run()
+
 

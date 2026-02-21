@@ -12,7 +12,7 @@ ASCII PLY file (``mesh.ply``).
 Usage::
 
     # FreeSurfer surface — lateral view with thickness overlay
-    whippersnap1 <subject_dir>/surf/lh.white \\
+    whippersnap1 --mesh <subject_dir>/surf/lh.white \\
         --overlay <subject_dir>/surf/lh.thickness \\
         --bg-map  <subject_dir>/surf/lh.curv \\
         --roi     <subject_dir>/label/lh.cortex.label \\
@@ -20,18 +20,18 @@ Usage::
         -o snap1.png
 
     # OFF / VTK / PLY mesh with a numpy-saved overlay
-    whippersnap1 mesh.off --overlay values.mgh -o snap1.png
-    whippersnap1 mesh.vtk -o snap1.png
-    whippersnap1 mesh.ply --overlay values.mgh -o snap1.png
+    whippersnap1 --mesh mesh.off --overlay values.mgh -o snap1.png
+    whippersnap1 --mesh mesh.vtk -o snap1.png
+    whippersnap1 --mesh mesh.ply --overlay values.mgh -o snap1.png
 
     # 360° rotation video
-    whippersnap1 <subject_dir>/surf/lh.white \\
+    whippersnap1 --mesh <subject_dir>/surf/lh.white \\
         --overlay <subject_dir>/surf/lh.thickness \\
         --rotate --rotate-frames 72 --rotate-fps 24 \\
         -o rotation.mp4
 
     # Parcellation annotation
-    whippersnap1 <subject_dir>/surf/lh.white \\
+    whippersnap1 --mesh <subject_dir>/surf/lh.white \\
         --annot <subject_dir>/label/lh.aparc.annot \\
         --view left -o snap_annot.png
 
@@ -44,6 +44,10 @@ import argparse
 import logging
 import os
 import tempfile
+
+if __name__ == "__main__" and __package__ is None:
+    import sys
+    os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap1"] + sys.argv[1:])
 
 from .. import snap1, snap_rotate
 from .._version import __version__
@@ -76,7 +80,7 @@ def run():
     -----
     **Snapshot options** (default mode):
 
-    * ``mesh`` — path to any triangular surface mesh: FreeSurfer binary
+    * ``--mesh`` — path to any triangular surface mesh: FreeSurfer binary
       (e.g. ``lh.white``), ASCII OFF (``.off``), legacy ASCII VTK PolyData
       (``.vtk``), or ASCII PLY (``.ply``).
     * ``--overlay`` — per-vertex scalar overlay (e.g. ``lh.thickness`` or a ``.mgh`` file).
@@ -111,15 +115,25 @@ def run():
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
-    # --- Required ---
+    # --- Mesh input: --mesh flag (preferred) or bare positional (legacy) ---
     parser.add_argument(
-        "mesh",
+        "--mesh",
         type=str,
+        default=None,
         help=(
             "Path to the surface mesh file. Supported formats: "
             "FreeSurfer binary surface (e.g. lh.white, rh.pial), "
-            "ASCII OFF (.off), legacy ASCII VTK PolyData (.vtk), ASCII PLY (.ply)."
+            "ASCII OFF (.off), legacy ASCII VTK PolyData (.vtk), ASCII PLY (.ply), "
+            "GIfTI surface (.gii, .surf.gii)."
         ),
+    )
+    # Keep positional for backward compatibility (silently accepted)
+    parser.add_argument(
+        "_mesh_positional",
+        nargs="?",
+        default=None,
+        metavar="MESH",
+        help=argparse.SUPPRESS,
     )
 
     # --- Output ---
@@ -216,6 +230,11 @@ def run():
 
     args = parser.parse_args()
 
+    # Resolve mesh: --mesh takes precedence over bare positional argument
+    mesh_path = args.mesh or args._mesh_positional
+    if mesh_path is None:
+        parser.error("A mesh file is required: use --mesh <path>.")
+
     log = logging.getLogger(__name__)
 
     try:
@@ -224,7 +243,7 @@ def run():
                 tempfile.gettempdir(), "whippersnappy_rotation.mp4"
             )
             snap_rotate(
-                mesh=args.mesh,
+                mesh=mesh_path,
                 outpath=outpath,
                 n_frames=args.rotate_frames,
                 fps=args.rotate_fps,
@@ -249,7 +268,7 @@ def run():
                 tempfile.gettempdir(), "whippersnappy_snap1.png"
             )
             img = snap1(
-                mesh=args.mesh,
+                mesh=mesh_path,
                 outpath=outpath,
                 overlay=args.overlay,
                 annot=args.annot,
@@ -273,3 +292,9 @@ def run():
             log.info("Snapshot saved to %s (%dx%d)", outpath, img.width, img.height)
     except (RuntimeError, FileNotFoundError, ValueError, ImportError) as e:
         parser.error(str(e))
+
+
+if __name__ == "__main__":
+    run()
+
+
