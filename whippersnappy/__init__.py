@@ -5,41 +5,38 @@ overlays and annotations. It includes:
 
 - **Static rendering**: `snap1()` and `snap4()` functions for publication-quality images
 - **3D plotting**: For Jupyter notebooks with mouse-controlled 3D (via Three.js)
-- **GUI**: Desktop application with `--interactive` flag
-- **CLI tools**: Command-line interface for batch processing
-- **Custom shaders**: Full control over OpenGL lighting and rendering
+- **GUI**: Interactive desktop viewer via the ``whippersnap`` command
+- **CLI tools**: ``whippersnap1`` and ``whippersnap4`` for batch processing
+- **Local mesh IO**: OFF, VTK ASCII PolyData, and PLY in addition to FreeSurfer surfaces
 
-For static image generation:
+For static image generation::
 
     from whippersnappy import snap1, snap4
     from whippersnappy.utils.types import ViewType
     from IPython.display import display
 
-    img = snap1(mesh='path/to/surface.white', view=ViewType.LEFT)
+    img = snap1('path/to/lh.white', view=ViewType.LEFT)
     display(img)
 
-For interactive 3D in Jupyter notebooks:
+For interactive 3D in Jupyter notebooks::
 
     # Requires: pip install 'whippersnappy[notebook]'
     from whippersnappy import plot3d
 
     viewer = plot3d(
-        mesh='path/to/surface.white',
-        bg_map='path/to/curv',
-        overlay='path/to/thickness.mgh'  # optional: for colors
+        mesh='path/to/lh.white',
+        bg_map='path/to/lh.curv',
+        overlay='path/to/lh.thickness',  # optional: for colors
     )
     display(viewer)
 
-For desktop GUI:
+For the interactive desktop GUI::
 
-    # Command line
-    whippersnap --interactive -lh path/to/lh.white -rh path/to/rh.white
-
-Features:
-- Works in ALL Jupyter environments (browser, JupyterLab, Colab, VS Code)
-- Mouse-controlled rotation, zoom, and pan
-- Professional lighting via Three.js/WebGL
-- Same technology Plotly uses for 3D plots
+    # Requires: pip install 'whippersnappy[gui]'
+    # General mode — any mesh file:
+    whippersnap --mesh lh.white --overlay lh.thickness --bg-map lh.curv
+    # FreeSurfer shortcut — derive paths from subject directory:
+    whippersnap -sd path/to/subject_dir --hemi lh -lh lh.thickness
 
 """
 

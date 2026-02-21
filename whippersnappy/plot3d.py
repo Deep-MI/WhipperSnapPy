@@ -1,21 +1,20 @@
 """3D plotting for WhipperSnapPy using pythreejs (Three.js) for Jupyter.
 
-This module provides interactive 3D brain visualization for Jupyter notebooks using
-Three.js/WebGL. It works in all Jupyter environments (browser, JupyterLab, Colab, VS Code).
+This module provides interactive 3D brain visualization for Jupyter notebooks
+using Three.js/WebGL.  It works in all Jupyter environments (browser,
+JupyterLab, Colab, VS Code).
 
-Unlike the desktop GUI (launched with --interactive flag), this plots in the browser
-using WebGL and is specifically designed for notebook environments.
+Unlike the desktop GUI (``whippersnap`` command), this renders entirely in the
+browser via WebGL and is designed for notebook environments.
 
-Usage:
+Usage::
+
     from whippersnappy import plot3d
     viewer = plot3d(mesh='path/to/lh.white', bg_map='path/to/lh.curv')
     display(viewer)
 
 Dependencies:
     pythreejs, ipywidgets, numpy
-
-@Author    : Martin Reuter
-@Created   : 14.02.2026
 """
 
 import logging
@@ -54,37 +53,42 @@ def plot3d(
     pythreejs renderer and controls wrapped in an ``ipywidgets.VBox`` for
     display inside a Jupyter notebook.
 
+    The mesh can be any triangular surface — not just brain surfaces.
+    Supported file formats: FreeSurfer binary surface (e.g. ``lh.white``),
+    ASCII OFF (``.off``), legacy ASCII VTK PolyData (``.vtk``), ASCII PLY
+    (``.ply``), or a ``(vertices, faces)`` numpy array tuple.
+
     Parameters
     ----------
     mesh : str or tuple of (array-like, array-like)
-        Path to the surface file (FreeSurfer-style surface, e.g. ``"lh.white"``)
-        **or** a ``(vertices, faces)`` tuple.
+        Path to a mesh file (FreeSurfer binary, ``.off``, ``.vtk``, or
+        ``.ply``) **or** a ``(vertices, faces)`` tuple.
     overlay : str, array-like, or None, optional
-        Path to a per-vertex overlay (thickness/curvature) file, or a (N,)
-        array of per-vertex scalar values.
+        Path to a per-vertex scalar file, or a (N,) array of per-vertex
+        scalar values.
     annot : str, tuple, or None, optional
         Path to a FreeSurfer .annot file, or a ``(labels, ctab)`` /
         ``(labels, ctab, names)`` tuple for categorical labeling.
     bg_map : str, array-like, or None, optional
-        Path to a curvature file **or** a (N,) array used as grayscale
-        texture for non-overlay regions.
+        Path to a per-vertex scalar file **or** a (N,) array used as
+        grayscale background shading for non-overlay regions.
     roi : str, array-like, or None, optional
         Path to a FreeSurfer label file **or** a (N,) boolean array to
-        restrict overlay coloring.
+        restrict overlay coloring to a subset of vertices.
     minval, maxval : float or None, optional
-        Threshold and saturation values used for color mapping (passed to
-        :func:`prepare_geometry`). If ``None``, sensible defaults are chosen.
-    invert : bool, optional, default False
-        If True, invert the overlay color map.
-    scale : float, optional, default 1.85
-        Global geometry scale applied during preparation.
+        Threshold and saturation values used for color mapping.
+        If ``None``, sensible defaults are chosen automatically.
+    invert : bool, optional
+        If True, invert the overlay color map. Default is ``False``.
+    scale : float, optional
+        Global geometry scale applied during preparation. Default is ``1.85``.
     color_mode : ColorSelection or None, optional
         Which sign of overlay values to color (BOTH/POSITIVE/NEGATIVE).
         If None, defaults to ``ColorSelection.BOTH``.
-    width, height : int, optional, default 800
-        Canvas dimensions for the generated renderer.
-    ambient : float, optional, default 0.1
-        Ambient lighting strength for the shader (passed to Three.js uniform).
+    width, height : int, optional
+        Canvas dimensions for the generated renderer. Default is ``800``.
+    ambient : float, optional
+        Ambient lighting strength passed to the Three.js shader. Default is ``0.1``.
 
     Returns
     -------
@@ -94,8 +98,8 @@ def plot3d(
     Raises
     ------
     ValueError, FileNotFoundError
-        Errors originating from :func:`prepare_geometry` (for example when
-        input arrays don't match the mesh vertex count) are propagated.
+        Errors from :func:`prepare_geometry` are propagated (for example
+        shape mismatches between overlay and mesh vertex count).
 
     Examples
     --------
@@ -104,7 +108,19 @@ def plot3d(
         from whippersnappy import plot3d
         from IPython.display import display
 
-        viewer = plot3d('fsaverage/surf/lh.white', overlay='fsaverage/surf/lh.thickness')
+        # FreeSurfer surface
+        viewer = plot3d('lh.white', overlay='lh.thickness', bg_map='lh.curv')
+        display(viewer)
+
+        # Any triangular mesh via OFF / VTK / PLY
+        viewer = plot3d('mesh.off', overlay='values.mgh')
+        display(viewer)
+
+        # Array inputs
+        import numpy as np
+        v = np.random.randn(500, 3).astype(np.float32)
+        f = np.zeros((1, 3), dtype=np.uint32)
+        viewer = plot3d((v, f))
         display(viewer)
     """
     # Load and prepare mesh data

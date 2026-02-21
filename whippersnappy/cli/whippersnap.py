@@ -2,17 +2,26 @@
 
 """Interactive GUI viewer for WhipperSnapPy.
 
-Opens a live OpenGL window for a single hemisphere together with a
-Qt-based configuration panel that allows adjusting overlay thresholds
-at runtime.
+Opens a live OpenGL window for any triangular surface mesh together with a
+Qt-based configuration panel that allows adjusting overlay thresholds at
+runtime.
 
-Usage::
+Two input modes are supported:
 
-    whippersnap -lh <lh_overlay> -sd <subject_dir>
-    whippersnap --lh_annot <lh.annot> --rh_annot <rh.annot> -sd <subject_dir>
+**General mode** — pass any mesh file directly::
+
+    whippersnap --mesh mesh.off --overlay values.mgh
+    whippersnap --mesh lh.white --overlay lh.thickness --bg-map lh.curv
+
+**FreeSurfer shortcut** — pass a subject directory and hemisphere; all
+FreeSurfer paths are derived automatically::
+
+    whippersnap -sd <subject_dir> --hemi lh --overlay lh.thickness
+    whippersnap -sd <subject_dir> --hemi rh --annot rh.aparc.annot
 
 See ``whippersnap --help`` for the full list of options.
 For non-interactive four-view batch rendering use ``whippersnap4``.
+For single-view non-interactive snapshots use ``whippersnap1``.
 """
 
 import argparse
@@ -49,52 +58,51 @@ app_window_closed_ = False
 
 
 def show_window(
-    hemi,
+    mesh,
     overlay=None,
     annot=None,
-    sdir=None,
+    bg_map=None,
+    roi=None,
     invert=False,
-    labelname="cortex.label",
-    surfname=None,
-    curvname="curv",
     specular=True,
+    view=ViewType.LEFT,
 ):
-    """Start a live interactive OpenGL window for viewing a hemisphere.
+    """Start a live interactive OpenGL window for viewing a triangular mesh.
 
-    The function initializes a GLFW window and renders the requested
-    hemisphere with any provided overlay/annotation. It polls for
-    configuration updates from the separate configuration GUI and updates
-    the rendered scene accordingly.
+    The function initializes a GLFW window and renders the provided mesh
+    with any supplied overlay or annotation.  It polls for threshold updates
+    from the Qt configuration panel and re-renders whenever the thresholds
+    change.
+
+    ``mesh`` is a fully resolved path (or ``(vertices, faces)`` tuple);
+    all FreeSurfer path-building is performed in :func:`run` before this
+    function is called.
 
     Parameters
     ----------
-    hemi : {'lh','rh'}
-        Hemisphere to display.
-    overlay : str or None, optional
-        Path to a per-vertex overlay file (e.g. thickness).
-    annot : str or None, optional
-        Path to a ``.annot`` file providing categorical labels for vertices.
-    sdir : str or None, optional
-        Subject directory containing ``surf/`` and ``label/`` subdirectories.
+    mesh : str or tuple of (array-like, array-like)
+        Path to any mesh file supported by :func:`whippersnappy.geometry.inputs.resolve_mesh`
+        (FreeSurfer binary, ``.off``, ``.vtk``, ``.ply``) **or** a
+        ``(vertices, faces)`` array tuple.
+    overlay : str, array-like, or None, optional
+        Per-vertex scalar overlay — file path or (N,) array.
+    annot : str, tuple, or None, optional
+        FreeSurfer ``.annot`` file path or ``(labels, ctab[, names])`` tuple.
+    bg_map : str, array-like, or None, optional
+        Per-vertex scalar file or array for background shading (sign → light/dark).
+    roi : str, array-like, or None, optional
+        FreeSurfer label file path or boolean (N,) array masking overlay coloring.
     invert : bool, optional
         Invert the overlay color mapping. Default is ``False``.
-    labelname : str, optional
-        Label filename used to mask vertices. Default is ``'cortex.label'``.
-    surfname : str or None, optional
-        Surface basename (e.g. ``'white'``); if ``None`` the function will
-        auto-detect a suitable surface in ``sdir``.
-    curvname : str or None, optional
-        Curvature filename used to texture non-colored regions.
-        Default is ``'curv'``.
     specular : bool, optional
         Enable specular highlights in the shader. Default is ``True``.
+    view : ViewType, optional
+        Initial camera view direction. Default is ``ViewType.LEFT``.
 
     Raises
     ------
     RuntimeError
         If the GLFW window or OpenGL context could not be created.
-    FileNotFoundError
-        If a requested surface file cannot be located in ``sdir``.
     """
     global current_fthresh_, current_fmax_, app_, app_window_, app_window_closed_
 
@@ -105,22 +113,8 @@ def show_window(
         logger.error("Could not create any GLFW window/context. OpenGL context unavailable.")
         raise RuntimeError("Could not create any GLFW window/context. OpenGL context unavailable.")
 
-    if surfname is None:
-        logger.info("No surf_name provided. Looking for options in surf directory...")
-        found_surfname = get_surf_name(sdir, hemi)
-        if found_surfname is None:
-            msg = f"Could not find a valid surf file in {sdir} for hemi: {hemi}!"
-            logger.error(msg)
-            raise FileNotFoundError(msg)
-        mesh = os.path.join(sdir, "surf", hemi + "." + found_surfname)
-    else:
-        mesh = os.path.join(sdir, "surf", hemi + "." + surfname)
-
-    bg_map = os.path.join(sdir, "surf", hemi + "." + curvname) if curvname else None
-    roi = os.path.join(sdir, "label", hemi + "." + labelname) if labelname else None
-
     view_mats = get_view_matrices()
-    viewmat = view_mats[ViewType.RIGHT] if hemi == "rh" else view_mats[ViewType.LEFT]
+    viewmat = view_mats[view]
     rot_y = pyrr.Matrix44.from_y_rotation(0)
 
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
@@ -187,6 +181,15 @@ def run():
     viewer thread and launches the PyQt6 configuration window in the main
     thread.
 
+    Two mutually exclusive input modes are supported:
+
+    **General mode** — supply a mesh file directly with ``--mesh``.
+    Works with FreeSurfer binary surfaces, OFF, VTK, and PLY files.
+
+    **FreeSurfer shortcut** — supply ``-sd``/``--sdir`` and
+    ``--hemi``; the surface, curvature, and cortex-label paths are all
+    derived automatically from the subject directory.
+
     Raises
     ------
     RuntimeError
@@ -196,82 +199,210 @@ def run():
 
     Notes
     -----
-    **Required:**
+    **General mode** (``--mesh`` required):
+
+    * ``--mesh`` — path to any triangular mesh file (FreeSurfer binary,
+      ``.off``, ``.vtk``, ``.ply``).
+    * ``--overlay`` — per-vertex scalar overlay file path or ``.mgh``.
+    * ``--annot`` — FreeSurfer ``.annot`` file.
+    * ``--bg-map`` — per-vertex scalar file for background shading.
+    * ``--roi`` — FreeSurfer label file or boolean mask for overlay region.
+
+    **FreeSurfer shortcut** (``-sd``/``--sdir`` + ``--hemi`` required):
 
     * ``-sd`` / ``--sdir`` — subject directory containing ``surf/`` and
       ``label/`` subdirectories.
-    * One of the following (not both):
-
-      * ``-lh`` / ``--lh_overlay`` **and** ``-rh`` / ``--rh_overlay`` — per-vertex
-        scalar overlay files.
-      * ``--lh_annot`` **and** ``--rh_annot`` — FreeSurfer ``.annot``
-        parcellation files.
-
-    **Optional:**
-
+    * ``--hemi`` — hemisphere to display: ``lh`` or ``rh``.
+    * ``-lh`` / ``--lh_overlay`` or ``-rh`` / ``--rh_overlay`` — overlay
+      for the respective hemisphere (shorthand; equivalent to ``--overlay``).
+    * ``--annot`` — annotation file (full path).
     * ``-s`` / ``--surf_name`` — surface basename (e.g. ``white``);
       auto-detected if not provided.
-    * ``-c`` / ``--caption`` — caption text shown in the viewer.
+    * ``--curv-name`` — curvature basename (default: ``curv``).
+    * ``--label-name`` — cortex label basename (default: ``cortex.label``).
+
+    **Common options** (both modes):
+
     * ``--fthresh`` — overlay threshold (default: 2.0); adjustable live in the GUI.
     * ``--fmax`` — overlay saturation (default: 4.0); adjustable live in the GUI.
     * ``--invert`` — invert the color scale.
     * ``--diffuse`` — use diffuse-only shading (no specular highlights).
+    * ``--view`` — initial camera view (default: ``left``).
 
     Requires ``pip install 'whippersnappy[gui]'``.
-    For non-interactive four-view batch rendering use ``whippersnap4``.
+    For non-interactive batch rendering use ``whippersnap4`` or ``whippersnap1``.
     """
     global current_fthresh_, current_fmax_, app_, app_window_
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
+    _VIEW_CHOICES = {v.name.lower(): v for v in ViewType}
+
     parser = argparse.ArgumentParser(
         prog="whippersnap",
         description=(
-            "Interactive GUI viewer for a single hemisphere. "
-            "For batch four-view rendering use whippersnap4."
+            "Interactive GUI viewer for any triangular surface mesh. "
+            "Pass --mesh for a direct mesh file, or -sd/--sdir + --hemi "
+            "for the FreeSurfer subject-directory shortcut. "
+            "For non-interactive batch rendering use whippersnap4 or whippersnap1."
         ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("-lh", "--lh_overlay", type=str, default=None,
-                        help="Path to the lh overlay file.")
-    parser.add_argument("-rh", "--rh_overlay", type=str, default=None,
-                        help="Path to the rh overlay file.")
-    parser.add_argument("--lh_annot", type=str, default=None,
-                        help="Path to the lh annotation file.")
-    parser.add_argument("--rh_annot", type=str, default=None,
-                        help="Path to the rh annotation file.")
-    parser.add_argument("-sd", "--sdir", type=str, required=True,
-                        help="Subject directory containing surf/ and label/ subdirectories.")
-    parser.add_argument("-s", "--surf_name", type=str, default=None,
-                        help="Surface basename to load (e.g. 'white').")
-    parser.add_argument("-c", "--caption", type=str, default="",
-                        help="Caption text.")
-    parser.add_argument("--fmax", type=float, default=4.0,
-                        help="Overlay saturation value (default: 4.0).")
-    parser.add_argument("--fthresh", type=float, default=2.0,
-                        help="Overlay threshold value (default: 2.0).")
-    parser.add_argument("--invert", action="store_true",
-                        help="Invert the color scale.")
-    parser.add_argument("--diffuse", dest="specular", action="store_false", default=True,
-                        help="Diffuse-only shading (no specular).")
+
+    # --- General mesh mode ---
+    general = parser.add_argument_group(
+        "general mode",
+        "Load any triangular mesh directly (OFF, VTK, PLY, FreeSurfer binary).",
+    )
+    general.add_argument(
+        "--mesh", type=str, default=None,
+        help="Path to any triangular mesh file (.off, .vtk, .ply, or FreeSurfer binary).",
+    )
+    general.add_argument(
+        "--bg-map", dest="bg_map", type=str, default=None,
+        help="Per-vertex scalar file for background shading (sign → light/dark).",
+    )
+    general.add_argument(
+        "--roi", type=str, default=None,
+        help="FreeSurfer label file or boolean mask restricting overlay coloring.",
+    )
+
+    # --- FreeSurfer shortcut mode ---
+    fs = parser.add_argument_group(
+        "FreeSurfer shortcut",
+        "Derive mesh, curvature, and label paths from a subject directory.",
+    )
+    fs.add_argument(
+        "-sd", "--sdir", type=str, default=None,
+        help="Subject directory containing surf/ and label/ subdirectories.",
+    )
+    fs.add_argument(
+        "--hemi", type=str, default=None, choices=["lh", "rh"],
+        help="Hemisphere to display: lh or rh.",
+    )
+    fs.add_argument(
+        "-s", "--surf_name", type=str, default=None,
+        help="Surface basename (e.g. 'white'); auto-detected if not provided.",
+    )
+    fs.add_argument(
+        "--curv-name", dest="curv_name", type=str, default="curv",
+        help="Curvature file basename for background shading (default: curv).",
+    )
+    fs.add_argument(
+        "--label-name", dest="label_name", type=str, default="cortex.label",
+        help="Cortex label basename for overlay masking (default: cortex.label).",
+    )
+
+    # Hemisphere-prefixed overlay shortcuts (FreeSurfer convention)
+    fs.add_argument(
+        "-lh", "--lh_overlay", type=str, default=None,
+        help="Shorthand for --overlay when using lh hemisphere (e.g. lh.thickness).",
+    )
+    fs.add_argument(
+        "-rh", "--rh_overlay", type=str, default=None,
+        help="Shorthand for --overlay when using rh hemisphere (e.g. rh.thickness).",
+    )
+
+    # --- Inputs common to both modes ---
+    common = parser.add_argument_group("overlay / annotation (both modes)")
+    common.add_argument(
+        "--overlay", type=str, default=None,
+        help="Per-vertex scalar overlay file path.",
+    )
+    common.add_argument(
+        "--annot", type=str, default=None,
+        help="FreeSurfer .annot file for parcellation coloring.",
+    )
+
+    # --- Appearance / rendering ---
+    rend = parser.add_argument_group("appearance")
+    rend.add_argument("--fmax",    type=float, default=4.0,
+                      help="Overlay saturation value (default: 4.0).")
+    rend.add_argument("--fthresh", type=float, default=2.0,
+                      help="Overlay threshold value (default: 2.0).")
+    rend.add_argument("--invert",  action="store_true",
+                      help="Invert the color scale.")
+    rend.add_argument("--diffuse", dest="specular", action="store_false", default=True,
+                      help="Diffuse-only shading (no specular highlights).")
+    rend.add_argument(
+        "--view", type=str, default="left", choices=list(_VIEW_CHOICES),
+        help="Initial camera view direction (default: left).",
+    )
 
     args = parser.parse_args()
 
+    # ------------------------------------------------------------------
+    # Resolve the two modes and build the final mesh / bg_map / roi paths
+    # ------------------------------------------------------------------
+    fs_mode     = args.sdir is not None or args.hemi is not None
+    general_mode = args.mesh is not None
+
     try:
-        if (args.lh_overlay or args.rh_overlay) and (args.lh_annot or args.rh_annot):
+        if fs_mode and general_mode:
             raise ValueError(
-                "Cannot use lh_overlay/rh_overlay and lh_annot/rh_annot at the same time."
+                "Cannot combine --mesh with -sd/--sdir or --hemi. "
+                "Use either general mode (--mesh) or FreeSurfer mode (-sd + --hemi)."
             )
-        if not any([args.lh_overlay, args.rh_overlay, args.lh_annot, args.rh_annot]):
+        if not fs_mode and not general_mode:
             raise ValueError(
-                "Either lh_overlay/rh_overlay or lh_annot/rh_annot must be present."
+                "Either --mesh (general mode) or both -sd/--sdir and --hemi "
+                "(FreeSurfer shortcut) must be provided."
             )
-        if (args.lh_overlay is None) != (args.rh_overlay is None):
-            raise ValueError("Both -lh and -rh overlays must be provided together.")
-        if (args.lh_annot is None) != (args.rh_annot is None):
-            raise ValueError("Both --lh_annot and --rh_annot must be provided together.")
+
+        if fs_mode:
+            if args.sdir is None or args.hemi is None:
+                raise ValueError(
+                    "FreeSurfer mode requires both -sd/--sdir and --hemi."
+                )
+
+        # Resolve overlay: --overlay takes precedence; -lh/-rh are shorthands
+        overlay = args.overlay
+        if overlay is None:
+            if args.hemi == "lh" and args.lh_overlay:
+                overlay = args.lh_overlay
+            elif args.hemi == "rh" and args.rh_overlay:
+                overlay = args.rh_overlay
+            elif args.lh_overlay and not fs_mode:
+                raise ValueError(
+                    "-lh/--lh_overlay is only valid in FreeSurfer mode (with --hemi lh)."
+                )
+            elif args.rh_overlay and not fs_mode:
+                raise ValueError(
+                    "-rh/--rh_overlay is only valid in FreeSurfer mode (with --hemi rh)."
+                )
+
+        if overlay and args.annot:
+            raise ValueError("Cannot combine --overlay/hemisphere overlay and --annot.")
+        if not overlay and not args.annot and not general_mode:
+            raise ValueError(
+                "Either an overlay (-lh/-rh/--overlay) or --annot must be provided."
+            )
+
     except ValueError as e:
         parser.error(str(e))
 
+    # Build resolved mesh / bg_map / roi
+    if fs_mode:
+        hemi  = args.hemi
+        sdir  = args.sdir
+        if args.surf_name is None:
+            found = get_surf_name(sdir, hemi)
+            if found is None:
+                parser.error(f"Could not find a valid surface in {sdir} for hemi {hemi!r}.")
+            mesh_path = os.path.join(sdir, "surf", f"{hemi}.{found}")
+        else:
+            mesh_path = os.path.join(sdir, "surf", f"{hemi}.{args.surf_name}")
+        bg_map = os.path.join(sdir, "surf", f"{hemi}.{args.curv_name}") if args.curv_name else None
+        roi    = os.path.join(sdir, "label", f"{hemi}.{args.label_name}") if args.label_name else None
+        view   = ViewType.RIGHT if hemi == "rh" else ViewType.LEFT
+    else:
+        mesh_path = args.mesh
+        bg_map    = args.bg_map
+        roi       = args.roi
+        view      = _VIEW_CHOICES[args.view]
+
+    # ------------------------------------------------------------------
+    # Start the Qt app + OpenGL thread
+    # ------------------------------------------------------------------
     if QApplication is None:
         print(
             "ERROR: Interactive mode requires PyQt6. "
@@ -292,18 +423,19 @@ def run():
         ) from e
 
     current_fthresh_ = args.fthresh
-    current_fmax_ = args.fmax
+    current_fmax_    = args.fmax
 
     thread = threading.Thread(
         target=show_window,
-        args=("lh",),
         kwargs=dict(
-            overlay=args.lh_overlay,
-            annot=args.lh_annot,
-            sdir=args.sdir,
+            mesh=mesh_path,
+            overlay=overlay,
+            annot=args.annot,
+            bg_map=bg_map,
+            roi=roi,
             invert=args.invert,
-            surfname=args.surf_name,
             specular=args.specular,
+            view=view,
         ),
     )
     thread.start()

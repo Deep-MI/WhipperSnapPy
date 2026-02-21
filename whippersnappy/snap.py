@@ -48,54 +48,59 @@ def snap1(
     brain_scale=1.5,
     ambient=0.0,
 ):
-    """Render a single static snapshot of a surface view.
+    """Render a single static snapshot of a surface mesh.
 
     This function opens an OpenGL context, uploads the provided
     surface geometry and colors (overlay or annotation), renders the scene
-    for a single view, captures the framebuffer, and returns a PIL Image
-    containing the rendered brain view. When ``outpath`` is provided the
-    image is also written to disk.
+    for a single view, captures the framebuffer, and returns a PIL Image.
+    When ``outpath`` is provided the image is also written to disk.
+
+    The mesh can be any triangular surface — not just brain surfaces.
+    Supported file formats: FreeSurfer binary surface (e.g. ``lh.white``),
+    ASCII OFF (``.off``), legacy ASCII VTK PolyData (``.vtk``), ASCII PLY
+    (``.ply``), or a ``(vertices, faces)`` numpy array tuple.
 
     Parameters
     ----------
     mesh : str or tuple of (array-like, array-like)
-        Path to the surface file (FreeSurfer-format, e.g. ``"lh.white"``) **or**
-        a ``(vertices, faces)`` tuple where *vertices* is (N, 3) float and
-        *faces* is (M, 3) int.
+        Path to a mesh file (FreeSurfer binary, ``.off``, ``.vtk``, or
+        ``.ply``) **or** a ``(vertices, faces)`` tuple where *vertices* is
+        (N, 3) float and *faces* is (M, 3) int.
     outpath : str or None, optional
         When provided, the resulting image is saved to this path.
     overlay : str, array-like, or None, optional
-        Overlay file path (.mgh or FreeSurfer morph) **or** a (N,) array of
-        per-vertex scalar values.  If ``None``, coloring falls back to
+        Overlay file path (``.mgh`` or FreeSurfer morph) **or** a (N,) array
+        of per-vertex scalar values.  If ``None``, coloring falls back to
         background shading / annotation.
     annot : str, tuple, or None, optional
         Path to a FreeSurfer .annot file **or** a ``(labels, ctab)`` /
         ``(labels, ctab, names)`` tuple with per-vertex labels.
     bg_map : str, array-like, or None, optional
-        Path to a curvature/morph file **or** a (N,) array whose sign
+        Path to a per-vertex scalar file **or** a (N,) array whose sign
         determines light/dark background shading for non-overlay vertices.
     roi : str, array-like, or None, optional
         Path to a FreeSurfer label file **or** a (N,) boolean array.
         Vertices with ``True`` receive overlay coloring; others fall back
         to *bg_map* shading.
     view : ViewType, optional
-        Which pre-defined view to render (left, right, front, ...). Default is ``ViewType.LEFT``.
+        Which pre-defined view to render (left, right, front, ...).
+        Default is ``ViewType.LEFT``.
     viewmat : 4x4 matrix-like, optional
         Optional view matrix to override the pre-defined view.
     width, height : int, optional
-        Requested overall canvas width/height in pixels. Defaults to (700x500).
+        Output canvas size in pixels. Defaults to (700×500).
     fthresh, fmax : float or None, optional
         Threshold and saturation values for overlay coloring.
     caption, caption_x, caption_y, caption_scale : str/float, optional
-        Caption text and layout parameters. Caption defaults to ``None`` and caption_scale defaults to 1.
+        Caption text and layout parameters.
     invert : bool, optional
         Invert the color scale. Default is ``False``.
     colorbar : bool, optional
         If True, render a colorbar when an overlay is present. Default is ``True``.
     colorbar_x, colorbar_y, colorbar_scale : float, optional
-        Colorbar positioning and scale flags. Scale defaults to 1.
+        Colorbar positioning and scale. Scale defaults to 1.
     orientation : OrientationType, optional
-        Orientation of the colorbar (HORIZONTAL/VERTICAL). Default is ``OrientationType.HORIZONTAL``.
+        Colorbar orientation (HORIZONTAL/VERTICAL). Default is ``OrientationType.HORIZONTAL``.
     color_mode : ColorSelection, optional
         Which sign of overlay to color (POSITIVE/NEGATIVE/BOTH). Default is ``ColorSelection.BOTH``.
     font_file : str or None, optional
@@ -110,7 +115,7 @@ def snap1(
     Returns
     -------
     PIL.Image.Image
-        Returns a PIL Image object containing the rendered snapshot.
+        Rendered snapshot as a PIL Image.
 
     Raises
     ------
@@ -120,22 +125,27 @@ def snap1(
         If the overlay contains no values to display for the chosen
         color_mode.
     FileNotFoundError
-        If required surface files cannot be found when deriving from
-        SUBJECTS_DIR in multi-view helpers.
+        If a required file cannot be found.
 
     Examples
     --------
-    >>> from whippersnappy import snap1
-    >>> img = snap1('fsaverage/surf/lh.white', overlay='fsaverage/surf/lh.thickness',
-    ...             bg_map='fsaverage/surf/lh.curv', roi='fsaverage/label/lh.cortex.label')
-    >>> img.save('/tmp/lh.png')
+    FreeSurfer surface with overlay::
 
-    Array inputs::
+        >>> from whippersnappy import snap1
+        >>> img = snap1('lh.white', overlay='lh.thickness',
+        ...             bg_map='lh.curv', roi='lh.cortex.label')
+        >>> img.save('/tmp/lh.png')
 
-    >>> import numpy as np
-    >>> v = np.random.randn(100, 3).astype(np.float32)
-    >>> f = np.array([[0, 1, 2]], dtype=np.uint32)
-    >>> img = snap1((v, f))
+    Array inputs (any triangular mesh)::
+
+        >>> import numpy as np
+        >>> v = np.random.randn(100, 3).astype(np.float32)
+        >>> f = np.array([[0, 1, 2]], dtype=np.uint32)
+        >>> img = snap1((v, f))
+
+    OFF / VTK / PLY file::
+
+        >>> img = snap1('mesh.off', overlay='values.mgh')
     """
     ref_width = 700
     ref_height = 500
@@ -288,11 +298,12 @@ def snap4(
     ----------
     lh_overlay, rh_overlay : str, array-like, or None
         Left/right hemisphere overlay — either a file path (FreeSurfer morph
-        or .mgh) or a per-vertex scalar array.  Mutually required if either
-        is provided.
+        or .mgh) or a per-vertex scalar array.  Typically provided as a pair
+        for a coherent two-hemisphere color scale.
     lh_annot, rh_annot : str, tuple, or None
         Left/right hemisphere annotation — either a path to a .annot file or
         a ``(labels, ctab)`` / ``(labels, ctab, names)`` tuple.
+        Cannot be combined with ``lh_overlay``/``rh_overlay``.
     fthresh, fmax : float or None
         Threshold and saturation for overlay coloring.  Auto-estimated when
         ``None``.
@@ -531,17 +542,19 @@ def snap_rotate(
 
     Rotates the view around the vertical (Y) axis in ``n_frames`` equal
     steps, captures each frame via OpenGL, and encodes the result into a
-    compressed video file using ``imageio`` with the ``ffmpeg`` backend
-    (provided by ``imageio-ffmpeg``).
+    video file.  An animated GIF can be produced by passing an ``outpath``
+    ending in ``.gif``; in that case ``imageio-ffmpeg`` is not required.
 
-    An animated GIF can also be produced by passing an ``outpath`` ending
-    in ``.gif``; in that case ``imageio-ffmpeg`` is not required.
+    The mesh can be any triangular surface — not just brain surfaces.
+    Supported file formats: FreeSurfer binary surface, ASCII OFF (``.off``),
+    legacy ASCII VTK PolyData (``.vtk``), ASCII PLY (``.ply``), or a
+    ``(vertices, faces)`` numpy array tuple.
 
     Parameters
     ----------
     mesh : str or tuple of (array-like, array-like)
-        Path to the surface file (FreeSurfer binary format, e.g. ``lh.white``)
-        **or** a ``(vertices, faces)`` tuple.
+        Path to a mesh file (FreeSurfer binary, ``.off``, ``.vtk``, or
+        ``.ply``) **or** a ``(vertices, faces)`` tuple.
     outpath : str
         Destination file path.  The extension controls the output format:
 

@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
 """CLI entry point for single-mesh snapshot and rotation video via snap1/snap_rotate.
 
-Renders a single surface mesh from a chosen viewpoint and saves it as a PNG
-image. Alternatively, pass ``--rotate`` to produce a full 360° rotation video
-(MP4, WebM, or GIF).
+Renders any triangular surface mesh from a chosen viewpoint and saves it as a
+PNG image. Alternatively, pass ``--rotate`` to produce a full 360° rotation
+video (MP4, WebM, or GIF).
+
+The mesh can be a FreeSurfer binary surface (e.g. ``lh.white``), an ASCII OFF
+file (``mesh.off``), a legacy ASCII VTK PolyData file (``mesh.vtk``), or an
+ASCII PLY file (``mesh.ply``).
 
 Usage::
 
-    # Static single-view snapshot (lateral view, thickness overlay)
+    # FreeSurfer surface — lateral view with thickness overlay
     whippersnap1 <subject_dir>/surf/lh.white \\
         --overlay <subject_dir>/surf/lh.thickness \\
         --bg-map  <subject_dir>/surf/lh.curv \\
         --roi     <subject_dir>/label/lh.cortex.label \\
         --view left --fthresh 1.5 --fmax 4.0 \\
         -o snap1.png
+
+    # OFF / VTK / PLY mesh with a numpy-saved overlay
+    whippersnap1 mesh.off --overlay values.mgh -o snap1.png
+    whippersnap1 mesh.vtk -o snap1.png
+    whippersnap1 mesh.ply --overlay values.mgh -o snap1.png
 
     # 360° rotation video
     whippersnap1 <subject_dir>/surf/lh.white \\
@@ -24,7 +33,7 @@ Usage::
     # Parcellation annotation
     whippersnap1 <subject_dir>/surf/lh.white \\
         --annot <subject_dir>/label/lh.aparc.annot \\
-        --view lateral -o snap_annot.png
+        --view left -o snap_annot.png
 
 See ``whippersnap1 --help`` for the full list of options.
 For four-view batch rendering use ``whippersnap4``.
@@ -67,11 +76,13 @@ def run():
     -----
     **Snapshot options** (default mode):
 
-    * ``mesh`` — path to the surface file (FreeSurfer binary, e.g. ``lh.white``).
-    * ``--overlay`` — per-vertex scalar overlay (e.g. ``lh.thickness``).
+    * ``mesh`` — path to any triangular surface mesh: FreeSurfer binary
+      (e.g. ``lh.white``), ASCII OFF (``.off``), legacy ASCII VTK PolyData
+      (``.vtk``), or ASCII PLY (``.ply``).
+    * ``--overlay`` — per-vertex scalar overlay (e.g. ``lh.thickness`` or a ``.mgh`` file).
     * ``--annot`` — FreeSurfer ``.annot`` parcellation file.
-    * ``--label`` — label file used to mask overlay values to the cortex.
-    * ``--curv`` — curvature file for sulcal depth shading of uncolored vertices.
+    * ``--roi`` — FreeSurfer label file defining vertices to include in overlay coloring.
+    * ``--bg-map`` — per-vertex scalar file whose sign controls light/dark background shading.
     * ``--view`` — camera direction: ``left``, ``right``, ``front``, ``back``,
       ``top``, ``bottom`` (default: ``left``).
     * ``--fthresh`` / ``--fmax`` — overlay threshold and saturation values.
@@ -104,8 +115,11 @@ def run():
     parser.add_argument(
         "mesh",
         type=str,
-        help="Path to the surface file. FreeSurfer binary format (e.g. lh.white) "
-             "or any mesh readable by the geometry module.",
+        help=(
+            "Path to the surface mesh file. Supported formats: "
+            "FreeSurfer binary surface (e.g. lh.white, rh.pial), "
+            "ASCII OFF (.off), legacy ASCII VTK PolyData (.vtk), ASCII PLY (.ply)."
+        ),
     )
 
     # --- Output ---

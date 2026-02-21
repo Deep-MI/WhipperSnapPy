@@ -1,8 +1,12 @@
 # WhipperSnapPy
 
-WhipperSnapPy is a Python/OpenGL tool to render FreeSurfer and FastSurfer
-surface models with color overlays or parcellations and generate screenshots
-— from the command line, in Jupyter notebooks, or via a desktop GUI.
+WhipperSnapPy is a Python/OpenGL tool to render triangular surface meshes
+with color overlays or parcellations and generate screenshots — from the
+command line, in Jupyter notebooks, or via a desktop GUI.
+
+It works with FreeSurfer and FastSurfer brain surfaces as well as any
+triangle mesh in OFF, legacy ASCII VTK PolyData, or ASCII PLY format, or
+passed directly as a NumPy ``(vertices, faces)`` tuple.
 
 ## Installation
 
@@ -50,18 +54,23 @@ whippersnap4 -lh $LH_OVERLAY \
 
 ### Single-view snapshot (`whippersnap1`)
 
-Renders one surface view:
+Renders one view of any triangular surface mesh:
 
 ```bash
 whippersnap1 $SUBJECT_DIR/surf/lh.white \
              --overlay $LH_OVERLAY \
+             --bg-map  $SUBJECT_DIR/surf/lh.curv \
+             --roi     $SUBJECT_DIR/label/lh.cortex.label \
              --view left \
              -o snap1.png
+
+# Also works with OFF / VTK / PLY
+whippersnap1 mesh.off --overlay values.mgh -o snap1.png
 ```
 
 ### Rotation video (`whippersnap1 --rotate`)
 
-Renders a 360° animation:
+Renders a 360° animation of any triangular surface mesh:
 
 ```bash
 whippersnap1 $SUBJECT_DIR/surf/lh.white \
@@ -72,11 +81,21 @@ whippersnap1 $SUBJECT_DIR/surf/lh.white \
 
 ### Desktop GUI (`whippersnap`)
 
-Launches an interactive Qt window with live threshold controls:
+Launches an interactive Qt window with live threshold controls.
+
+**General mode** — any triangular mesh:
 
 ```bash
 pip install 'whippersnappy[gui]'
-whippersnap --lh $LH_OVERLAY --sdir $SUBJECT_DIR
+whippersnap --mesh mesh.off --overlay values.mgh
+whippersnap --mesh lh.white --overlay lh.thickness --bg-map lh.curv
+```
+
+**FreeSurfer shortcut** — derive all paths from a subject directory:
+
+```bash
+whippersnap -sd $SUBJECT_DIR --hemi lh -lh $LH_OVERLAY
+whippersnap -sd $SUBJECT_DIR --hemi rh --annot rh.aparc.annot
 ```
 
 For all options run `whippersnap4 --help`, `whippersnap1 --help`, or `whippersnap --help`.
@@ -89,37 +108,42 @@ from whippersnappy import snap1, snap4, snap_rotate, plot3d
 
 | Function | Description |
 |---|---|
-| `snap1` | Single-view surface snapshot → PIL Image |
-| `snap4` | Four-view composed image (lateral/medial, both hemispheres) |
-| `snap_rotate` | 360° rotation video (MP4, WebM, or GIF) |
+| `snap1` | Single-view snapshot of any triangular mesh → PIL Image |
+| `snap4` | Four-view composed image (FreeSurfer subject, lateral/medial both hemispheres) |
+| `snap_rotate` | 360° rotation video of any triangular mesh (MP4, WebM, or GIF) |
 | `plot3d` | Interactive 3D WebGL viewer for Jupyter notebooks |
+
+**Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
+FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII VTK PolyData (`.vtk`), ASCII PLY (`.ply`), or a `(vertices, faces)` NumPy array tuple.
 
 ### Example
 
 ```python
 from whippersnappy import snap1, snap4
 
-# File-path inputs (FreeSurfer subject directory)
+# FreeSurfer surface with overlay
+img = snap1('lh.white',
+            overlay='lh.thickness',
+            bg_map='lh.curv',
+            roi='lh.cortex.label')
+img.save('snap1.png')
+
+# Four-view overview (FreeSurfer subject directory)
 img = snap4(sdir='/path/to/subject',
             lh_overlay='/path/to/lh.thickness',
             rh_overlay='/path/to/rh.thickness',
             colorbar=True, caption='Cortical Thickness (mm)')
 img.save('snap4.png')
 
-# Single view with background shading and cortex mask
-img = snap1('fsaverage/surf/lh.white',
-            overlay='fsaverage/surf/lh.thickness',
-            bg_map='fsaverage/surf/lh.curv',
-            roi='fsaverage/label/lh.cortex.label')
-img.save('snap1.png')
+# OFF / VTK / PLY mesh
+img = snap1('mesh.off', overlay='values.mgh')
 
 # Array inputs (e.g. from LaPy or trimesh)
 import numpy as np
 v = np.random.randn(1000, 3).astype(np.float32)
-f = np.array([[0, 1, 2]], dtype=np.uint32)  # minimal example
-my_values = np.random.randn(1000).astype(np.float32)
-tria_curv  = np.random.randn(1000).astype(np.float32)
-img = snap1((v, f), overlay=my_values, bg_map=tria_curv)
+f = np.array([[0, 1, 2]], dtype=np.uint32)
+overlay = np.random.randn(1000).astype(np.float32)
+img = snap1((v, f), overlay=overlay)
 ```
 
 CLI usage:
@@ -133,6 +157,7 @@ whippersnap4 -lh lh.thickness -rh rh.thickness -sd /path/to/subject -o snap4.png
 ```
 
 See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
+
 
 ## Docker
 
