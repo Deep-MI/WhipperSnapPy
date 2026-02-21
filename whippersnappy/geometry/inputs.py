@@ -13,10 +13,15 @@ import numpy as np
 
 from ..utils.colormap import mask_label
 from .mesh_io import read_mesh as _read_mesh_by_ext
+from .overlay_io import read_overlay as _read_overlay_by_ext
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 
 # Extensions handled by the lightweight ASCII mesh readers in mesh_io.py
-_MESH_IO_EXTS = frozenset({".off", ".vtk", ".ply"})
+# (includes GIfTI surface via nibabel)
+_MESH_IO_EXTS = frozenset({".off", ".vtk", ".ply", ".gii"})
+
+# Extensions handled by overlay_io.py (everything except FreeSurfer morph / MGH)
+_OVERLAY_IO_EXTS = frozenset({".txt", ".csv", ".npy", ".npz", ".gii"})
 
 
 def resolve_mesh(mesh):
@@ -49,8 +54,9 @@ def resolve_mesh(mesh):
         indices are out of range.
     """
     if isinstance(mesh, str):
-        ext = os.path.splitext(mesh)[1].lower()
-        if ext in _MESH_IO_EXTS:
+        lower = mesh.lower()
+        # Compound extension must be checked before os.path.splitext
+        if lower.endswith(".surf.gii") or os.path.splitext(lower)[1] in _MESH_IO_EXTS:
             vertices, faces = _read_mesh_by_ext(mesh)
         else:
             v_raw, f_raw = read_geometry(mesh, read_metadata=False)
@@ -85,10 +91,25 @@ def resolve_mesh(mesh):
 
 
 def _load_overlay_from_file(path):
-    """Load a 1-D per-vertex overlay array from a file path."""
-    _, ext = os.path.splitext(path)
-    if ext == ".mgh":
+    """Load a 1-D per-vertex overlay array from a file path.
+
+    Routing logic:
+
+    * ``.mgh`` / ``.mgz`` → :func:`read_mgh_data`
+    * ``.txt``, ``.csv``, ``.npy``, ``.npz``, ``.gii``,
+      ``.func.gii``, ``.label.gii`` → :func:`overlay_io.read_overlay`
+    * anything else → :func:`read_morph_data` (FreeSurfer binary morph)
+    """
+    lower = path.lower()
+    # Compound GIfTI extensions must be checked before splitext
+    if lower.endswith(".func.gii") or lower.endswith(".label.gii"):
+        return _read_overlay_by_ext(path)
+    _, ext = os.path.splitext(lower)
+    if ext in (".mgh", ".mgz"):
         return read_mgh_data(path)
+    if ext in _OVERLAY_IO_EXTS:
+        return _read_overlay_by_ext(path)
+    # Default: FreeSurfer binary morph (curv, thickness, etc. — often no ext)
     return read_morph_data(path)
 
 
@@ -168,8 +189,16 @@ def resolve_roi(roi, *, n_vertices):
     ----------
     roi : None, str, or array-like
         * ``None`` — no masking; returns ``None``.
-        * ``str`` — path to a FreeSurfer label file.  Vertices listed in the
-          file are marked ``True``; all others are ``False``.
+        * ``str`` — file path.  Routing by extension:
+
+          - ``.txt``, ``.csv``, ``.npy``, ``.npz``, ``.gii``,
+            ``.func.gii``, ``.label.gii`` — loaded via
+            :func:`_load_overlay_from_file` and cast to ``bool``.
+            Non-zero / ``True`` values → vertex included.
+          - Any other path (including FreeSurfer label files with no
+            standard extension, e.g. ``lh.cortex.label``) — loaded via
+            :func:`~whippersnappy.utils.colormap.mask_label`.
+
         * array-like — converted to ``np.bool_``; must have shape
           ``(n_vertices,)``.
     n_vertices : int
@@ -187,11 +216,20 @@ def resolve_roi(roi, *, n_vertices):
     if roi is None:
         return None
     if isinstance(roi, str):
-        # Use mask_label to get vertices included in the label (NaN = excluded).
-        sentinel = np.ones(n_vertices, dtype=np.float32)
-        masked = mask_label(sentinel, roi)
-        # Vertices NOT in the label were set to NaN → roi = ~isnan
-        arr = ~np.isnan(masked)
+        lower = roi.lower()
+        use_overlay_io = (
+            lower.endswith(".func.gii")
+            or lower.endswith(".label.gii")
+            or os.path.splitext(lower)[1] in _OVERLAY_IO_EXTS
+        )
+        if use_overlay_io:
+            raw = _load_overlay_from_file(roi)
+            arr = raw.astype(bool)
+        else:
+            # FreeSurfer label file: vertices listed → True, rest → False
+            sentinel = np.ones(n_vertices, dtype=np.float32)
+            masked = mask_label(sentinel, roi)
+            arr = ~np.isnan(masked)
     else:
         arr = np.asarray(roi, dtype=bool)
     if arr.shape != (n_vertices,):

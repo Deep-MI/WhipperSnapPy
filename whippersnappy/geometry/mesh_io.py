@@ -6,16 +6,23 @@ This module implements pure-Python (stdlib + numpy only) readers for:
 * **VTK legacy ASCII PolyData** — ``DATASET POLYDATA`` with POINTS/POLYGONS
 * **PLY ASCII** — Stanford PLY, ASCII encoding, triangles only
 
+And a nibabel-backed reader for:
+
+* **GIfTI surface** (``.surf.gii`` / ``.gii``) — loaded via nibabel;
+  requires the ``NIFTI_INTENT_POINTSET`` (1008) + ``NIFTI_INTENT_TRIANGLE``
+  (1009) data arrays that every standard surface GIfTI file contains.
+
 All readers return ``(vertices, faces)`` where
 
 * ``vertices`` — ``float32`` array of shape ``(N, 3)``
 * ``faces``    — ``uint32``  array of shape ``(M, 3)``
 
 The public dispatcher :func:`read_mesh` routes by file extension
-(``.off``, ``.vtk``, ``.ply``).  For FreeSurfer surfaces (no standard
-extension) use the existing :func:`whippersnappy.geometry.read_geometry`
-directly, or go through :func:`whippersnappy.geometry.inputs.resolve_mesh`
-which handles the routing automatically.
+(``.off``, ``.vtk``, ``.ply``, ``.surf.gii``, ``.gii``).  For FreeSurfer
+surfaces (no standard extension) use the existing
+:func:`whippersnappy.geometry.read_geometry` directly, or go through
+:func:`whippersnappy.geometry.inputs.resolve_mesh` which handles the routing
+automatically.
 """
 
 import numpy as np
@@ -443,20 +450,130 @@ def read_ply_ascii(path):
 
 
 # ---------------------------------------------------------------------------
+# GIfTI surface reader
+# ---------------------------------------------------------------------------
+
+# NIFTI intent codes relevant to GIfTI surface files
+_GIFTI_INTENT_POINTSET = 1008   # NIFTI_INTENT_POINTSET — vertex coordinates
+_GIFTI_INTENT_TRIANGLE = 1009   # NIFTI_INTENT_TRIANGLE — face indices
+
+
+def read_gifti_surface(path):
+    """Read a GIfTI surface file (``.surf.gii`` or ``.gii``).
+
+    A standard GIfTI surface file contains exactly two data arrays:
+
+    * One with intent ``NIFTI_INTENT_POINTSET`` (1008) — vertex coordinates,
+      shape ``(N, 3)``, dtype ``float32``.
+    * One with intent ``NIFTI_INTENT_TRIANGLE`` (1009) — face indices,
+      shape ``(M, 3)``, dtype ``int32``.
+
+    This is the format produced by FreeSurfer's ``mris_convert``,
+    Connectome Workbench, fMRIPrep, and most HCP pipelines.
+
+    Parameters
+    ----------
+    path : str
+        Path to a GIfTI surface file.
+
+    Returns
+    -------
+    vertices : numpy.ndarray, shape (N, 3), dtype float32
+    faces : numpy.ndarray, shape (M, 3), dtype uint32
+
+    Raises
+    ------
+    ImportError
+        If ``nibabel`` is not installed.
+    ValueError
+        If the file does not contain the expected POINTSET and TRIANGLE
+        data arrays, or if the arrays have unexpected shapes.
+        Also raised if the file appears to be a functional/label GIfTI
+        rather than a surface GIfTI (i.e. no POINTSET array found) — in
+        that case, use ``resolve_overlay()`` instead.
+    IOError
+        If the file cannot be opened or is not a valid GIfTI file.
+
+    Examples
+    --------
+    >>> v, f = read_gifti_surface('lh.white.surf.gii')
+    >>> v.shape   # (N, 3)
+    >>> f.shape   # (M, 3)
+    """
+    try:
+        import nibabel as nib  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "Reading GIfTI surface files requires nibabel. "
+            "Install with: pip install nibabel"
+        ) from exc
+
+    img = nib.load(path)
+    if not hasattr(img, "darrays") or not img.darrays:
+        raise ValueError(
+            f"GIfTI file {path!r} contains no data arrays.  "
+            f"Expected a surface file with POINTSET and TRIANGLE arrays."
+        )
+
+    coords_arr = None
+    faces_arr  = None
+    for da in img.darrays:
+        if da.intent == _GIFTI_INTENT_POINTSET and coords_arr is None:
+            coords_arr = da.data
+        elif da.intent == _GIFTI_INTENT_TRIANGLE and faces_arr is None:
+            faces_arr = da.data
+
+    if coords_arr is None:
+        raise ValueError(
+            f"GIfTI file {path!r} has no POINTSET (intent 1008) array.  "
+            f"If this is a functional or label file, use resolve_overlay() instead."
+        )
+    if faces_arr is None:
+        raise ValueError(
+            f"GIfTI file {path!r} has no TRIANGLE (intent 1009) array.  "
+            f"A valid surface GIfTI must contain both POINTSET and TRIANGLE arrays."
+        )
+
+    vertices = np.asarray(coords_arr, dtype=np.float32)
+    faces    = np.asarray(faces_arr,  dtype=np.uint32)
+
+    if vertices.ndim != 2 or vertices.shape[1] != 3:
+        raise ValueError(
+            f"GIfTI POINTSET array in {path!r} has unexpected shape "
+            f"{vertices.shape}; expected (N, 3)."
+        )
+    if faces.ndim != 2 or faces.shape[1] != 3:
+        raise ValueError(
+            f"GIfTI TRIANGLE array in {path!r} has unexpected shape "
+            f"{faces.shape}; expected (M, 3)."
+        )
+    if faces.size > 0:
+        n_verts = vertices.shape[0]
+        if int(faces.max()) >= n_verts or int(faces.min()) < 0:
+            raise ValueError(
+                f"GIfTI face indices out of range [0, {n_verts}) in {path!r}."
+            )
+
+    return vertices, faces
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
 _READERS = {
-    ".off": read_off,
-    ".vtk": read_vtk_ascii_polydata,
-    ".ply": read_ply_ascii,
+    ".off":      read_off,
+    ".vtk":      read_vtk_ascii_polydata,
+    ".ply":      read_ply_ascii,
+    ".gii":      read_gifti_surface,
+    ".surf.gii": read_gifti_surface,   # compound extension — checked first
 }
 
 _SUPPORTED = ", ".join(sorted(_READERS))
 
 
 def read_mesh(path):
-    """Read a triangle mesh from an OFF, VTK, or PLY file.
+    """Read a triangle mesh from an OFF, VTK, PLY, or GIfTI surface file.
 
     Dispatches to the appropriate reader based on the file extension.
     For FreeSurfer binary surfaces (which typically have no standard
@@ -469,7 +586,8 @@ def read_mesh(path):
     ----------
     path : str
         Path to a mesh file.  Extension must be one of:
-        ``.off``, ``.vtk``, ``.ply`` (case-insensitive).
+        ``.off``, ``.vtk``, ``.ply``, ``.surf.gii``, ``.gii``
+        (case-insensitive).
 
     Returns
     -------
@@ -481,8 +599,12 @@ def read_mesh(path):
     ValueError
         If the extension is not recognised.
     """
-    import os
-    ext = os.path.splitext(path)[1].lower()
+    import os as _os
+    lower = path.lower()
+    # Check compound extension first (.surf.gii before .gii)
+    if lower.endswith(".surf.gii"):
+        return read_gifti_surface(path)
+    ext = _os.path.splitext(lower)[1]
     reader = _READERS.get(ext)
     if reader is None:
         raise ValueError(

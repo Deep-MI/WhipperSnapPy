@@ -12,6 +12,7 @@ import pytest
 
 from whippersnappy.geometry.inputs import resolve_mesh
 from whippersnappy.geometry.mesh_io import (
+    read_gifti_surface,
     read_mesh,
     read_off,
     read_ply_ascii,
@@ -395,3 +396,122 @@ class TestResolveMeshRouting:
         f_in = np.array([[0, 1, 99]], dtype=np.uint32)  # index 99 out of range
         with pytest.raises(ValueError, match="out of range"):
             resolve_mesh((v_in, f_in))
+
+
+# ---------------------------------------------------------------------------
+# GIfTI surface reader
+# ---------------------------------------------------------------------------
+
+def _make_surf_gii(verts, faces, suffix=".surf.gii"):
+    """Write a minimal GIfTI surface file and return its path."""
+    import nibabel as nib
+    from nibabel import nifti1
+    _INTENT_POINTSET = 1008
+    _INTENT_TRIANGLE = 1009
+    coords_da = nib.gifti.GiftiDataArray(
+        data=verts.astype(np.float32),
+        intent=_INTENT_POINTSET,
+        datatype="NIFTI_TYPE_FLOAT32",
+    )
+    faces_da = nib.gifti.GiftiDataArray(
+        data=faces.astype(np.int32),
+        intent=_INTENT_TRIANGLE,
+        datatype="NIFTI_TYPE_INT32",
+    )
+    img = nib.gifti.GiftiImage(darrays=[coords_da, faces_da])
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    nib.save(img, path)
+    return path
+
+
+_V4 = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float32)
+_F4 = np.array([[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]], dtype=np.uint32)
+
+
+class TestReadGiftiSurface:
+    def test_surf_gii_basic(self):
+        path = _make_surf_gii(_V4, _F4, ".surf.gii")
+        try:
+            v, f = read_gifti_surface(path)
+        finally:
+            os.unlink(path)
+        assert v.shape == (4, 3)
+        assert v.dtype == np.float32
+        assert f.shape == (4, 3)
+        assert f.dtype == np.uint32
+        np.testing.assert_allclose(v, _V4, atol=1e-6)
+        np.testing.assert_array_equal(f, _F4)
+
+    def test_plain_gii_extension(self):
+        """A .gii file with POINTSET+TRIANGLE should also be loaded as surface."""
+        path = _make_surf_gii(_V4, _F4, ".gii")
+        try:
+            v, f = read_gifti_surface(path)
+        finally:
+            os.unlink(path)
+        assert v.shape == (4, 3)
+        assert f.shape == (4, 3)
+
+    def test_no_pointset_raises(self):
+        """A plain scalar .gii without POINTSET arrays should raise."""
+        import nibabel as nib
+        scalar_da = nib.gifti.GiftiDataArray(
+            data=np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+            intent=0,  # NIFTI_INTENT_NONE
+        )
+        img = nib.gifti.GiftiImage(darrays=[scalar_da])
+        fd, path = tempfile.mkstemp(suffix=".gii")
+        os.close(fd)
+        nib.save(img, path)
+        try:
+            with pytest.raises(ValueError, match="POINTSET"):
+                read_gifti_surface(path)
+        finally:
+            os.unlink(path)
+
+    def test_no_triangle_raises(self):
+        """A .gii with only a POINTSET but no TRIANGLE array should raise."""
+        import nibabel as nib
+        coords_da = nib.gifti.GiftiDataArray(
+            data=_V4.astype(np.float32),
+            intent=1008,
+        )
+        img = nib.gifti.GiftiImage(darrays=[coords_da])
+        fd, path = tempfile.mkstemp(suffix=".gii")
+        os.close(fd)
+        nib.save(img, path)
+        try:
+            with pytest.raises(ValueError, match="TRIANGLE"):
+                read_gifti_surface(path)
+        finally:
+            os.unlink(path)
+
+
+class TestReadMeshGiftiDispatch:
+    def test_surf_gii_dispatched(self):
+        path = _make_surf_gii(_V4, _F4, ".surf.gii")
+        try:
+            v, f = read_mesh(path)
+        finally:
+            os.unlink(path)
+        assert v.shape == (4, 3)
+
+    def test_gii_dispatched(self):
+        path = _make_surf_gii(_V4, _F4, ".gii")
+        try:
+            v, f = read_mesh(path)
+        finally:
+            os.unlink(path)
+        assert v.shape == (4, 3)
+
+    def test_resolve_mesh_surf_gii(self):
+        path = _make_surf_gii(_V4, _F4, ".surf.gii")
+        try:
+            v, f = resolve_mesh(path)
+        finally:
+            os.unlink(path)
+        assert v.shape == (4, 3)
+        assert v.dtype == np.float32
+        assert f.dtype == np.uint32
+
