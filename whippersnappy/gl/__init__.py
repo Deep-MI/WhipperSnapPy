@@ -25,7 +25,14 @@ from .utils import (
     setup_vertex_attributes,
     terminate_context,
 )
-from .views import get_view_matrices, get_view_matrix
+from .views import (
+    ViewState,
+    arcball_rotation_matrix,
+    arcball_vector,
+    compute_view_matrix,
+    get_view_matrices,
+    get_view_matrix,
+)
 
 __all__ = [
     'create_vao', 'compile_shader_program', 'setup_buffers', 'setup_vertex_attributes',
@@ -34,4 +41,6 @@ __all__ = [
     'make_model', 'make_projection', 'make_view',
     'get_default_shaders', 'get_view_matrices', 'get_view_matrix',
     'get_webgl_shaders', 'terminate_context',
+    'ViewState', 'compute_view_matrix',
+    'arcball_vector', 'arcball_rotation_matrix',
 ]

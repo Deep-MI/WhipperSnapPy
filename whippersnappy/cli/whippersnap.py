@@ -47,17 +47,24 @@ except Exception:
 
 from .._version import __version__
 from ..geometry import get_surf_name, prepare_geometry
-from ..gl import get_view_matrices, init_window, setup_shader
+from ..gl import (
+    ViewState,
+    arcball_rotation_matrix,
+    arcball_vector,
+    compute_view_matrix,
+    get_view_matrices,
+    init_window,
+    setup_shader,
+)
 from ..utils.types import ViewType
 
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Global state shared between the GL render loop and the Qt config panel.
+# Global thresholds shared between the GL render loop and the Qt config panel.
 # All access is from the main thread — no locking needed.
 current_fthresh_ = None
 current_fmax_ = None
-app_window_closed_ = False
 
 
 def show_window(
@@ -75,8 +82,18 @@ def show_window(
     """Start a live interactive OpenGL+Qt window for viewing a triangular mesh.
 
     On macOS both GLFW/Cocoa and Qt require the main thread.  This function
-    creates a GLFW window, then hands control to a ``QTimer``-driven render
-    loop so that GLFW polling and Qt event processing share the main thread.
+    creates a GLFW window, registers GLFW input callbacks, then hands control
+    to a ``QTimer``-driven render loop so GLFW polling and Qt event processing
+    share the main thread.
+
+    Interaction
+    -----------
+    * **Left-drag** — arcball rotation in world space (no gimbal lock).
+    * **Right-drag / Middle-drag** — pan in screen space.
+    * **Scroll wheel** — zoom (Z-translation).
+    * **Arrow keys** — rotate in 2° increments.
+    * **R key / double-click** — reset view to initial preset.
+    * **Q key / ESC** — quit.
 
     Parameters
     ----------
@@ -106,8 +123,9 @@ def show_window(
     RuntimeError
         If the GLFW window or OpenGL context could not be created.
     """
-    global current_fthresh_, current_fmax_, app_window_closed_
+    global current_fthresh_, current_fmax_
 
+    import numpy as np  # noqa: PLC0415
     from PyQt6.QtCore import QTimer  # noqa: PLC0415
 
     wwidth  = 720
@@ -118,11 +136,23 @@ def show_window(
             "Could not create a GLFW window/context. OpenGL context unavailable."
         )
 
+    # ------------------------------------------------------------------
+    # Initialise view state and base view matrix
+    # ------------------------------------------------------------------
     view_mats = get_view_matrices()
-    viewmat   = view_mats[view]
-    rot_y     = pyrr.Matrix44.from_y_rotation(0)
-    ypos      = 0.0
+    base_view = view_mats[view]        # fixed orientation preset (→ transform uniform)
+    vs        = ViewState(zoom=0.0)    # zoom/pan packed into transform
 
+    _last_left_press_time = [0.0]
+
+    def _reset_view():
+        vs.rotation = np.eye(4, dtype=np.float32)
+        vs.pan      = np.zeros(2, dtype=np.float32)
+        vs.zoom     = 0.0
+
+    # ------------------------------------------------------------------
+    # Load mesh and compile shader
+    # ------------------------------------------------------------------
     meshdata, triangles, _fthresh, _fmax, _pos, _neg = prepare_geometry(
         mesh, overlay, annot, bg_map, roi,
         current_fthresh_, current_fmax_,
@@ -130,35 +160,152 @@ def show_window(
     )
     shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
 
-    logger.info("Keys:  Left/Right arrows → rotate   ESC → quit")
+    logger.info(
+        "Mouse: left-drag=rotate  right/middle-drag=pan  scroll=zoom  "
+        "R/double-click=reset  Q/ESC=quit"
+    )
+
+    # ------------------------------------------------------------------
+    # GLFW input callbacks
+    # ------------------------------------------------------------------
+
+    def _mouse_button_cb(win, button, action, _mods):
+        x, y = glfw.get_cursor_pos(win)
+        pos  = np.array([x, y], dtype=np.float64)
+
+        if button == glfw.MOUSE_BUTTON_LEFT:
+            vs.left_button_down = (action == glfw.PRESS)
+            if action == glfw.PRESS:
+                # Double-click detection (threshold: 300 ms)
+                now = glfw.get_time()
+                if now - _last_left_press_time[0] < 0.3:
+                    _reset_view()
+                _last_left_press_time[0] = now
+                vs.last_mouse_pos = pos
+            else:
+                vs.last_mouse_pos = None
+
+        elif button == glfw.MOUSE_BUTTON_RIGHT:
+            vs.right_button_down = (action == glfw.PRESS)
+            vs.last_mouse_pos = pos if action == glfw.PRESS else None
+
+        elif button == glfw.MOUSE_BUTTON_MIDDLE:
+            vs.middle_button_down = (action == glfw.PRESS)
+            vs.last_mouse_pos = pos if action == glfw.PRESS else None
+
+    def _cursor_pos_cb(win, x, y):
+        if vs.last_mouse_pos is None:
+            return
+        dx = x - vs.last_mouse_pos[0]
+        dy = y - vs.last_mouse_pos[1]
+
+        if vs.left_button_down:
+            # Arcball rotation — amplify drag for snappier feel
+            _sensitivity = 2.5
+            mx, my = vs.last_mouse_pos
+            v1 = arcball_vector(mx, my, wwidth, wheight)
+            v2 = arcball_vector(
+                mx + (x - mx) * _sensitivity,
+                my + (y - my) * _sensitivity,
+                wwidth, wheight,
+            )
+            delta = arcball_rotation_matrix(v2, v1)
+            vs.rotation = vs.rotation @ delta
+
+        elif vs.right_button_down or vs.middle_button_down:
+            # Pan in camera space — scale to normalised mesh units
+            pan_sensitivity = 1.0 / min(wwidth, wheight)
+            vs.pan[0] += dx * pan_sensitivity
+            vs.pan[1] -= dy * pan_sensitivity   # y is flipped
+
+        vs.last_mouse_pos = np.array([x, y], dtype=np.float64)
+
+    def _scroll_cb(_win, _x_off, y_off):
+        # scroll up (y_off > 0) → move camera closer (positive Z in camera space)
+        vs.zoom += y_off * 0.05
+        # Allow much further zoom out (e.g. -20.0)
+        vs.zoom  = float(np.clip(vs.zoom, -20.0, 4.5))
+
+    _arrow_keys = {glfw.KEY_RIGHT, glfw.KEY_LEFT, glfw.KEY_UP, glfw.KEY_DOWN}
+
+    def _key_cb(win, key, _scancode, action, _mods):
+        if action not in (glfw.PRESS, glfw.REPEAT):
+            # On key release, restore normal render rate
+            if key in _arrow_keys:
+                timer.setInterval(16)
+            return
+        delta = np.radians(3.0)
+        if key == glfw.KEY_RIGHT:
+            rot = np.array(pyrr.Matrix44.from_y_rotation(-delta), dtype=np.float32)
+        elif key == glfw.KEY_LEFT:
+            rot = np.array(pyrr.Matrix44.from_y_rotation(+delta), dtype=np.float32)
+        elif key == glfw.KEY_UP:
+            rot = np.array(pyrr.Matrix44.from_x_rotation(+delta), dtype=np.float32)
+        elif key == glfw.KEY_DOWN:
+            rot = np.array(pyrr.Matrix44.from_x_rotation(-delta), dtype=np.float32)
+        elif key == glfw.KEY_R:
+            _reset_view()
+            return
+        elif key == glfw.KEY_Q:
+            glfw.set_window_should_close(win, True)
+            return
+        else:
+            return
+        # Speed up render loop while key is held for smooth rotation
+        if key in _arrow_keys:
+            timer.setInterval(8)
+        vs.rotation = vs.rotation @ rot
+
+    glfw.set_mouse_button_callback(window, _mouse_button_cb)
+    glfw.set_cursor_pos_callback(window,   _cursor_pos_cb)
+    glfw.set_scroll_callback(window,       _scroll_cb)
+    glfw.set_key_callback(window,          _key_cb)
+
+    from PyQt6.QtCore import QEventLoop  # noqa: PLC0415
+    loop = QEventLoop()
+
+    _quitting = [False]  # guard so we only shut down once
+
+    def _begin_quit():
+        """Stop rendering and GLFW, then exit the event loop."""
+        if _quitting[0]:
+            return
+        _quitting[0] = True
+        timer.stop()
+        try:
+            glfw.terminate()
+        except Exception:
+            pass
+        # Defer loop.quit() so this callback fully unwinds first,
+        # avoiding QThreadStorage destruction mid-stack.
+        QTimer.singleShot(0, loop.quit)
 
     def _render_frame():
-        """Called by QTimer every frame; does one GLFW poll + one GL draw."""
-        global current_fthresh_, current_fmax_, app_window_closed_
-        nonlocal meshdata, triangles, shader, rot_y, ypos
+        """Called by QTimer every 16 ms on the main thread."""
+        global current_fthresh_, current_fmax_
+        nonlocal meshdata, triangles, shader
 
-        # Check GLFW close conditions
+        if _quitting[0]:
+            return
+
         if (
             glfw.get_key(window, glfw.KEY_ESCAPE) == glfw.PRESS
             or glfw.window_should_close(window)
-            or app_window_closed_
         ):
-            timer.stop()
-            glfw.terminate()
-            app.quit()
+            _begin_quit()
             return
 
         glfw.poll_events()
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-        # Re-render if Qt sliders changed the thresholds
+        # Re-prepare geometry if Qt sliders changed thresholds
         if config_window is not None:
             new_fthresh = config_window.get_fthresh_value()
             new_fmax    = config_window.get_fmax_value()
             if new_fthresh != current_fthresh_ or new_fmax != current_fmax_:
                 current_fthresh_ = new_fthresh
                 current_fmax_    = new_fmax
-                meshdata, triangles, _fthresh, _fmax, _pos, _neg = prepare_geometry(
+                meshdata, triangles, _ft, _fm, _p, _n = prepare_geometry(
                     mesh, overlay, annot, bg_map, roi,
                     current_fthresh_, current_fmax_,
                     invert=invert,
@@ -167,34 +314,24 @@ def show_window(
                     meshdata, triangles, wwidth, wheight, specular=specular
                 )
 
-        # Keyboard rotation
-        if glfw.get_key(window, glfw.KEY_RIGHT) == glfw.PRESS:
-            ypos += 0.004
-        if glfw.get_key(window, glfw.KEY_LEFT) == glfw.PRESS:
-            ypos -= 0.004
-        rot_y = pyrr.Matrix44.from_y_rotation(ypos)
-
-        transform_loc = gl.glGetUniformLocation(shader, "transform")
-        gl.glUniformMatrix4fv(transform_loc, 1, gl.GL_FALSE, rot_y * viewmat)
+        # Identical to snap_rotate: transl * rotation * base_view → transform uniform.
+        # model and view uniforms are left as set by setup_shader (identity / camera).
+        gl.glUniformMatrix4fv(
+            gl.glGetUniformLocation(shader, "transform"), 1, gl.GL_FALSE,
+            compute_view_matrix(vs, base_view),
+        )
         gl.glDrawElements(gl.GL_TRIANGLES, triangles.size, gl.GL_UNSIGNED_INT, None)
         glfw.swap_buffers(window)
 
-    # ~60 fps timer — fires every 16 ms on the main thread
     timer = QTimer()
     timer.timeout.connect(_render_frame)
     timer.start(16)
 
-    app.exec()
+    # If the Qt config panel is closed, shut down GLFW and exit the loop.
+    if config_window is not None:
+        config_window.destroyed.connect(lambda: _begin_quit())
 
-
-def config_app_exit_handler():
-    """Mark the configuration window as closed.
-
-    Connected to ``QApplication.aboutToQuit`` so the render timer stops
-    cleanly when the user closes the Qt panel.
-    """
-    global app_window_closed_
-    app_window_closed_ = True
+    loop.exec()
 
 
 def run():
@@ -453,7 +590,6 @@ def run():
     # show_window which drives rendering via a QTimer (no extra threads).
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    app.aboutToQuit.connect(config_app_exit_handler)
 
     screen_geometry = app.primaryScreen().availableGeometry()
     config_window = ConfigWindow(

@@ -44,8 +44,8 @@ def get_default_shaders():
     fragment_shader = """
         #version 330
 
-        in vec3 Normal;
         in vec3 FragPos;
+        in vec3 Normal;
         in vec3 Color;
 
         out vec4 FragColor;
@@ -93,12 +93,14 @@ def get_default_shaders():
           diff = max(dot(norm, lightDir), 0.0);
           diffuse = diffuse + diffweights[3] * diff * lightColor;
 
-          // specular
+          // specular — camera is at (0,0,-5) in world space (from make_view),
+          // not at origin, so viewDir must point from FragPos toward (0,0,-5).
           vec3 result;
           if (doSpecular)
           {
             float specularStrength = 0.5;
-            vec3 viewDir = normalize(-FragPos);
+            vec3 cameraPos = vec3(0.0, 0.0, -5.0);
+            vec3 viewDir = normalize(cameraPos - FragPos);
             vec3 reflectDir = reflect(ohlightDir, norm);
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
             vec3 specular = specularStrength * spec * lightColor;
