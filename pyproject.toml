@@ -38,7 +38,7 @@ dependencies = [
     'glfw',
     'numpy>=1.21',
     'pyrr',
-    'pillow',
+    'pillow>=9.1',
     'pyopengl>=3.1.8',
     'nibabel',
     'psutil'

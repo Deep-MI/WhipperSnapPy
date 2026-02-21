@@ -245,5 +245,5 @@ def create_threejs_mesh_with_custom_shaders(vertices, faces, colors, normals, am
         }
     )
 
-    mesh = p3js.Mesh(geometry=geometry, material=material)
-    return mesh
+    three_mesh = p3js.Mesh(geometry=geometry, material=material)
+    return three_mesh

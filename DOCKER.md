@@ -90,7 +90,7 @@ docker run --rm --init \
   whippersnappy \
   /subject/surf/lh.white \
   --overlay /subject/surf/lh.thickness \
-  --curv /subject/surf/lh.curv \
+  --bg-map /subject/surf/lh.curv \
   --view left \
   --fthresh 2.0 --fmax 4.0 \
   -o /output/snap1.png
@@ -121,7 +121,7 @@ docker run --rm --init \
   whippersnappy \
   /subject/surf/lh.white \
   --overlay /subject/surf/lh.thickness \
-  --curv /subject/surf/lh.curv \
+  --bg-map /subject/surf/lh.curv \
   --rotate \
   --rotate-frames 72 \
   --rotate-fps 24 \

@@ -51,7 +51,7 @@ def compile_shader_program(vertex_src, fragment_src):
     int
         OpenGL program handle.
     """
-    return gl.shaders.compileProgram(
+    return shaders.compileProgram(
         shaders.compileShader(vertex_src, gl.GL_VERTEX_SHADER),
         shaders.compileShader(fragment_src, gl.GL_FRAGMENT_SHADER),
     )
@@ -401,10 +401,7 @@ def capture_window(window):
     gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
     img_buf = gl.glReadPixels(0, 0, width, height, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
     image = Image.frombytes("RGB", (width, height), img_buf)
-    # Image.Transpose.FLIP_TOP_BOTTOM is the preferred form since Pillow 9.1;
-    # fall back to the legacy integer constant for older installations.
-    _flip = getattr(Image, "Transpose", Image).FLIP_TOP_BOTTOM
-    image = image.transpose(_flip)
+    image = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
 
     if x_scale != 1 or y_scale != 1:
         rwidth = int(round(width / x_scale))
