@@ -5,7 +5,7 @@ with color overlays or parcellations and generate screenshots — from the
 command line, in Jupyter notebooks, or via a desktop GUI.
 
 It works with FreeSurfer and FastSurfer brain surfaces as well as any
-triangle mesh in OFF, legacy ASCII VTK PolyData, or ASCII PLY format, or
+triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI (.gii, .surf.gii) format, or
 passed directly as a NumPy ``(vertices, faces)`` tuple.
 
 ## Installation
@@ -66,6 +66,7 @@ whippersnap1 $SUBJECT_DIR/surf/lh.white \
 
 # Also works with OFF / VTK / PLY
 whippersnap1 mesh.off --overlay values.mgh -o snap1.png
+whippersnap1 surface.surf.gii --overlay overlay.func.gii -o snap1.png
 ```
 
 ### Rotation video (`whippersnap1 --rotate`)
@@ -114,7 +115,10 @@ from whippersnappy import snap1, snap4, snap_rotate, plot3d
 | `plot3d` | Interactive 3D WebGL viewer for Jupyter notebooks |
 
 **Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
-FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII VTK PolyData (`.vtk`), ASCII PLY (`.ply`), or a `(vertices, faces)` NumPy array tuple.
+FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII VTK PolyData (`.vtk`), ASCII PLY (`.ply`), GIfTI surface (`.gii`, `.surf.gii`), or a `(vertices, faces)` NumPy array tuple.
+
+**Supported overlay/label inputs:**
+FreeSurfer morph (`.curv`, `.thickness`), MGH/MGZ, ASCII (`.txt`, `.csv`), NumPy (`.npy`, `.npz`), GIfTI functional/label (`.func.gii`, `.label.gii`, `.gii`).
 
 ### Example
 
@@ -135,8 +139,9 @@ img = snap4(sdir='/path/to/subject',
             colorbar=True, caption='Cortical Thickness (mm)')
 img.save('snap4.png')
 
-# OFF / VTK / PLY mesh
+# OFF / VTK / PLY / GIfTI mesh
 img = snap1('mesh.off', overlay='values.mgh')
+img = snap1('surface.surf.gii', overlay='overlay.func.gii')
 
 # Array inputs (e.g. from LaPy or trimesh)
 import numpy as np
