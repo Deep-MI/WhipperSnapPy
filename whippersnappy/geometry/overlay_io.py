@@ -25,8 +25,8 @@ Supported formats
 
 The public dispatcher :func:`read_overlay` routes by file extension.
 FreeSurfer binary morph files and MGH/MGZ files are *not* handled here —
-they are loaded by the existing :mod:`whippersnappy.geometry.read_geometry`
-functions and dispatched from :func:`whippersnappy.geometry.inputs`.
+they are loaded by :mod:`whippersnappy.geometry.freesurfer_io` and
+dispatched from :func:`whippersnappy.geometry.inputs._load_overlay_from_file`.
 
 All readers return a flat ``numpy.ndarray`` of shape ``(N,)``.  The caller
 is responsible for casting to the desired dtype (``float32`` for overlays and
@@ -305,8 +305,7 @@ def read_overlay(path):
     FreeSurfer binary morph files (e.g. ``lh.curv``, ``lh.thickness``) and
     MGH/MGZ files are **not** handled here — pass them through
     :func:`whippersnappy.geometry.inputs._load_overlay_from_file` which
-    already routes those formats via :func:`read_morph_data` /
-    :func:`read_mgh_data`.
+    already routes those formats via :mod:`~whippersnappy.geometry.freesurfer_io`.
 
     Parameters
     ----------

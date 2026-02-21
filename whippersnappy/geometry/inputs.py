@@ -1,10 +1,18 @@
 """Input resolver functions for WhipperSnapPy geometry loading.
 
-This module is the single source of truth for loading and validating all
-user-facing inputs (mesh, overlay, background map, ROI, annotation).  No
-other module should call ``read_geometry``, ``read_morph_data``,
-``read_mgh_data``, ``read_annot_data``, or ``mask_label`` directly — all
-calls should go through the resolver functions defined here.
+This module is the **single entry point** for all input loading and
+validation.  No other module should call ``read_geometry``,
+``read_morph_data``, ``read_mgh_data``, ``read_annot_data``, or
+``mask_label`` directly — all calls go through the resolver functions
+defined here.
+
+Each resolver accepts ``None``, a file path (``str``), or a numpy
+array-like, validates shape and dtype, and returns a clean numpy array
+(or ``None``).  Format dispatch is handled internally by:
+
+* :mod:`~whippersnappy.geometry.freesurfer_io` — FreeSurfer binary formats
+* :mod:`~whippersnappy.geometry.mesh_io` — OFF / VTK / PLY / GIfTI surfaces
+* :mod:`~whippersnappy.geometry.overlay_io` — TXT / CSV / NPY / NPZ / GIfTI scalars
 """
 
 import os
@@ -12,9 +20,9 @@ import os
 import numpy as np
 
 from ..utils.colormap import mask_label
+from .freesurfer_io import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 from .mesh_io import read_mesh as _read_mesh_by_ext
 from .overlay_io import read_overlay as _read_overlay_by_ext
-from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
 
 # Extensions handled by the lightweight ASCII mesh readers in mesh_io.py
 # (includes GIfTI surface via nibabel)
