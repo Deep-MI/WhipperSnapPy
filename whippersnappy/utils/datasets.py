@@ -8,7 +8,7 @@ from pathlib import Path
 
 RELEASE_URL = (
     "https://github.com/Deep-MI/WhipperSnapPy"
-    "/releases/download/data-v1/{file_name}"
+    "/releases/download/data-v1.0/{file_name}"
 )
 
 # Mapping of relative path inside the subject directory → SHA-256 hash.
