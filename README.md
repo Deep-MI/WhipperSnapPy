@@ -151,15 +151,6 @@ overlay = np.random.randn(1000).astype(np.float32)
 img = snap1((v, f), overlay=overlay)
 ```
 
-CLI usage:
-
-```bash
-# Single view
-whippersnap1 lh.white --overlay lh.thickness --bg-map lh.curv --roi lh.cortex.label -o snap1.png
-
-# Four-view batch
-whippersnap4 -lh lh.thickness -rh rh.thickness -sd /path/to/subject -o snap4.png
-```
 
 See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
 
