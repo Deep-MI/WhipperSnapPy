@@ -392,7 +392,11 @@ def capture_window(window):
 
     # --- GLFW path: read from the default framebuffer ---
     monitor = glfw.get_primary_monitor()
-    x_scale, y_scale = glfw.get_monitor_content_scale(monitor)
+    if monitor is None:
+        # Invisible / offscreen GLFW window — no monitor, no HiDPI scaling.
+        x_scale, y_scale = 1.0, 1.0
+    else:
+        x_scale, y_scale = glfw.get_monitor_content_scale(monitor)
     width, height = glfw.get_framebuffer_size(window)
 
     logger.debug("Framebuffer size = (%s,%s)", width, height)
