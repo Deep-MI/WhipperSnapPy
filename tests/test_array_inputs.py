@@ -16,12 +16,10 @@ from whippersnappy.geometry.inputs import (
     resolve_roi,
 )
 from whippersnappy.geometry.prepare import (
-    _estimate_thresholds_from_array,
     estimate_overlay_thresholds,
     prepare_geometry,
     prepare_geometry_from_arrays,
 )
-
 
 # ---------------------------------------------------------------------------
 # Minimal synthetic mesh (tetrahedron)
