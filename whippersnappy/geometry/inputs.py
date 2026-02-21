@@ -12,7 +12,11 @@ import os
 import numpy as np
 
 from ..utils.colormap import mask_label
+from .mesh_io import read_mesh as _read_mesh_by_ext
 from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
+
+# Extensions handled by the lightweight ASCII mesh readers in mesh_io.py
+_MESH_IO_EXTS = frozenset({".off", ".vtk", ".ply"})
 
 
 def resolve_mesh(mesh):
@@ -21,9 +25,13 @@ def resolve_mesh(mesh):
     Parameters
     ----------
     mesh : str or tuple/list of two array-likes
-        Either a file path to a FreeSurfer-format surface file, or a
-        two-element sequence whose first element is the vertex coordinate
-        array and whose second element is the face index array.
+        * ``str`` — path to a mesh file.  Files with extensions ``.off``,
+          ``.vtk``, or ``.ply`` are loaded by the lightweight ASCII readers
+          in :mod:`whippersnappy.geometry.mesh_io`.  All other paths (e.g.
+          FreeSurfer surfaces such as ``lh.white``) are loaded via
+          :func:`whippersnappy.geometry.read_geometry`.
+        * Two-element tuple/list — ``(vertices, faces)`` array-likes
+          converted to ``float32`` and ``uint32`` numpy arrays respectively.
 
     Returns
     -------
@@ -37,12 +45,17 @@ def resolve_mesh(mesh):
     TypeError
         If *mesh* is neither a ``str`` nor a two-element tuple/list.
     ValueError
-        If the resulting arrays do not have the expected shapes.
+        If the resulting arrays do not have the expected shapes or if face
+        indices are out of range.
     """
     if isinstance(mesh, str):
-        v_raw, f_raw = read_geometry(mesh, read_metadata=False)
-        vertices = np.asarray(v_raw, dtype=np.float32)
-        faces = np.asarray(f_raw, dtype=np.uint32)
+        ext = os.path.splitext(mesh)[1].lower()
+        if ext in _MESH_IO_EXTS:
+            vertices, faces = _read_mesh_by_ext(mesh)
+        else:
+            v_raw, f_raw = read_geometry(mesh, read_metadata=False)
+            vertices = np.asarray(v_raw, dtype=np.float32)
+            faces = np.asarray(f_raw, dtype=np.uint32)
     elif isinstance(mesh, (tuple, list)) and len(mesh) == 2:
         vertices = np.asarray(mesh[0], dtype=np.float32)
         faces = np.asarray(mesh[1], dtype=np.uint32)
@@ -60,6 +73,14 @@ def resolve_mesh(mesh):
         raise ValueError(
             f"faces must be an array of shape (M, 3), got shape {faces.shape}."
         )
+    # Bounds check for array inputs (file readers do their own check)
+    if not isinstance(mesh, str) and faces.size > 0:
+        n_verts = vertices.shape[0]
+        if int(faces.max()) >= n_verts or int(faces.min()) < 0:
+            raise ValueError(
+                f"Face indices out of range [0, {n_verts}): "
+                f"min={int(faces.min())}, max={int(faces.max())}."
+            )
     return vertices, faces
 
 

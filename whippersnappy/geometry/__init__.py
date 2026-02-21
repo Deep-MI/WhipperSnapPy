@@ -3,6 +3,7 @@
 Expose prepare_geometry and small IO helpers under `whippersnappy.geometry`.
 """
 from .inputs import resolve_annot, resolve_bg_map, resolve_mesh, resolve_overlay, resolve_roi
+from .mesh_io import read_mesh, read_off, read_ply_ascii, read_vtk_ascii_polydata
 from .prepare import (
     estimate_overlay_thresholds,
     prepare_and_validate_geometry,
@@ -22,6 +23,10 @@ __all__ = [
     'resolve_bg_map',
     'resolve_roi',
     'resolve_annot',
+    'read_mesh',
+    'read_off',
+    'read_vtk_ascii_polydata',
+    'read_ply_ascii',
     'read_geometry',
     'read_annot_data',
     'read_mgh_data',
