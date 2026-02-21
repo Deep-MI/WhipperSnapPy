@@ -15,7 +15,7 @@ For static image generation:
     from whippersnappy.utils.types import ViewType
     from IPython.display import display
 
-    img = snap1(meshpath='path/to/surface.white', view=ViewType.LEFT)
+    img = snap1(mesh='path/to/surface.white', view=ViewType.LEFT)
     display(img)
 
 For interactive 3D in Jupyter notebooks:
@@ -24,9 +24,9 @@ For interactive 3D in Jupyter notebooks:
     from whippersnappy import plot3d
 
     viewer = plot3d(
-        meshpath='path/to/surface.white',
-        curvpath='path/to/curv',
-        overlaypath='path/to/thickness.mgh'  # optional: for colors
+        mesh='path/to/surface.white',
+        bg_map='path/to/curv',
+        overlay='path/to/thickness.mgh'  # optional: for colors
     )
     display(viewer)
 

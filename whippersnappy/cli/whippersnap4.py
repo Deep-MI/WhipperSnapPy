@@ -155,10 +155,10 @@ def run():
 
     try:
         img = snap4(
-            lhoverlaypath=args.lh_overlay,
-            rhoverlaypath=args.rh_overlay,
-            lhannotpath=args.lh_annot,
-            rhannotpath=args.rh_annot,
+            lh_overlay=args.lh_overlay,
+            rh_overlay=args.rh_overlay,
+            lh_annot=args.lh_annot,
+            rh_annot=args.rh_annot,
             sdir=args.sdir,
             caption=args.caption,
             surfname=args.surf_name,

@@ -8,7 +8,7 @@ using WebGL and is specifically designed for notebook environments.
 
 Usage:
     from whippersnappy import plot3d
-    viewer = plot3d(meshpath='path/to/lh.white', curvpath='path/to/lh.curv')
+    viewer = plot3d(mesh='path/to/lh.white', bg_map='path/to/lh.curv')
     display(viewer)
 
 Dependencies:
@@ -33,11 +33,11 @@ logger = logging.getLogger(__name__)
 
 
 def plot3d(
-    meshpath,
-    overlaypath=None,
-    annotpath=None,
-    curvpath=None,
-    labelpath=None,
+    mesh,
+    overlay=None,
+    annot=None,
+    bg_map=None,
+    roi=None,
     minval=None,
     maxval=None,
     invert=False,
@@ -56,16 +56,21 @@ def plot3d(
 
     Parameters
     ----------
-    meshpath : str
-        Path to the surface file (FreeSurfer-style surface, e.g. "lh.white").
-    overlaypath : str or None, optional
-        Path to a per-vertex overlay (thickness/curvature) file.
-    annotpath : str or None, optional
-        Path to a FreeSurfer .annot file for categorical labeling.
-    curvpath : str or None, optional
-        Path to a curvature file used as grayscale texture for unlabeled regions.
-    labelpath : str or None, optional
-        Path to a label file used to mask out vertices.
+    mesh : str or tuple of (array-like, array-like)
+        Path to the surface file (FreeSurfer-style surface, e.g. ``"lh.white"``)
+        **or** a ``(vertices, faces)`` tuple.
+    overlay : str, array-like, or None, optional
+        Path to a per-vertex overlay (thickness/curvature) file, or a (N,)
+        array of per-vertex scalar values.
+    annot : str, tuple, or None, optional
+        Path to a FreeSurfer .annot file, or a ``(labels, ctab)`` /
+        ``(labels, ctab, names)`` tuple for categorical labeling.
+    bg_map : str, array-like, or None, optional
+        Path to a curvature file **or** a (N,) array used as grayscale
+        texture for non-overlay regions.
+    roi : str, array-like, or None, optional
+        Path to a FreeSurfer label file **or** a (N,) boolean array to
+        restrict overlay coloring.
     minval, maxval : float or None, optional
         Threshold and saturation values used for color mapping (passed to
         :func:`prepare_geometry`). If ``None``, sensible defaults are chosen.
@@ -98,13 +103,14 @@ def plot3d(
 
         from whippersnappy import plot3d
         from IPython.display import display
-        viewer = plot3d('fsaverage/surf/lh.white', overlaypath='fsaverage/surf/lh.thickness')
+
+        viewer = plot3d('fsaverage/surf/lh.white', overlay='fsaverage/surf/lh.thickness')
         display(viewer)
     """
     # Load and prepare mesh data
     color_mode = color_mode or ColorSelection.BOTH
     meshdata, triangles, fmin, fmax, pos, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath,
+        mesh, overlay, annot, bg_map, roi,
         minval, maxval, invert, scale, color_mode
     )
 
@@ -159,9 +165,9 @@ def plot3d(
         <i>Drag to rotate, scroll to zoom, right-drag to pan</i><br>
         """
 
-    if overlaypath or annotpath:
+    if overlay or annot:
         info_text += "<br>📊 Overlay/annotation loaded"
-    elif curvpath:
+    elif bg_map:
         info_text += "<br>🧠 Curvature (grayscale is correct)"
 
     info_text += "</div>"

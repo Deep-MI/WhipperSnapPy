@@ -50,8 +50,8 @@ app_window_closed_ = False
 
 def show_window(
     hemi,
-    overlaypath=None,
-    annotpath=None,
+    overlay=None,
+    annot=None,
     sdir=None,
     invert=False,
     labelname="cortex.label",
@@ -70,9 +70,9 @@ def show_window(
     ----------
     hemi : {'lh','rh'}
         Hemisphere to display.
-    overlaypath : str or None, optional
+    overlay : str or None, optional
         Path to a per-vertex overlay file (e.g. thickness).
-    annotpath : str or None, optional
+    annot : str or None, optional
         Path to a ``.annot`` file providing categorical labels for vertices.
     sdir : str or None, optional
         Subject directory containing ``surf/`` and ``label/`` subdirectories.
@@ -112,19 +112,19 @@ def show_window(
             msg = f"Could not find a valid surf file in {sdir} for hemi: {hemi}!"
             logger.error(msg)
             raise FileNotFoundError(msg)
-        meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
+        mesh = os.path.join(sdir, "surf", hemi + "." + found_surfname)
     else:
-        meshpath = os.path.join(sdir, "surf", hemi + "." + surfname)
+        mesh = os.path.join(sdir, "surf", hemi + "." + surfname)
 
-    curvpath = os.path.join(sdir, "surf", hemi + "." + curvname) if curvname else None
-    labelpath = os.path.join(sdir, "label", hemi + "." + labelname) if labelname else None
+    bg_map = os.path.join(sdir, "surf", hemi + "." + curvname) if curvname else None
+    roi = os.path.join(sdir, "label", hemi + "." + labelname) if labelname else None
 
     view_mats = get_view_matrices()
     viewmat = view_mats[ViewType.RIGHT] if hemi == "rh" else view_mats[ViewType.LEFT]
     rot_y = pyrr.Matrix44.from_y_rotation(0)
 
     meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-        meshpath, overlaypath, annotpath, curvpath, labelpath, current_fthresh_, current_fmax_,
+        mesh, overlay, annot, bg_map, roi, current_fthresh_, current_fmax_,
         invert=invert,
     )
     shader = setup_shader(meshdata, triangles, wwidth, wheight, specular=specular)
@@ -147,7 +147,7 @@ def show_window(
                 current_fthresh_ = app_window_.get_fthresh_value()
                 current_fmax_ = app_window_.get_fmax_value()
                 meshdata, triangles, fthresh, fmax, neg = prepare_geometry(
-                    meshpath, overlaypath, annotpath, curvpath, labelpath,
+                    mesh, overlay, annot, bg_map, roi,
                     current_fthresh_, current_fmax_,
                     invert=invert,
                 )
@@ -298,8 +298,8 @@ def run():
         target=show_window,
         args=("lh",),
         kwargs=dict(
-            overlaypath=args.lh_overlay,
-            annotpath=args.lh_annot,
+            overlay=args.lh_overlay,
+            annot=args.lh_annot,
             sdir=args.sdir,
             invert=args.invert,
             surfname=args.surf_name,

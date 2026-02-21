@@ -10,8 +10,8 @@ Usage::
     # Static single-view snapshot (lateral view, thickness overlay)
     whippersnap1 <subject_dir>/surf/lh.white \\
         --overlay <subject_dir>/surf/lh.thickness \\
-        --curv   <subject_dir>/surf/lh.curv \\
-        --label  <subject_dir>/label/lh.cortex.label \\
+        --bg-map  <subject_dir>/surf/lh.curv \\
+        --roi     <subject_dir>/label/lh.cortex.label \\
         --view left --fthresh 1.5 --fmax 4.0 \\
         -o snap1.png
 
@@ -67,7 +67,7 @@ def run():
     -----
     **Snapshot options** (default mode):
 
-    * ``meshpath`` — path to the surface file (FreeSurfer binary, e.g. ``lh.white``).
+    * ``mesh`` — path to the surface file (FreeSurfer binary, e.g. ``lh.white``).
     * ``--overlay`` — per-vertex scalar overlay (e.g. ``lh.thickness``).
     * ``--annot`` — FreeSurfer ``.annot`` parcellation file.
     * ``--label`` — label file used to mask overlay values to the cortex.
@@ -102,7 +102,7 @@ def run():
 
     # --- Required ---
     parser.add_argument(
-        "meshpath",
+        "mesh",
         type=str,
         help="Path to the surface file. FreeSurfer binary format (e.g. lh.white) "
              "or any mesh readable by the geometry module.",
@@ -120,11 +120,15 @@ def run():
         ),
     )
 
-    # --- Optional overlay / annotation / label / curv ---
+    # --- Optional overlay / annotation / roi / bg-map ---
     parser.add_argument("--overlay",  type=str, default=None, help="Per-vertex overlay file.")
     parser.add_argument("--annot",    type=str, default=None, help="FreeSurfer .annot file.")
-    parser.add_argument("--label",    type=str, default=None, help="Label file for masking.")
-    parser.add_argument("--curv",     type=str, default=None, help="Curvature file for texturing.")
+    parser.add_argument("--roi",      type=str, default=None,
+                        help="Path to a FreeSurfer label file defining the region of interest "
+                             "(vertices to include in overlay coloring).")
+    parser.add_argument("--bg-map",   type=str, default=None, dest="bg_map",
+                        help="Path to a per-vertex scalar file used as background shading "
+                             "(sign determines light/dark).")
 
     # --- View ---
     parser.add_argument(
@@ -206,16 +210,16 @@ def run():
                 tempfile.gettempdir(), "whippersnappy_rotation.mp4"
             )
             snap_rotate(
-                meshpath=args.meshpath,
+                mesh=args.mesh,
                 outpath=outpath,
                 n_frames=args.rotate_frames,
                 fps=args.rotate_fps,
                 width=args.width,
                 height=args.height,
-                overlaypath=args.overlay,
-                curvpath=args.curv,
-                annotpath=args.annot,
-                labelpath=args.label,
+                overlay=args.overlay,
+                bg_map=args.bg_map,
+                annot=args.annot,
+                roi=args.roi,
                 fthresh=args.fthresh,
                 fmax=args.fmax,
                 invert=args.invert,
@@ -231,12 +235,12 @@ def run():
                 tempfile.gettempdir(), "whippersnappy_snap1.png"
             )
             img = snap1(
-                meshpath=args.meshpath,
+                mesh=args.mesh,
                 outpath=outpath,
-                overlaypath=args.overlay,
-                annotpath=args.annot,
-                labelpath=args.label,
-                curvpath=args.curv,
+                overlay=args.overlay,
+                annot=args.annot,
+                roi=args.roi,
+                bg_map=args.bg_map,
                 view=_VIEW_CHOICES[args.view],
                 width=args.width,
                 height=args.height,

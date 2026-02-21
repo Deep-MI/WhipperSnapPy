@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 def snap1(
-    meshpath,
+    mesh,
     outpath=None,
-    overlaypath=None,
-    annotpath=None,
-    labelpath=None,
-    curvpath=None,
+    overlay=None,
+    annot=None,
+    bg_map=None,
+    roi=None,
     view=ViewType.LEFT,
     viewmat=None,
     width=700,
@@ -58,19 +58,26 @@ def snap1(
 
     Parameters
     ----------
-    meshpath : str
-        Path to the surface file (FreeSurfer-format, e.g. "lh.white").
+    mesh : str or tuple of (array-like, array-like)
+        Path to the surface file (FreeSurfer-format, e.g. ``"lh.white"``) **or**
+        a ``(vertices, faces)`` tuple where *vertices* is (N, 3) float and
+        *faces* is (M, 3) int.
     outpath : str or None, optional
         When provided, the resulting image is saved to this path.
-    overlaypath : str or None, optional
-        Path to overlay/mgh file providing per-vertex values to color the
-        surface. If ``None``, coloring falls back to curvature/annotation.
-    annotpath : str or None, optional
-        Path to a FreeSurfer .annot file with per-vertex labels.
-    labelpath : str or None, optional
-        Path to a label file (cortex.label) used to mask overlay values.
-    curvpath : str or None, optional
-        Path to curvature file used to texture non-colored regions.
+    overlay : str, array-like, or None, optional
+        Overlay file path (.mgh or FreeSurfer morph) **or** a (N,) array of
+        per-vertex scalar values.  If ``None``, coloring falls back to
+        background shading / annotation.
+    annot : str, tuple, or None, optional
+        Path to a FreeSurfer .annot file **or** a ``(labels, ctab)`` /
+        ``(labels, ctab, names)`` tuple with per-vertex labels.
+    bg_map : str, array-like, or None, optional
+        Path to a curvature/morph file **or** a (N,) array whose sign
+        determines light/dark background shading for non-overlay vertices.
+    roi : str, array-like, or None, optional
+        Path to a FreeSurfer label file **or** a (N,) boolean array.
+        Vertices with ``True`` receive overlay coloring; others fall back
+        to *bg_map* shading.
     view : ViewType, optional
         Which pre-defined view to render (left, right, front, ...). Default is ``ViewType.LEFT``.
     viewmat : 4x4 matrix-like, optional
@@ -119,8 +126,16 @@ def snap1(
     Examples
     --------
     >>> from whippersnappy import snap1
-    >>> img = snap1('fsaverage/surf/lh.white', overlaypath='fsaverage/surf/lh.thickness')
+    >>> img = snap1('fsaverage/surf/lh.white', overlay='fsaverage/surf/lh.thickness',
+    ...             bg_map='fsaverage/surf/lh.curv', roi='fsaverage/label/lh.cortex.label')
     >>> img.save('/tmp/lh.png')
+
+    Array inputs::
+
+    >>> import numpy as np
+    >>> v = np.random.randn(100, 3).astype(np.float32)
+    >>> f = np.array([[0, 1, 2]], dtype=np.uint32)
+    >>> img = snap1((v, f))
     """
     ref_width = 700
     ref_height = 500
@@ -153,11 +168,11 @@ def snap1(
     window = create_window_with_fallback(brain_display_width, brain_display_height, "WhipperSnapPy", visible=True)
     try:
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
-            meshpath,
-            overlaypath,
-            annotpath,
-            curvpath,
-            labelpath,
+            mesh,
+            overlay,
+            annot,
+            bg_map,
+            roi,
             fthresh,
             fmax,
             invert,
@@ -182,7 +197,7 @@ def snap1(
             create_colorbar(
                 fthresh, fmax, invert, orientation, colorbar_scale * ui_scale, pos, neg, font_file=font_file
             )
-            if overlaypath is not None and colorbar
+            if overlay is not None and colorbar
             else None
         )
         font = (
@@ -241,18 +256,18 @@ def snap1(
 
 
 def snap4(
-    lhoverlaypath=None,
-    rhoverlaypath=None,
-    lhannotpath=None,
-    rhannotpath=None,
+    lh_overlay=None,
+    rh_overlay=None,
+    lh_annot=None,
+    rh_annot=None,
     fthresh=None,
     fmax=None,
     sdir=None,
     caption=None,
     invert=False,
-    labelname="cortex.label",
+    roi_name="cortex.label",
     surfname=None,
-    curvname="curv",
+    bg_map_name="curv",
     colorbar=True,
     outpath=None,
     font_file=None,
@@ -261,9 +276,9 @@ def snap4(
     brain_scale=1.85,
     color_mode=ColorSelection.BOTH,
 ):
-    """Render four snapshot views (left/right hemispheres, front/back).
+    """Render four snapshot views (left/right hemispheres, lateral/medial).
 
-    This convenience function renders four views (top/bottom for each
+    This convenience function renders four views (lateral/medial for each
     hemisphere), stitches them together into a single PIL Image and returns
     it (and saves it to ``outpath`` when provided). It is typically used to
     produce publication-ready overview figures composed from both
@@ -271,27 +286,34 @@ def snap4(
 
     Parameters
     ----------
-    lhoverlaypath, rhoverlaypath : str or None
-        Paths to left/right hemisphere overlay files (mutually required if
-        either is provided).
-    lhannotpath, rhannotpath : str or None
-        Paths to left/right hemisphere annotation (.annot) files.
+    lh_overlay, rh_overlay : str, array-like, or None
+        Left/right hemisphere overlay — either a file path (FreeSurfer morph
+        or .mgh) or a per-vertex scalar array.  Mutually required if either
+        is provided.
+    lh_annot, rh_annot : str, tuple, or None
+        Left/right hemisphere annotation — either a path to a .annot file or
+        a ``(labels, ctab)`` / ``(labels, ctab, names)`` tuple.
     fthresh, fmax : float or None
-        Threshold and saturation for overlay coloring.
+        Threshold and saturation for overlay coloring.  Auto-estimated when
+        ``None``.
     sdir : str or None
-        Subject directory (used when surfname is not provided). If not
-        supplied the environment variable ``SUBJECTS_DIR`` is consulted.
+        Subject directory containing ``surf/`` and ``label/`` subdirectories.
+        Falls back to ``$SUBJECTS_DIR`` when ``None``.
     caption : str or None
         Caption string to place on the final image.
     invert : bool, optional
         Invert color scale. Default is ``False``.
-    labelname : str, optional
-        Name of the label file (default 'cortex.label').
+    roi_name : str, optional
+        Basename of the label file used to restrict overlay coloring (default
+        ``'cortex.label'``).  The full path is constructed as
+        ``<sdir>/label/<hemi>.<roi_name>``.
     surfname : str or None, optional
-        Surface basename to load (if None the function will auto-discover a
-        suitable surface).
-    curvname : str or None, optional
-        Curvature file basename to load for texturing non-colored regions. Default is ``curv``.
+        Surface basename to load (e.g. ``'white'``); auto-detected when
+        ``None``.
+    bg_map_name : str, optional
+        Basename of the curvature/morph file used for background shading
+        (default ``'curv'``).  The full path is constructed as
+        ``<sdir>/surf/<hemi>.<bg_map_name>``.
     colorbar : bool, optional
         Whether to draw a colorbar on the composed image. Default is ``True``.
     outpath : str or None, optional
@@ -324,10 +346,10 @@ def snap4(
     --------
     >>> from whippersnappy import snap4
     >>> img = snap4(
-    >>>          lhoverlaypath='fsaverage/surf/lh.thickness',
-    >>>          rhoverlaypath='fsaverage/surf/rh.thickness',
-    >>>          sdir='./fsaverage'
-    >>>       )
+    ...     lh_overlay='fsaverage/surf/lh.thickness',
+    ...     rh_overlay='fsaverage/surf/rh.thickness',
+    ...     sdir='./fsaverage'
+    ... )
     >>> img.save('/tmp/whippersnappy_overview.png')
     """
     wwidth = 540
@@ -342,15 +364,15 @@ def snap4(
             raise ValueError("No sdir or SUBJECTS_DIR provided")
         if not sdir and surfname is not None:
             logger.error("surfname provided but sdir is None")
-            raise ValueError("surfname provided but sdir is None; cannot construct meshpath.")
+            raise ValueError("surfname provided but sdir is None; cannot construct mesh path.")
 
     # Pre-pass: estimate missing fthresh/fmax from overlays for global color scale
-    has_overlay = lhoverlaypath is not None or rhoverlaypath is not None
+    has_overlay = lh_overlay is not None or rh_overlay is not None
     if has_overlay and (fthresh is None or fmax is None):
         est_fthreshs = []
         est_fmaxs = []
-        for overlaypath in filter(None, (lhoverlaypath, rhoverlaypath)):
-            h_fthresh, h_fmax = estimate_overlay_thresholds(overlaypath, fthresh, fmax)
+        for _overlay in filter(None, (lh_overlay, rh_overlay)):
+            h_fthresh, h_fmax = estimate_overlay_thresholds(_overlay, fthresh, fmax)
             est_fthreshs.append(h_fthresh)
             est_fmaxs.append(h_fmax)
         if fthresh is None and est_fthreshs:
@@ -379,33 +401,38 @@ def snap4(
                 if found_surfname is None:
                     logger.error("Could not find valid surface in %s for hemi: %s!", sdir, hemi)
                     raise FileNotFoundError(f"Could not find valid surface in {sdir} for hemi: {hemi}")
-                meshpath = os.path.join(sdir, "surf", hemi + "." + found_surfname)
+                mesh = os.path.join(sdir, "surf", hemi + "." + found_surfname)
             else:
-                meshpath = os.path.join(sdir, "surf", hemi + "." + surfname)
+                mesh = os.path.join(sdir, "surf", hemi + "." + surfname)
 
-            # Assign derived paths
-            curvpath = os.path.join(sdir, "surf", hemi + "." + curvname) if curvname else None
-            labelpath = os.path.join(sdir, "label", hemi + "." + labelname) if labelname else None
-            overlaypath = lhoverlaypath if hemi == "lh" else rhoverlaypath
-            annotpath = lhannotpath if hemi == "lh" else rhannotpath
+            # Assign derived paths for bg_map and roi
+            bg_map = os.path.join(sdir, "surf", hemi + "." + bg_map_name) if bg_map_name else None
+            roi = os.path.join(sdir, "label", hemi + "." + roi_name) if roi_name else None
+            overlay = lh_overlay if hemi == "lh" else rh_overlay
+            annot = lh_annot if hemi == "lh" else rh_annot
+
+            # If overlay is an array, it doesn't have a path to log; handle gracefully
+            if isinstance(overlay, str):
+                logger.debug("overlay=%s exists=%s", overlay, os.path.exists(overlay))
+            elif overlay is not None:
+                logger.debug("overlay=<array shape=%s>", getattr(overlay, 'shape', None))
 
             # Diagnostic: report mesh and overlay paths and whether they exist
             logger.debug("hemisphere=%s", hemi)
-            logger.debug("meshpath=%s exists=%s", meshpath, os.path.exists(meshpath))
-            if overlaypath is not None:
-                logger.debug("overlaypath=%s exists=%s", overlaypath, os.path.exists(overlaypath))
-            if annotpath is not None:
-                logger.debug("annotpath=%s exists=%s", annotpath, os.path.exists(annotpath))
-            if curvpath is not None:
-                logger.debug("curvpath=%s exists=%s", curvpath, os.path.exists(curvpath))
+            if isinstance(mesh, str):
+                logger.debug("mesh=%s exists=%s", mesh, os.path.exists(mesh))
+            if isinstance(annot, str) and annot is not None:
+                logger.debug("annot=%s exists=%s", annot, os.path.exists(annot))
+            if bg_map is not None:
+                logger.debug("bg_map=%s exists=%s", bg_map, os.path.exists(bg_map))
 
             try:
                 meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
-                    meshpath, overlaypath, annotpath, curvpath, labelpath, fthresh, fmax, invert,
+                    mesh, overlay, annot, bg_map, roi, fthresh, fmax, invert,
                     scale=brain_scale, color_mode=color_mode
                 )
             except Exception as e:
-                logger.error("prepare_geometry failed for %s: %s", meshpath, e)
+                logger.error("prepare_geometry failed for %s: %s", mesh, e)
                 raise
 
             # Diagnostics about mesh data
@@ -456,7 +483,7 @@ def snap4(
         caption_y = image.height - bottom_pad - text_h
         bar = (
             create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg)
-            if lhannotpath is None and rhannotpath is None and colorbar
+            if lh_annot is None and rh_annot is None and colorbar
             else None
         )
         bar_h = bar.height if bar is not None else 0
@@ -481,16 +508,16 @@ def snap4(
 
 
 def snap_rotate(
-    meshpath,
+    mesh,
     outpath,
     n_frames=72,
     fps=24,
     width=700,
     height=500,
-    overlaypath=None,
-    curvpath=None,
-    annotpath=None,
-    labelpath=None,
+    overlay=None,
+    bg_map=None,
+    annot=None,
+    roi=None,
     fthresh=None,
     fmax=None,
     invert=False,
@@ -512,8 +539,9 @@ def snap_rotate(
 
     Parameters
     ----------
-    meshpath : str
-        Path to the surface file (FreeSurfer binary format, e.g. ``lh.white``).
+    mesh : str or tuple of (array-like, array-like)
+        Path to the surface file (FreeSurfer binary format, e.g. ``lh.white``)
+        **or** a ``(vertices, faces)`` tuple.
     outpath : str
         Destination file path.  The extension controls the output format:
 
@@ -528,14 +556,14 @@ def snap_rotate(
         Output frame rate in frames per second. Default is ``24``.
     width, height : int, optional
         Render resolution in pixels. Defaults are ``700`` and ``500``.
-    overlaypath : str or None, optional
-        Path to per-vertex overlay file (e.g. thickness).
-    curvpath : str or None, optional
-        Path to curvature file for texturing non-colored regions.
-    annotpath : str or None, optional
-        Path to FreeSurfer ``.annot`` file.
-    labelpath : str or None, optional
-        Path to label file used to mask overlay values.
+    overlay : str, array-like, or None, optional
+        Per-vertex overlay file path or array (e.g. thickness).
+    bg_map : str, array-like, or None, optional
+        Curvature/morph file path or array for background shading.
+    annot : str, tuple, or None, optional
+        FreeSurfer ``.annot`` file path or ``(labels, ctab)`` tuple.
+    roi : str, array-like, or None, optional
+        Label file path or boolean array to restrict overlay coloring.
     fthresh : float or None, optional
         Overlay threshold value.
     fmax : float or None, optional
@@ -576,7 +604,7 @@ def snap_rotate(
     >>> snap_rotate(
     ...     'fsaverage/surf/lh.white',
     ...     '/tmp/rotation.mp4',
-    ...     overlaypath='fsaverage/surf/lh.thickness',
+    ...     overlay='fsaverage/surf/lh.thickness',
     ... )
     '/tmp/rotation.mp4'
     """
@@ -607,11 +635,11 @@ def snap_rotate(
     window = create_window_with_fallback(width, height, "WhipperSnapPy", visible=True)
     try:
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
-            meshpath,
-            overlaypath,
-            annotpath,
-            curvpath,
-            labelpath,
+            mesh,
+            overlay,
+            annot,
+            bg_map,
+            roi,
             fthresh,
             fmax,
             invert,

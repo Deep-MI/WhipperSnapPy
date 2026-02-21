@@ -1,17 +1,20 @@
 """Geometry helpers for mesh processing and GPU preparation (prepare.py).
 
-This module contains the primary `prepare_geometry` function used to
-normalize meshes, compute normals and assemble vertex arrays for OpenGL.
+This module contains the primary geometry-preparation pipeline.  The
+low-level workhorse is :func:`prepare_geometry_from_arrays` which operates
+entirely on numpy arrays.  :func:`prepare_geometry` is a thin file-loading
+wrapper that delegates to the resolver functions in
+:mod:`whippersnappy.geometry.inputs` before calling
+:func:`prepare_geometry_from_arrays`.
 """
 
-import os
 import warnings
 
 import numpy as np
 
-from ..utils.colormap import binary_color, heat_color, mask_label, mask_sign, rescale_overlay
+from ..utils.colormap import binary_color, heat_color, mask_sign, rescale_overlay
 from ..utils.types import ColorSelection
-from .read_geometry import read_annot_data, read_geometry, read_mgh_data, read_morph_data
+from .inputs import resolve_annot, resolve_bg_map, resolve_mesh, resolve_overlay, resolve_roi
 
 
 def normalize_mesh(v, scale=1.0):
@@ -64,10 +67,6 @@ def vertex_normals(v, t):
     cr0 = np.cross(v1mv0, -v0mv2)
     cr1 = np.cross(v2mv1, -v1mv0)
     cr2 = np.cross(v0mv2, -v2mv1)
-    n = np.zeros(v.shape)
-    #np.add.at(n, t[:, 0], cr0)
-    #np.add.at(n, t[:, 1], cr1)
-    #np.add.at(n, t[:, 2], cr2)
     # Vectorized accumulation using bincount
     idx = np.concatenate([t[:, 0], t[:, 1], t[:, 2]])
     contribs = np.vstack([cr0, cr1, cr2])
@@ -109,8 +108,8 @@ def _estimate_thresholds_from_array(mapdata, minval=None, maxval=None):
     return minval, maxval
 
 
-def estimate_overlay_thresholds(overlaypath, minval=None, maxval=None):
-    """Estimate threshold and saturation values from an overlay file.
+def estimate_overlay_thresholds(overlay, minval=None, maxval=None):
+    """Estimate threshold and saturation values from an overlay file or array.
 
     Reads the overlay data and derives ``fmin`` / ``fmax`` from the absolute
     values without performing any geometry or color work.  Both values are
@@ -119,8 +118,9 @@ def estimate_overlay_thresholds(overlaypath, minval=None, maxval=None):
 
     Parameters
     ----------
-    overlaypath : str
-        Path to the overlay file (.mgh or FreeSurfer morph format).
+    overlay : str or array-like
+        Path to the overlay file (.mgh or FreeSurfer morph format), or a
+        numpy array / array-like of per-vertex scalar values.
     minval : float or None, optional
         If provided, used as-is for the threshold; otherwise estimated as
         the minimum absolute value in the overlay.
@@ -135,52 +135,60 @@ def estimate_overlay_thresholds(overlaypath, minval=None, maxval=None):
     maxval : float
         Saturation value (upper bound of the color scale).
     """
-    _, file_extension = os.path.splitext(overlaypath)
-    if file_extension == ".mgh":
-        mapdata = read_mgh_data(overlaypath)
+    if isinstance(overlay, str):
+        # Use resolve_overlay with n_vertices=None to skip shape validation
+        overlay_arr = resolve_overlay(overlay, n_vertices=None)
     else:
-        mapdata = read_morph_data(overlaypath)
-    return _estimate_thresholds_from_array(mapdata, minval, maxval)
+        overlay_arr = np.asarray(overlay)
+    return _estimate_thresholds_from_array(overlay_arr, minval, maxval)
 
 
-def prepare_geometry(
-    surfpath,
-    overlaypath=None,
-    annotpath=None,
-    curvpath=None,
-    labelpath=None,
+def prepare_geometry_from_arrays(
+    vertices,
+    faces,
+    overlay=None,
+    annot=None,
+    ctab=None,
+    bg_map=None,
+    roi=None,
     minval=None,
     maxval=None,
     invert=False,
     scale=1.85,
     color_mode=ColorSelection.BOTH,
 ):
-    """Prepare vertex and color arrays for GPU upload.
+    """Prepare vertex and color arrays for GPU upload from numpy arrays.
 
-    This function loads a surface geometry from ``surfpath``, optionally
-    loads an overlay (mgh/curv) or annotation (.annot) and produces an
-    interleaved vertex array containing positions, normals and colors
-    suitable for uploading to OpenGL (vertex buffer objects).
+    This is the core geometry preparation function.  All inputs must already
+    be resolved numpy arrays; for file-path support use the thin wrapper
+    :func:`prepare_geometry`.
 
     Parameters
     ----------
-    surfpath : str
-        Path to the surface file.
-    overlaypath : str or None, optional
-        Path to an overlay (mgh/curv) file providing per-vertex scalar
-        values used for coloring.
-    annotpath : str or None, optional
-        Path to a FreeSurfer .annot file for categorical labeling.
-    curvpath : str or None, optional
-        Path to curvature data used as fallback texture.
-    labelpath : str or None, optional
-        Path to a label file used to mask vertices.
+    vertices : numpy.ndarray
+        Vertex coordinate array of shape (N, 3), dtype float32.
+    faces : numpy.ndarray
+        Triangle index array of shape (M, 3), dtype uint32.
+    overlay : numpy.ndarray or None, optional
+        Per-vertex scalar values of shape (N,) float32 used for coloring.
+    annot : numpy.ndarray or None, optional
+        Per-vertex integer label indices of shape (N,) int32.
+    ctab : numpy.ndarray or None, optional
+        Color table array (n_labels, ≥3) associated with *annot*.
+    bg_map : numpy.ndarray or None, optional
+        Per-vertex scalar values of shape (N,) float32 whose sign determines
+        background shading (binary light/dark).  When ``None`` a flat gray
+        background is used.
+    roi : numpy.ndarray of bool or None, optional
+        Boolean mask of shape (N,).  ``True`` = vertex is inside the region
+        of interest and receives overlay coloring; ``False`` = vertex falls
+        back to background shading.  When ``None`` all vertices are in-ROI.
     minval, maxval : float or None, optional
         Threshold and saturation values for overlay scaling.
     invert : bool, optional, default False
         Invert color mapping.
     scale : float, optional, default 1.85
-        Geometry scaling factor applied by ``normalize_mesh``.
+        Geometry scaling factor applied by :func:`normalize_mesh`.
     color_mode : ColorSelection, optional, default ColorSelection.BOTH
         Which sign(s) of overlay values to use for coloring.
 
@@ -200,120 +208,197 @@ def prepare_geometry(
     ValueError
         If overlay or annotation arrays do not match the surface vertex count.
     """
-    surf = read_geometry(surfpath, read_metadata=False)
-    vertices = normalize_mesh(np.array(surf[0], dtype=np.float32), scale)
-    triangles = np.array(surf[1], dtype=np.uint32)
+    vertices = normalize_mesh(np.array(vertices, dtype=np.float32), scale)
+    triangles = np.array(faces, dtype=np.uint32)
     vnormals = np.array(vertex_normals(vertices, triangles), dtype=np.float32)
     num_vertices = vertices.shape[0]
 
-    # try to load sulcal colormap
-    sulcmap = 0.5 * np.ones(vertices.shape, dtype=np.float32)
-    if curvpath:
-        curv = read_morph_data(curvpath)
-        if curv.shape[0] != num_vertices:
-            warnings.warn(f"Curvature file {curvpath} has {curv.shape[0]} values, but mesh has {num_vertices}.",
-                          stacklevel=2)
+    # Build background (sulcal) colormap
+    if bg_map is not None:
+        if bg_map.shape[0] != num_vertices:
+            warnings.warn(
+                f"bg_map has {bg_map.shape[0]} values but mesh has {num_vertices}.",
+                stacklevel=2,
+            )
+            sulcmap = 0.5 * np.ones(vertices.shape, dtype=np.float32)
         else:
-            sulcmap = binary_color(curv, 0.0, color_low=0.5, color_high=0.33)
+            sulcmap = binary_color(bg_map, 0.0, color_low=0.5, color_high=0.33)
+    else:
+        sulcmap = 0.5 * np.ones(vertices.shape, dtype=np.float32)
 
     # Initialize defaults for overlay outputs
     fmin = None
     fmax = None
     pos = None
     neg = None
-    colors = sulcmap # use as default
+    colors = sulcmap  # use as default
 
-    # try to load overlay data
-    if overlaypath:
-        _, file_extension = os.path.splitext(overlaypath)
-        if file_extension == ".mgh":
-            mapdata = read_mgh_data(overlaypath)
-        else:
-            mapdata = read_morph_data(overlaypath)
-
-        # Check if overlay length matches number of vertices. If not, raise an error.
-        if mapdata.shape[0] != num_vertices:
+    # Apply overlay coloring
+    if overlay is not None:
+        if overlay.shape[0] != num_vertices:
             raise ValueError(
-                f"Overlay file {overlaypath} has {mapdata.shape[0]} values but mesh has {num_vertices}.\n"
+                f"overlay has {overlay.shape[0]} values but mesh has {num_vertices}.\n"
                 "This usually means the overlay does not match the provided surface "
-                "(e.g. RH overlay used with LH surface). Provide the correct overlay "
-                "file."
+                "(e.g. RH overlay used with LH surface). Provide the correct overlay."
             )
-        else:
-            minval, maxval = _estimate_thresholds_from_array(mapdata, minval, maxval)
+        mapdata = overlay.copy().astype(np.float64)
+        minval, maxval = _estimate_thresholds_from_array(mapdata, minval, maxval)
+        mapdata = mask_sign(mapdata, color_mode)
+        mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, minval, maxval)
+        colors = heat_color(mapdata, invert)
+        # Some mapdata values could be nan (below min threshold) — fall back to bg
+        missing = np.isnan(mapdata)
+        if np.any(missing):
+            colors[missing, :] = sulcmap[missing, :]
 
-            mapdata = mask_sign(mapdata, color_mode)
-            mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, minval, maxval)
-            colors = heat_color(mapdata, invert)
-            # some mapdata values could be nan (below min threshold)
-            missing = np.isnan(mapdata)
-            if np.any(missing):
-                colors[missing, :] = sulcmap[missing, :]
-    # alternatively try to load annotation data
-    elif annotpath:
-        # Read annotation (per-vertex labels) and colormap table.
-        annot, ctab, _ = read_annot_data(annotpath)
-
-        # Check if annotation length matches number of vertices. If not, raise an error.
+    elif annot is not None and ctab is not None:
+        # Per-vertex annotation coloring
         if annot.shape[0] != num_vertices:
             raise ValueError(
-                f"Annotation file {annotpath} has {annot.shape[0]} values but mesh has {num_vertices}.\n"
+                f"annot has {annot.shape[0]} values but mesh has {num_vertices}.\n"
                 "This usually means the .annot does not match the provided surface "
-                "(e.g. RH annot used with LH surface). Provide the correct annot "
-                "file."
+                "(e.g. RH annot used with LH surface). Provide the correct annot file."
             )
-        else:
-            # Ensure integer type for safe indexing
-            annot = annot.astype(np.int32)
-
-            # Start with sulcmap as the default and only overwrite valid label indices
-            colors = np.array(sulcmap, dtype=np.float32)
-
-            # Normalize colortable: detect whether ctab is 0-255 or 0-1
-            ctab_rgb = ctab[:, 0:3].astype(np.float32)
-            denom = 255.0 if np.max(ctab_rgb) > 1 else 1.0
-
-            # Only assign colors for valid annotation indices (>=0 and within the color table)
-            valid = (annot >= 0) & (annot < ctab.shape[0])
-            if np.any(valid):
-                colors[valid, :] = ctab_rgb[annot[valid], :] / denom
+        annot = annot.astype(np.int32)
+        colors = np.array(sulcmap, dtype=np.float32)
+        ctab_rgb = np.asarray(ctab[:, 0:3], dtype=np.float32)
+        denom = 255.0 if np.max(ctab_rgb) > 1 else 1.0
+        valid = (annot >= 0) & (annot < ctab.shape[0])
+        if np.any(valid):
+            colors[valid, :] = ctab_rgb[annot[valid], :] / denom
 
     # Ensure colors dtype matches vertices/normals
     colors = np.asarray(colors, dtype=np.float32)
 
-    # Apply label mask to colors if labelpath is provided,
-    # regardless of whether overlay or annot data was loaded
-    if labelpath:
-        mask = np.isnan(mask_label(np.ones(num_vertices), labelpath))
-        if np.any(mask):
-            colors[mask, :] = sulcmap[mask, :]
+    # Apply ROI mask: vertices where roi == False fall back to sulcmap
+    if roi is not None:
+        outside = ~roi
+        if np.any(outside):
+            colors[outside, :] = sulcmap[outside, :]
 
     vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
     return vertexdata, triangles, fmin, fmax, pos, neg
 
 
-def prepare_and_validate_geometry(
-    meshpath,
-    overlaypath,
-    annotpath,
-    curvpath,
-    labelpath,
-    fthresh,
-    fmax,
-    invert,
-    scale,
-    color_mode,
+def prepare_geometry(
+    mesh,
+    overlay=None,
+    annot=None,
+    bg_map=None,
+    roi=None,
+    minval=None,
+    maxval=None,
+    invert=False,
+    scale=1.85,
+    color_mode=ColorSelection.BOTH,
 ):
-    """Load and validate mesh geometry and overlay/annotation inputs.
+    """Prepare vertex and color arrays for GPU upload.
 
-    This is a small wrapper around :func:`prepare_geometry`
-    that performs the same overlay presence validation used throughout the
-    static snapshot helpers.
+    This is a thin file-loading wrapper around
+    :func:`prepare_geometry_from_arrays`.  Inputs are resolved via the
+    functions in :mod:`whippersnappy.geometry.inputs` so that every
+    parameter can be either a file path or a numpy array.
 
     Parameters
     ----------
-    meshpath, overlaypath, annotpath, curvpath, labelpath : str or None
-        Paths passed through to :func:`prepare_geometry`.
+    mesh : str or tuple of (array-like, array-like)
+        Surface file path (FreeSurfer format) **or** a ``(vertices, faces)``
+        tuple/list where *vertices* is (N, 3) float and *faces* is (M, 3) int.
+    overlay : str, array-like, or None, optional
+        Path to an overlay (.mgh / FreeSurfer morph) file, or a (N,) array
+        of per-vertex scalar values.
+    annot : str, tuple, or None, optional
+        Path to a FreeSurfer .annot file, or a ``(labels, ctab)`` /
+        ``(labels, ctab, names)`` tuple.
+    bg_map : str, array-like, or None, optional
+        Path to a curvature/morph file used for background shading, or a
+        (N,) array whose sign determines light/dark shading.
+    roi : str, array-like, or None, optional
+        Path to a FreeSurfer label file or a (N,) boolean array.  Vertices
+        with ``True`` receive overlay coloring; others fall back to *bg_map*.
+    minval, maxval : float or None, optional
+        Threshold and saturation values for overlay scaling.
+    invert : bool, optional, default False
+        Invert color mapping.
+    scale : float, optional, default 1.85
+        Geometry scaling factor applied by :func:`normalize_mesh`.
+    color_mode : ColorSelection, optional, default ColorSelection.BOTH
+        Which sign(s) of overlay values to use for coloring.
+
+    Returns
+    -------
+    vertexdata : numpy.ndarray
+        Nx9 array (position x3, normal x3, color x3) ready for GPU upload.
+    triangles : numpy.ndarray
+        Mx3 uint32 triangle index array.
+    fmin, fmax : float or None
+        Final threshold and saturation values used for color mapping.
+    pos, neg : bool or None
+        Flags indicating whether positive/negative overlay values are present.
+
+    Raises
+    ------
+    TypeError
+        If *mesh* is not a valid type.
+    ValueError
+        If overlay or annotation arrays do not match the surface vertex count.
+
+    Examples
+    --------
+    File-path usage::
+
+        vdata, tris, fmin, fmax, pos, neg = prepare_geometry(
+            'fsaverage/surf/lh.white',
+            overlay='fsaverage/surf/lh.thickness',
+            bg_map='fsaverage/surf/lh.curv',
+            roi='fsaverage/label/lh.cortex.label',
+        )
+
+    Array inputs::
+
+        import numpy as np
+        v = np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]], dtype=np.float32)
+        f = np.array([[0,1,2],[0,1,3],[0,2,3],[1,2,3]], dtype=np.uint32)
+        vdata, tris, *_ = prepare_geometry((v, f))
+    """
+    vertices, faces = resolve_mesh(mesh)
+    n = vertices.shape[0]
+    overlay_arr = resolve_overlay(overlay, n_vertices=n)
+    bg_map_arr = resolve_bg_map(bg_map, n_vertices=n)
+    roi_arr = resolve_roi(roi, n_vertices=n)
+    annot_result = resolve_annot(annot, n_vertices=n)
+    annot_arr = annot_result[0] if annot_result is not None else None
+    ctab_arr = annot_result[1] if annot_result is not None else None
+    return prepare_geometry_from_arrays(
+        vertices, faces, overlay_arr, annot_arr, ctab_arr,
+        bg_map_arr, roi_arr, minval, maxval, invert, scale, color_mode,
+    )
+
+
+def prepare_and_validate_geometry(
+    mesh,
+    overlay=None,
+    annot=None,
+    bg_map=None,
+    roi=None,
+    fthresh=None,
+    fmax=None,
+    invert=False,
+    scale=1.85,
+    color_mode=ColorSelection.BOTH,
+):
+    """Load and validate mesh geometry and overlay/annotation inputs.
+
+    This is a small wrapper around :func:`prepare_geometry` that performs
+    the same overlay-presence validation used throughout the static snapshot
+    helpers.
+
+    Parameters
+    ----------
+    mesh : str or tuple
+        Passed through to :func:`prepare_geometry`.
+    overlay, annot, bg_map, roi : str, array-like, or None
+        Passed through to :func:`prepare_geometry`.
     fthresh, fmax : float or None
         Threshold and saturation values passed to the geometry preparer.
     invert : bool
@@ -337,11 +422,11 @@ def prepare_and_validate_geometry(
     import logging
     logger = logging.getLogger(__name__)
     meshdata, triangles, out_fthresh, out_fmax, pos, neg = prepare_geometry(
-        meshpath,
-        overlaypath,
-        annotpath,
-        curvpath,
-        labelpath,
+        mesh,
+        overlay,
+        annot,
+        bg_map,
+        roi,
         fthresh,
         fmax,
         invert,
@@ -350,7 +435,7 @@ def prepare_and_validate_geometry(
     )
 
     # Validate overlay presence similar to previous inline checks
-    if overlaypath is not None:
+    if overlay is not None:
         if color_mode == ColorSelection.POSITIVE:
             if not pos and neg:
                 logger.error("Overlay has no values to display with positive color_mode")

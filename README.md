@@ -97,12 +97,39 @@ from whippersnappy import snap1, snap4, snap_rotate, plot3d
 ### Example
 
 ```python
-from whippersnappy import snap4
+from whippersnappy import snap1, snap4
+
+# File-path inputs (FreeSurfer subject directory)
 img = snap4(sdir='/path/to/subject',
-            lhoverlaypath='/path/to/lh.thickness',
-            rhoverlaypath='/path/to/rh.thickness',
+            lh_overlay='/path/to/lh.thickness',
+            rh_overlay='/path/to/rh.thickness',
             colorbar=True, caption='Cortical Thickness (mm)')
 img.save('snap4.png')
+
+# Single view with background shading and cortex mask
+img = snap1('fsaverage/surf/lh.white',
+            overlay='fsaverage/surf/lh.thickness',
+            bg_map='fsaverage/surf/lh.curv',
+            roi='fsaverage/label/lh.cortex.label')
+img.save('snap1.png')
+
+# Array inputs (e.g. from LaPy or trimesh)
+import numpy as np
+v = np.random.randn(1000, 3).astype(np.float32)
+f = np.array([[0, 1, 2]], dtype=np.uint32)  # minimal example
+my_values = np.random.randn(1000).astype(np.float32)
+tria_curv  = np.random.randn(1000).astype(np.float32)
+img = snap1((v, f), overlay=my_values, bg_map=tria_curv)
+```
+
+CLI usage:
+
+```bash
+# Single view
+whippersnap1 lh.white --overlay lh.thickness --bg-map lh.curv --roi lh.cortex.label -o snap1.png
+
+# Four-view batch
+whippersnap4 -lh lh.thickness -rh rh.thickness -sd /path/to/subject -o snap4.png
 ```
 
 See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
