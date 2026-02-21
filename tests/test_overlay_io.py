@@ -10,14 +10,13 @@ import tempfile
 import numpy as np
 import pytest
 
-from whippersnappy.geometry.inputs import resolve_overlay, resolve_bg_map, resolve_roi
+from whippersnappy.geometry.inputs import resolve_bg_map, resolve_overlay, resolve_roi
 from whippersnappy.geometry.overlay_io import (
     read_npy,
     read_npz,
     read_overlay,
     read_txt,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

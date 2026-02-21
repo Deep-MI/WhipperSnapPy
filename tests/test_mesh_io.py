@@ -405,7 +405,6 @@ class TestResolveMeshRouting:
 def _make_surf_gii(verts, faces, suffix=".surf.gii"):
     """Write a minimal GIfTI surface file and return its path."""
     import nibabel as nib
-    from nibabel import nifti1
     _INTENT_POINTSET = 1008
     _INTENT_TRIANGLE = 1009
     coords_da = nib.gifti.GiftiDataArray(
