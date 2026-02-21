@@ -88,7 +88,7 @@ docker run --rm --init \
   -v /path/to/output:/output \
   --user $(id -u):$(id -g) \
   whippersnappy \
-  /subject/surf/lh.white \
+  --mesh /subject/surf/lh.white \
   --overlay /subject/surf/lh.thickness \
   --bg-map /subject/surf/lh.curv \
   --view left \
@@ -119,7 +119,7 @@ docker run --rm --init \
   -v /path/to/output:/output \
   --user $(id -u):$(id -g) \
   whippersnappy \
-  /subject/surf/lh.white \
+  --mesh /subject/surf/lh.white \
   --overlay /subject/surf/lh.thickness \
   --bg-map /subject/surf/lh.curv \
   --rotate \
@@ -137,7 +137,7 @@ docker run --rm --init \
   -v /path/to/output:/output \
   --user $(id -u):$(id -g) \
   whippersnappy \
-  /subject/surf/lh.white \
+  --mesh /subject/surf/lh.white \
   --overlay /subject/surf/lh.thickness \
   --rotate \
   --rotate-frames 36 \
