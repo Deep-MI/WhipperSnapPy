@@ -18,18 +18,22 @@ class ViewState:
     All mouse/keyboard interaction updates this object; the view matrix is
     recomputed from it each frame via :func:`compute_view_matrix`.
 
-    Attributes
+    Parameters
     ----------
     rotation : np.ndarray
         4×4 float32 rotation matrix (identity = no rotation applied).
     pan : np.ndarray
         (x, y) pan offset in normalised screen-space units.
     zoom : float
-        Z-translation applied before the base view.  Larger = further away.
+        Z-translation packed into the transform matrix.
     last_mouse_pos : np.ndarray or None
-        Last recorded mouse position (pixels); ``None`` when no button held.
-    left_button_down, right_button_down, middle_button_down : bool
-        Current pressed state of each mouse button.
+        Last recorded mouse position in pixels; ``None`` when no button held.
+    left_button_down : bool
+        Whether the left mouse button is currently pressed.
+    right_button_down : bool
+        Whether the right mouse button is currently pressed.
+    middle_button_down : bool
+        Whether the middle mouse button is currently pressed.
     """
     rotation: np.ndarray = field(
         default_factory=lambda: np.eye(4, dtype=np.float32)

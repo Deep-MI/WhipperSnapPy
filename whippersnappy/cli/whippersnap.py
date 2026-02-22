@@ -87,16 +87,6 @@ def show_window(
     to a ``QTimer``-driven render loop so GLFW polling and Qt event processing
     share the main thread.
 
-    Interaction
-    -----------
-    * **Left-drag** — arcball rotation in world space (no gimbal lock).
-    * **Right-drag / Middle-drag** — pan in screen space.
-    * **Scroll wheel** — zoom (Z-translation).
-    * **Arrow keys** — rotate in 3° increments.
-    * **R key / double-click** — reset view to initial preset.
-    * **S key** — save snapshot (opens file dialog).
-    * **Q key / ESC** — quit.
-
     Parameters
     ----------
     mesh : str or tuple of (array-like, array-like)
@@ -124,6 +114,18 @@ def show_window(
     ------
     RuntimeError
         If the GLFW window or OpenGL context could not be created.
+
+    Notes
+    -----
+    **Mouse and keyboard interaction:**
+
+    * **Left-drag** — arcball rotation (view-relative, no gimbal lock).
+    * **Right-drag / Middle-drag** — pan in screen space.
+    * **Scroll wheel** — zoom in/out.
+    * **Arrow keys** — rotate in 3° increments (faster while held).
+    * **R / double-click** — reset view to initial preset.
+    * **S** — save snapshot (opens a file-save dialog).
+    * **Q / ESC** — quit.
     """
     global current_fthresh_, current_fmax_
 
