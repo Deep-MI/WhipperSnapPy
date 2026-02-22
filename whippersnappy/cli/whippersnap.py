@@ -494,6 +494,9 @@ def run():
         "--annot", type=str, default=None,
         help="FreeSurfer .annot file for parcellation coloring.",
     )
+    common.add_argument("--lut", type=str, default=None,
+        help="Path to a label look-up-table (LUT) file (csv/txt) with label IDs "
+             "and RGB(A) colors. Required if --annot is a csv/txt label map.")
 
     # --- Appearance / rendering ---
     rend = parser.add_argument_group("appearance")
@@ -639,5 +642,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
 

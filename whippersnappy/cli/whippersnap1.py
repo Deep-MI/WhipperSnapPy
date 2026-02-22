@@ -45,6 +45,8 @@ import logging
 import os
 import tempfile
 
+import numpy as np
+
 if __name__ == "__main__" and __package__ is None:
     import sys
     os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap1"] + sys.argv[1:])
@@ -157,6 +159,9 @@ def run():
     parser.add_argument("--bg-map",   type=str, default=None, dest="bg_map",
                         help="Path to a per-vertex scalar file used as background shading "
                              "(sign determines light/dark).")
+    parser.add_argument("--lut", type=str, default=None,
+        help="Path to a label look-up-table (LUT) file (csv/txt) with label IDs and RGB(A) colors. "
+             "Required if --annot is a csv/txt label map.")
 
     # --- View ---
     parser.add_argument(
@@ -267,11 +272,25 @@ def run():
             outpath = args.output or os.path.join(
                 tempfile.gettempdir(), "whippersnappy_snap1.png"
             )
+            if args.annot is not None and args.lut is not None:
+                # Load label map
+                labels = np.loadtxt(args.annot, delimiter=None, dtype=int)
+                # Load LUT
+                lut = np.loadtxt(args.lut, delimiter=None)
+                # Normalize color values if needed
+                if lut.shape[1] in (4,5):  # label + RGB(A)
+                    rgb = lut[:,1:]
+                    if np.any(rgb > 1):
+                        rgb = rgb / 255.0
+                    lut[:,1:] = rgb
+                annot_tuple = (labels, lut)
+            else:
+                annot_tuple = args.annot
             img = snap1(
                 mesh=mesh_path,
                 outpath=outpath,
                 overlay=args.overlay,
-                annot=args.annot,
+                annot=annot_tuple,
                 roi=args.roi,
                 bg_map=args.bg_map,
                 view=_VIEW_CHOICES[args.view],
@@ -296,5 +315,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
 

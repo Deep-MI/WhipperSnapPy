@@ -18,6 +18,8 @@ import logging
 import os
 import tempfile
 
+import numpy as np
+
 if __name__ == "__main__" and __package__ is None:
     import sys
     os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap4"] + sys.argv[1:])
@@ -99,6 +101,12 @@ def run():
                         help="Path to the lh annotation (.annot) file.")
     parser.add_argument("--rh_annot", type=str, default=None,
                         help="Path to the rh annotation (.annot) file.")
+    parser.add_argument("--lh_lut", type=str, default=None,
+                        help="Path to the lh label look-up-table (LUT) file (csv/txt) with label IDs "
+                             "and RGB(A) colors. Required if --lh_annot is a csv/txt label map.")
+    parser.add_argument("--rh_lut", type=str, default=None,
+                        help="Path to the rh label look-up-table (LUT) file (csv/txt) with label IDs "
+                             "and RGB(A) colors. Required if --rh_annot is a csv/txt label map.")
 
     # --- Subject directory / surface ---
     parser.add_argument("-sd", "--sdir", type=str, required=True,
@@ -158,11 +166,34 @@ def run():
     logger.debug("Parsed args: %s", vars(args))
 
     try:
+        if args.lh_annot is not None and args.lh_lut is not None:
+            labels = np.loadtxt(args.lh_annot, delimiter=None, dtype=int)
+            lut = np.loadtxt(args.lh_lut, delimiter=None)
+            if lut.shape[1] in (4,5):
+                rgb = lut[:,1:]
+                if np.any(rgb > 1):
+                    rgb = rgb / 255.0
+                lut[:,1:] = rgb
+            lh_annot_tuple = (labels, lut)
+        else:
+            lh_annot_tuple = args.lh_annot
+        if args.rh_annot is not None and args.rh_lut is not None:
+            labels = np.loadtxt(args.rh_annot, delimiter=None, dtype=int)
+            lut = np.loadtxt(args.rh_lut, delimiter=None)
+            if lut.shape[1] in (4,5):
+                rgb = lut[:,1:]
+                if np.any(rgb > 1):
+                    rgb = rgb / 255.0
+                lut[:,1:] = rgb
+            rh_annot_tuple = (labels, lut)
+        else:
+            rh_annot_tuple = args.rh_annot
+
         img = snap4(
             lh_overlay=args.lh_overlay,
             rh_overlay=args.rh_overlay,
-            lh_annot=args.lh_annot,
-            rh_annot=args.rh_annot,
+            lh_annot=lh_annot_tuple,
+            rh_annot=rh_annot_tuple,
             sdir=args.sdir,
             caption=args.caption,
             surfname=args.surf_name,
@@ -185,5 +216,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-
 

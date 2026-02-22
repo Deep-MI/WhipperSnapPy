@@ -111,7 +111,7 @@ from whippersnappy import snap1, snap4, snap_rotate, plot3d
 |---|---|
 | `snap1` | Single-view snapshot of any triangular mesh → PIL Image |
 | `snap4` | Four-view composed image (FreeSurfer subject, lateral/medial both hemispheres) |
-| `snap_rotate` | 360° rotation video of any triangular mesh (MP4, WebM, or GIF) |
+| `snap_rotate` | 360° rotation video of any triangular surface mesh (MP4, WebM, or GIF) |
 | `plot3d` | Interactive 3D WebGL viewer for Jupyter notebooks |
 
 **Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
