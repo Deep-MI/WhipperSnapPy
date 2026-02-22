@@ -269,7 +269,7 @@ class TestSnap1Rendering:
         # Normalize LUT colors
         lut[:,1:] = lut[:,1:] / 255.0
         annot = (labels, lut)
-        img = snap1((v, f), annot=annot)
+        img = _snap1_offscreen((v, f), annot=annot)
         assert img is not None
         arr = np.array(img)
         assert arr.shape[0] > 0 and arr.shape[1] > 0
