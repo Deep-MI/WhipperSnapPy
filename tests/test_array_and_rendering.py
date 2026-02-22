@@ -258,7 +258,7 @@ class TestSnap1Rendering:
     def test_label_map_and_lut_rendering(self):
         """Label map + LUT: image is non-uniform and correct size.
         Skips on platforms without OpenGL context (Windows/macOS headless).
-        Re-uses the tetra mesh (_V, _F) as in other tests."""
+        Reuses the tetra mesh (_V, _F) as in other tests."""
         labels = np.array([1,2,1,2], dtype=int)
         lut = np.array([[1,255,0,0],[2,0,255,0]], dtype=float)
         lut[:,1:] = lut[:,1:] / 255.0
