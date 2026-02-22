@@ -27,10 +27,8 @@ jobs:
           cache: pip
       - name: Install system dependencies
         run: |
-          # sudo apt update
           sudo apt-get update
           sudo apt-get -y install libgl1 libegl1 libxcb-cursor0 pandoc
-          # sudo apt install libxcb-cursor0
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel
