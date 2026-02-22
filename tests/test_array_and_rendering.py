@@ -256,20 +256,14 @@ class TestSnap1Rendering:
         assert arr.min() != arr.max(), "Image with bg_map is completely uniform."
 
     def test_label_map_and_lut_rendering(self):
-        import numpy as np
-
-        from whippersnappy.snap import snap1
-        # Minimal tetra mesh
-        v = np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]], dtype=np.float32)
-        f = np.array([[0,1,2],[0,1,3],[0,2,3],[1,2,3]], dtype=np.uint32)
-        # Label map: 4 vertices, 2 labels
+        """Label map + LUT: image is non-uniform and correct size.
+        Skips on platforms without OpenGL context (Windows/macOS headless).
+        Re-uses the tetra mesh (_V, _F) as in other tests."""
         labels = np.array([1,2,1,2], dtype=int)
-        # LUT: label id, R, G, B (values in 0-255)
         lut = np.array([[1,255,0,0],[2,0,255,0]], dtype=float)
-        # Normalize LUT colors
         lut[:,1:] = lut[:,1:] / 255.0
         annot = (labels, lut)
-        img = _snap1_offscreen((v, f), annot=annot)
+        img = _snap1_offscreen(mesh=(_V, _F), annot=annot)
         assert img is not None
         arr = np.array(img)
         assert arr.shape[0] > 0 and arr.shape[1] > 0
