@@ -51,6 +51,7 @@ from ..gl import (
     ViewState,
     arcball_rotation_matrix,
     arcball_vector,
+    capture_window,
     compute_view_matrix,
     get_view_matrices,
     init_window,
@@ -91,8 +92,9 @@ def show_window(
     * **Left-drag** — arcball rotation in world space (no gimbal lock).
     * **Right-drag / Middle-drag** — pan in screen space.
     * **Scroll wheel** — zoom (Z-translation).
-    * **Arrow keys** — rotate in 2° increments.
+    * **Arrow keys** — rotate in 3° increments.
     * **R key / double-click** — reset view to initial preset.
+    * **S key** — save snapshot (opens file dialog).
     * **Q key / ESC** — quit.
 
     Parameters
@@ -162,7 +164,7 @@ def show_window(
 
     logger.info(
         "Mouse: left-drag=rotate  right/middle-drag=pan  scroll=zoom  "
-        "R/double-click=reset  Q/ESC=quit"
+        "R/double-click=reset  S=snapshot  Q/ESC=quit"
     )
 
     # ------------------------------------------------------------------
@@ -226,6 +228,21 @@ def show_window(
         # Allow much further zoom out (e.g. -20.0)
         vs.zoom  = float(np.clip(vs.zoom, -20.0, 4.5))
 
+    def _save_snapshot():
+        """Capture the current frame and open a Qt save-file dialog."""
+        from PyQt6.QtWidgets import QFileDialog  # noqa: PLC0415
+        path, _ = QFileDialog.getSaveFileName(
+            None,
+            "Save snapshot",
+            "snapshot.png",
+            "Images (*.png *.jpg *.jpeg *.tiff *.bmp);;All files (*)",
+        )
+        if not path:
+            return  # user cancelled
+        img = capture_window(window)
+        img.save(path)
+        logger.info("Snapshot saved to %s", path)
+
     _arrow_keys = {glfw.KEY_RIGHT, glfw.KEY_LEFT, glfw.KEY_UP, glfw.KEY_DOWN}
 
     def _key_cb(win, key, _scancode, action, _mods):
@@ -248,6 +265,9 @@ def show_window(
             return
         elif key == glfw.KEY_Q:
             glfw.set_window_should_close(win, True)
+            return
+        elif key == glfw.KEY_S and action == glfw.PRESS:
+            _save_snapshot()
             return
         else:
             return
