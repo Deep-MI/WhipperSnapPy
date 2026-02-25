@@ -2,6 +2,7 @@
 
 import logging
 import os
+import warnings
 
 import glfw
 import numpy as np
@@ -151,16 +152,18 @@ def snap1(
     ref_height = 500
     ui_scale = min(width / ref_width, height / ref_height)
     try:
-        if glfw.init():
-            primary_monitor = glfw.get_primary_monitor()
-            if primary_monitor:
-                mode = glfw.get_video_mode(primary_monitor)
-                if width > mode.size.width:
-                    logger.info("Requested width %d exceeds screen width %d, expect black bars",
-                                width, mode.size.width)
-                elif height > mode.size.height:
-                    logger.info("Requested height %d exceeds screen height %d, expect black bars",
-                                height, mode.size.height)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if glfw.init():
+                primary_monitor = glfw.get_primary_monitor()
+                if primary_monitor:
+                    mode = glfw.get_video_mode(primary_monitor)
+                    if width > mode.size.width:
+                        logger.info("Requested width %d exceeds screen width %d, expect black bars",
+                                    width, mode.size.width)
+                    elif height > mode.size.height:
+                        logger.info("Requested height %d exceeds screen height %d, expect black bars",
+                                    height, mode.size.height)
     except Exception:
         pass  # headless — no monitor info available, that's fine
 

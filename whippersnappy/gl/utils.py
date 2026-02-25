@@ -6,6 +6,7 @@ Contains the implementation of OpenGL helpers used by the package.
 import logging
 import os
 import sys
+import warnings
 from typing import Any
 
 import glfw
@@ -181,8 +182,10 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     window or False
         GLFW window handle on success, or False on failure.
     """
-    if not glfw.init():
-        return False
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if not glfw.init():
+            return False
 
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
