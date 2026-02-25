@@ -1,5 +1,0 @@
-﻿whippersnappy.core
-==================
-
-.. automodule:: whippersnappy.core
-    :members:

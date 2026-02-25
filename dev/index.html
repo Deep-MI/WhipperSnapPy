@@ -3,9 +3,9 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="API References" href="api/index.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Docker Guide" href="DOCKER.html">
 
-    <!-- Generated with Sphinx 8.1.3 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>WhipperSnapPy</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -193,10 +193,15 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="api/index.html">API References</a><input aria-label="Toggle navigation of API References" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/generated/whippersnappy.config_app.ConfigWindow.html">whippersnappy.config_app.ConfigWindow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/generated/whippersnappy.core.html">whippersnappy.core</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/generated/whippersnappy.cli.whippersnap.html">whippersnappy.cli.whippersnap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="DOCKER.html">Docker Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="tutorials/index.html">Tutorials</a><input aria-label="Toggle navigation of Tutorials" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/whippersnappy_tutorial.html">WhipperSnapPy Tutorial</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="api/index.html">API Reference</a><input aria-label="Toggle navigation of API Reference" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/cli.html">Command-Line Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/snap.html">snap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/plot3d.html">plot3d</a></li>
 </ul>
 </li>
 </ul>
@@ -237,88 +242,185 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="welcome-to-whippersnappy-s-documentation">
-<h1>Welcome to whippersnappy’s documentation!<a class="headerlink" href="#welcome-to-whippersnappy-s-documentation" title="Link to this heading">¶</a></h1>
-<p>WhipperSnapPY is a small Python OpenGL program to render
-FreeSurfer and FastSurfer surface models and color overlays and generate screen shots.</p>
-<section id="license">
-<h2>License<a class="headerlink" href="#license" title="Link to this heading">¶</a></h2>
-<p><a class="reference external" href="https://pypi.org/project/whippersnapper/">Whippersnappy</a> is licensed under the <a class="reference external" href="https://opensource.org/licenses/MIT">MIT license</a>.
-A full copy of the license can be found <a class="reference external" href="https://github.com/Deep-MI/WhipperSnapPy/blob/main/LICENSE">on GitHub</a>.</p>
-</section>
-<section id="contents">
-<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p>Capture 4x4 surface plots (front &amp; back, left and right)</p></li>
-<li><p>OpenGL window for interactive visualization</p></li>
-</ul>
-<p>Note, that currently no off-screen rendering is supported. Even in snap mode an invisible window will be created to render the openGL output and capture the contents to an image. In order to run this on a headless server, inside Docker, or via ssh we recommend to install xvfb and run</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3<span class="w"> </span>python3-pip<span class="w"> </span>xvfb
-pip3<span class="w"> </span>install<span class="w"> </span>pyopengl<span class="w"> </span>glfw<span class="w"> </span>pillow<span class="w"> </span>numpy<span class="w"> </span>pyrr<span class="w"> </span><span class="nv">PyQt5</span><span class="o">==</span><span class="m">5</span>.15.6
-pip3<span class="w"> </span>install<span class="w"> </span>.
-xvfb-run<span class="w"> </span>whippersnap<span class="w"> </span>...
-</pre></div>
-</div>
-</section>
+          <section id="whippersnappy">
+<h1>WhipperSnapPy<a class="headerlink" href="#whippersnappy" title="Link to this heading">¶</a></h1>
+<p>WhipperSnapPy is a Python/OpenGL tool to render triangular surface meshes
+with color overlays or parcellations and generate screenshots — from the
+command line, in Jupyter notebooks, or via a desktop GUI.</p>
+<p>It works with FreeSurfer and FastSurfer brain surfaces as well as any
+triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI (.gii, .surf.gii) format, or
+passed directly as a NumPy <code class="docutils literal notranslate"><span class="pre">(vertices,</span> <span class="pre">faces)</span></code> tuple.</p>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
-<p>The <a class="reference external" href="https://pypi.org/project/whippersnapper/">Whippersnappy</a> package can be installed from this repository using:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>.
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>whippersnappy
+</pre></div>
+</div>
+<p>For rotation video support (MP4/WebM):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[video]&#39;</span>
+</pre></div>
+</div>
+<p>For the interactive desktop GUI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[gui]&#39;</span>
+</pre></div>
+</div>
+<p>For interactive 3D in Jupyter notebooks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[notebook]&#39;</span>
+</pre></div>
+</div>
+<p>Off-screen (headless) rendering is supported natively via EGL on Linux — no
+<code class="docutils literal notranslate"><span class="pre">xvfb</span></code> required. See the <a href="DOCKER.md">Docker guide</a> for headless usage.</p>
+</section>
+<section id="command-line-usage">
+<h2>Command-Line Usage<a class="headerlink" href="#command-line-usage" title="Link to this heading">¶</a></h2>
+<p>After installation the following commands are available:</p>
+<section id="four-view-snapshot-whippersnap4">
+<h3>Four-view snapshot (<code class="docutils literal notranslate"><span class="pre">whippersnap4</span></code>)<a class="headerlink" href="#four-view-snapshot-whippersnap4" title="Link to this heading">¶</a></h3>
+<p>Renders lateral and medial views of both hemispheres into a single composed image:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap4<span class="w"> </span>-lh<span class="w"> </span><span class="nv">$LH_OVERLAY</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>-rh<span class="w"> </span><span class="nv">$RH_OVERLAY</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>-sd<span class="w"> </span><span class="nv">$SUBJECT_DIR</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--fmax<span class="w"> </span><span class="m">4</span><span class="w"> </span>--fthresh<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--caption<span class="w"> </span><span class="s2">&quot;Cortical Thickness&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>-o<span class="w"> </span>snap4.png
 </pre></div>
 </div>
 </section>
-<section id="usage">
-<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
-<section id="local">
-<h3>Local<a class="headerlink" href="#local" title="Link to this heading">¶</a></h3>
-<p>After installing the Python package, the whippersnap program can be run using the installed command line tool such as in the following example:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap<span class="w"> </span>-lh<span class="w"> </span><span class="nv">$OVERLAY_DIR</span>/<span class="nv">$LH_OVERLAY_FILE</span><span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>-rh<span class="w"> </span><span class="nv">$OVERLAY_DIR</span>/<span class="nv">$RH_OVERLAY_FILE</span><span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>-sd<span class="w"> </span><span class="nv">$SURF_SUBJECT_DIR</span><span class="w"> </span><span class="se">\</span>
-<span class="w">            </span>-o<span class="w"> </span><span class="nv">$OUTPUT_DIR</span>/whippersnappy_image.png
+<section id="single-view-snapshot-whippersnap1">
+<h3>Single-view snapshot (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code>)<a class="headerlink" href="#single-view-snapshot-whippersnap1" title="Link to this heading">¶</a></h3>
+<p>Renders one view of any triangular surface mesh:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap1<span class="w"> </span>--mesh<span class="w"> </span><span class="nv">$SUBJECT_DIR</span>/surf/lh.white<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--overlay<span class="w"> </span><span class="nv">$LH_OVERLAY</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--bg-map<span class="w">  </span><span class="nv">$SUBJECT_DIR</span>/surf/lh.curv<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--roi<span class="w">     </span><span class="nv">$SUBJECT_DIR</span>/label/lh.cortex.label<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--view<span class="w"> </span>left<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>-o<span class="w"> </span>snap1.png
+
+<span class="c1"># Also works with OFF / VTK / PLY</span>
+whippersnap1<span class="w"> </span>--mesh<span class="w"> </span>mesh.off<span class="w"> </span>--overlay<span class="w"> </span>values.mgh<span class="w"> </span>-o<span class="w"> </span>snap1.png
+whippersnap1<span class="w"> </span>--mesh<span class="w"> </span>surface.surf.gii<span class="w"> </span>--overlay<span class="w"> </span>overlay.func.gii<span class="w"> </span>-o<span class="w"> </span>snap1.png
 </pre></div>
 </div>
-<p>Note that adding the <code class="xref py py-obj docutils literal notranslate"><span class="pre">--interactive</span></code> flag will start an interactive GUI that includes a visualization of one hemisphere side and a simple application through which color threshold values can be configured.</p>
+</section>
+<section id="rotation-video-whippersnap1-rotate">
+<h3>Rotation video (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span> <span class="pre">--rotate</span></code>)<a class="headerlink" href="#rotation-video-whippersnap1-rotate" title="Link to this heading">¶</a></h3>
+<p>Renders a 360° animation of any triangular surface mesh:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap1<span class="w"> </span>--mesh<span class="w"> </span><span class="nv">$SUBJECT_DIR</span>/surf/lh.white<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--overlay<span class="w"> </span><span class="nv">$LH_OVERLAY</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--rotate<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>-o<span class="w"> </span>rotation.mp4
+</pre></div>
+</div>
+</section>
+<section id="desktop-gui-whippersnap">
+<h3>Desktop GUI (<code class="docutils literal notranslate"><span class="pre">whippersnap</span></code>)<a class="headerlink" href="#desktop-gui-whippersnap" title="Link to this heading">¶</a></h3>
+<p>Launches an interactive Qt window with live threshold controls.</p>
+<p><strong>General mode</strong> — any triangular mesh:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[gui]&#39;</span>
+whippersnap<span class="w"> </span>--mesh<span class="w"> </span>mesh.off<span class="w"> </span>--overlay<span class="w"> </span>values.mgh
+whippersnap<span class="w"> </span>--mesh<span class="w"> </span>lh.white<span class="w"> </span>--overlay<span class="w"> </span>lh.thickness<span class="w"> </span>--bg-map<span class="w"> </span>lh.curv
+</pre></div>
+</div>
+<p><strong>FreeSurfer shortcut</strong> — derive all paths from a subject directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$SUBJECT_DIR</span><span class="w"> </span>--hemi<span class="w"> </span>lh<span class="w"> </span>-lh<span class="w"> </span><span class="nv">$LH_OVERLAY</span>
+whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$SUBJECT_DIR</span><span class="w"> </span>--hemi<span class="w"> </span>rh<span class="w"> </span>--annot<span class="w"> </span>rh.aparc.annot
+</pre></div>
+</div>
+<p>For all options run <code class="docutils literal notranslate"><span class="pre">whippersnap4</span> <span class="pre">--help</span></code>, <code class="docutils literal notranslate"><span class="pre">whippersnap1</span> <span class="pre">--help</span></code>, or <code class="docutils literal notranslate"><span class="pre">whippersnap</span> <span class="pre">--help</span></code>.</p>
+</section>
+</section>
+<section id="python-api">
+<h2>Python API<a class="headerlink" href="#python-api" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">snap_rotate</span><span class="p">,</span> <span class="n">plot3d</span>
+</pre></div>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">snap1</span></code></p></td>
+<td><p>Single-view snapshot of any triangular mesh → PIL Image</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">snap4</span></code></p></td>
+<td><p>Four-view composed image (FreeSurfer subject, lateral/medial both hemispheres)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code></p></td>
+<td><p>360° rotation video of any triangular surface mesh (MP4, WebM, or GIF)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">plot3d</span></code></p></td>
+<td><p>Interactive 3D WebGL viewer for Jupyter notebooks</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Supported mesh inputs for <code class="docutils literal notranslate"><span class="pre">snap1</span></code>, <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code>, and <code class="docutils literal notranslate"><span class="pre">plot3d</span></code>:</strong>
+FreeSurfer binary surfaces (e.g. <code class="docutils literal notranslate"><span class="pre">lh.white</span></code>), OFF (<code class="docutils literal notranslate"><span class="pre">.off</span></code>), legacy ASCII VTK PolyData (<code class="docutils literal notranslate"><span class="pre">.vtk</span></code>), ASCII PLY (<code class="docutils literal notranslate"><span class="pre">.ply</span></code>), GIfTI surface (<code class="docutils literal notranslate"><span class="pre">.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.surf.gii</span></code>), or a <code class="docutils literal notranslate"><span class="pre">(vertices,</span> <span class="pre">faces)</span></code> NumPy array tuple.</p>
+<p><strong>Supported overlay/label inputs:</strong>
+FreeSurfer morph (<code class="docutils literal notranslate"><span class="pre">.curv</span></code>, <code class="docutils literal notranslate"><span class="pre">.thickness</span></code>), MGH/MGZ, ASCII (<code class="docutils literal notranslate"><span class="pre">.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">.csv</span></code>), NumPy (<code class="docutils literal notranslate"><span class="pre">.npy</span></code>, <code class="docutils literal notranslate"><span class="pre">.npz</span></code>), GIfTI functional/label (<code class="docutils literal notranslate"><span class="pre">.func.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.label.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.gii</span></code>).</p>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span>
+
+<span class="c1"># FreeSurfer surface with overlay</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span>
+            <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span>
+            <span class="n">bg_map</span><span class="o">=</span><span class="s1">&#39;lh.curv&#39;</span><span class="p">,</span>
+            <span class="n">roi</span><span class="o">=</span><span class="s1">&#39;lh.cortex.label&#39;</span><span class="p">)</span>
+<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap1.png&#39;</span><span class="p">)</span>
+
+<span class="c1"># Four-view overview (FreeSurfer subject directory)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap4</span><span class="p">(</span><span class="n">sdir</span><span class="o">=</span><span class="s1">&#39;/path/to/subject&#39;</span><span class="p">,</span>
+            <span class="n">lh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/lh.thickness&#39;</span><span class="p">,</span>
+            <span class="n">rh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/rh.thickness&#39;</span><span class="p">,</span>
+            <span class="n">colorbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">caption</span><span class="o">=</span><span class="s1">&#39;Cortical Thickness (mm)&#39;</span><span class="p">)</span>
+<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap4.png&#39;</span><span class="p">)</span>
+
+<span class="c1"># OFF / VTK / PLY / GIfTI mesh</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;mesh.off&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;values.mgh&#39;</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;surface.surf.gii&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;overlay.func.gii&#39;</span><span class="p">)</span>
+
+<span class="c1"># Array inputs (e.g. from LaPy or trimesh)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+<span class="n">overlay</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">f</span><span class="p">),</span> <span class="n">overlay</span><span class="o">=</span><span class="n">overlay</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See <code class="docutils literal notranslate"><span class="pre">tutorials/whippersnappy_tutorial.ipynb</span></code> for complete notebook examples.</p>
+</section>
 </section>
 <section id="docker">
-<h3>Docker<a class="headerlink" href="#docker" title="Link to this heading">¶</a></h3>
-<p>the whippersnap program can be run within a docker container to capture a snapshot by building the provided Docker image and running a container as follows:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>build<span class="w"> </span>--rm<span class="o">=</span><span class="nb">true</span><span class="w"> </span>-t<span class="w"> </span>whippersnappy<span class="w"> </span>-f<span class="w"> </span>./Dockerfile<span class="w"> </span>.
-</pre></div>
-</div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span>--name<span class="w"> </span>my_whippersnappy<span class="w"> </span>-v<span class="w"> </span><span class="nv">$SURF_SUBJECT_DIR</span>:/surf_subject_dir<span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>-v<span class="w"> </span><span class="nv">$OVERLAY_DIR</span>:/overlay_dir<span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>-v<span class="w"> </span><span class="nv">$OUTPUT_DIR</span>:/output_dir<span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>--user<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>:<span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="w"> </span>whippersnappy:latest<span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>--lh_overlay<span class="w"> </span>/overlay_dir/<span class="nv">$LH_OVERLAY_FILE</span><span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>--rh_overlay<span class="w"> </span>/overlay_dir/<span class="nv">$RH_OVERLAY_FILE</span><span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>--sdir<span class="w"> </span>/surf_subject_dir<span class="w"> </span><span class="se">\</span>
-<span class="w">                                               </span>--output_path<span class="w"> </span>/output_dir/whippersnappy_image.png
-</pre></div>
-</div>
-<p>In this example: <code class="xref py py-obj docutils literal notranslate"><span class="pre">$SURF_SUBJECT_DIR</span></code> contains the surface files, <code class="xref py py-obj docutils literal notranslate"><span class="pre">$OVERLAY_DIR</span></code> contains the overlays to be loaded on to the surfaces, <code class="xref py py-obj docutils literal notranslate"><span class="pre">$OUTPUT_DIR</span></code> is the local output directory in which the snapshot will be saved, and <code class="xref py py-obj docutils literal notranslate"><span class="pre">${LH/RH}_OVERLAY_FILE</span></code> point to the specific overlay files to load.</p>
-<p><strong>Note:</strong> The <code class="xref py py-obj docutils literal notranslate"><span class="pre">--init</span></code> flag is needed for the <code class="xref py py-obj docutils literal notranslate"><span class="pre">xvfb-run</span></code> tool to be used correctly.</p>
+<h2>Docker<a class="headerlink" href="#docker" title="Link to this heading">¶</a></h2>
+<p>The Docker image provides a fully headless EGL rendering environment — no
+display server or <code class="docutils literal notranslate"><span class="pre">xvfb</span></code> required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
 </section>
+<section id="api-documentation">
+<h2>API Documentation<a class="headerlink" href="#api-documentation" title="Link to this heading">¶</a></h2>
+<p>https://deep-mi.org/WhipperSnapPy</p>
 </section>
 <section id="links">
 <h2>Links<a class="headerlink" href="#links" title="Link to this heading">¶</a></h2>
-<p>We also invite you to check out our lab webpage at <a class="reference external" href="https://deep-mi.org">https://deep-mi.org</a></p>
+<p>Lab webpage: https://deep-mi.org</p>
+</section>
+</section>
 <div class="toctree-wrapper compound">
 </div>
-</section>
-</section>
 
         </article>
       </div>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="api/index.html">
+          <a class="next-page" href="DOCKER.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">API References</div>
+                <div class="title">Docker Guide</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -359,15 +461,21 @@ xvfb-run<span class="w"> </span>whippersnap<span class="w"> </span>...
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Welcome to whippersnappy’s documentation!</a><ul>
-<li><a class="reference internal" href="#license">License</a></li>
-<li><a class="reference internal" href="#contents">Contents</a></li>
+<li><a class="reference internal" href="#">WhipperSnapPy</a><ul>
 <li><a class="reference internal" href="#installation">Installation</a></li>
-<li><a class="reference internal" href="#usage">Usage</a><ul>
-<li><a class="reference internal" href="#local">Local</a></li>
-<li><a class="reference internal" href="#docker">Docker</a></li>
+<li><a class="reference internal" href="#command-line-usage">Command-Line Usage</a><ul>
+<li><a class="reference internal" href="#four-view-snapshot-whippersnap4">Four-view snapshot (<code class="docutils literal notranslate"><span class="pre">whippersnap4</span></code>)</a></li>
+<li><a class="reference internal" href="#single-view-snapshot-whippersnap1">Single-view snapshot (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code>)</a></li>
+<li><a class="reference internal" href="#rotation-video-whippersnap1-rotate">Rotation video (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span> <span class="pre">--rotate</span></code>)</a></li>
+<li><a class="reference internal" href="#desktop-gui-whippersnap">Desktop GUI (<code class="docutils literal notranslate"><span class="pre">whippersnap</span></code>)</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#python-api">Python API</a><ul>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#docker">Docker</a></li>
+<li><a class="reference internal" href="#api-documentation">API Documentation</a></li>
 <li><a class="reference internal" href="#links">Links</a></li>
 </ul>
 </li>
@@ -380,12 +488,14 @@ xvfb-run<span class="w"> </span>whippersnap<span class="w"> </span>...
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=48c8187c"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+</div><script src="_static/documentation_options.js?v=25d36582"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="_static/copybutton.js?v=f281be69"></script>
     <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
     </body>
 </html>

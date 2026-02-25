@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="whippersnappy.config_app.ConfigWindow" href="generated/whippersnappy.config_app.ConfigWindow.html"><link rel="prev" title="Welcome to whippersnappy’s documentation!" href="../index.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Command-Line Interfaces" href="cli.html"><link rel="prev" title="WhipperSnapPy Tutorial" href="../tutorials/whippersnappy_tutorial.html">
 
-    <!-- Generated with Sphinx 8.1.3 and Furo 2025.12.19 -->
-        <title>API References - WhipperSnapPy</title>
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>API Reference - WhipperSnapPy</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -193,10 +193,15 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
-<li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">API References</a><input aria-label="Toggle navigation of API References" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="generated/whippersnappy.config_app.ConfigWindow.html">whippersnappy.config_app.ConfigWindow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/whippersnappy.core.html">whippersnappy.core</a></li>
-<li class="toctree-l2"><a class="reference internal" href="generated/whippersnappy.cli.whippersnap.html">whippersnappy.cli.whippersnap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../DOCKER.html">Docker Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tutorials/index.html">Tutorials</a><input aria-label="Toggle navigation of Tutorials" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/whippersnappy_tutorial.html">WhipperSnapPy Tutorial</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">API Reference</a><input aria-label="Toggle navigation of API Reference" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="cli.html">Command-Line Interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="snap.html">snap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot3d.html">plot3d</a></li>
 </ul>
 </li>
 </ul>
@@ -237,22 +242,28 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="api-references">
-<h1>API References<a class="headerlink" href="#api-references" title="Link to this heading">¶</a></h1>
-<div class="table-wrapper autosummary longtable docutils container">
-<table class="autosummary longtable docutils align-default">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/whippersnappy.config_app.ConfigWindow.html#whippersnappy.config_app.ConfigWindow" title="whippersnappy.config_app.ConfigWindow"><code class="xref py py-obj docutils literal notranslate"><span class="pre">config_app.ConfigWindow</span></code></a>([parent, ...])</p></td>
-<td><p>Encapsulates the Qt widget for the parameter configuration.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="generated/whippersnappy.core.html#module-whippersnappy.core" title="whippersnappy.core"><code class="xref py py-obj docutils literal notranslate"><span class="pre">core</span></code></a></p></td>
-<td><p>Contains the core functionalities of WhipperSnapPy.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="generated/whippersnappy.cli.whippersnap.html#module-whippersnappy.cli.whippersnap" title="whippersnappy.cli.whippersnap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cli.whippersnap</span></code></a></p></td>
-<td><p>Executes the whippersnappy program in an interactive or non-interactive mode.</p></td>
-</tr>
-</tbody>
-</table>
+          <section id="api-reference">
+<span id="api-ref"></span><h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command-Line Interfaces</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#module-whippersnappy.cli.whippersnap1">whippersnap1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#module-whippersnappy.cli.whippersnap4">whippersnap4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#module-whippersnappy.cli.whippersnap">whippersnap</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="snap.html">snap</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="snap.html#whippersnappy.snap.snap1"><code class="docutils literal notranslate"><span class="pre">snap1()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="snap.html#whippersnappy.snap.snap4"><code class="docutils literal notranslate"><span class="pre">snap4()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="snap.html#whippersnappy.snap.snap_rotate"><code class="docutils literal notranslate"><span class="pre">snap_rotate()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plot3d.html">plot3d</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plot3d.html#whippersnappy.plot3d.plot3d"><code class="docutils literal notranslate"><span class="pre">plot3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="plot3d.html#whippersnappy.plot3d.create_threejs_mesh_with_custom_shaders"><code class="docutils literal notranslate"><span class="pre">create_threejs_mesh_with_custom_shaders()</span></code></a></li>
+</ul>
+</li>
+</ul>
 </div>
 </section>
 
@@ -261,23 +272,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="generated/whippersnappy.config_app.ConfigWindow.html">
+          <a class="next-page" href="cli.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">whippersnappy.config_app.ConfigWindow</div>
+                <div class="title">Command-Line Interfaces</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="../index.html">
+          <a class="prev-page" href="../tutorials/whippersnappy_tutorial.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Home</div>
+                <div class="title">WhipperSnapPy Tutorial</div>
                 
               </div>
             </a>
@@ -311,12 +322,14 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=48c8187c"></script>
-    <script src="../_static/doctools.js?v=9bcbadda"></script>
-    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+</div><script src="../_static/documentation_options.js?v=25d36582"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=f281be69"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
     </body>
 </html>
