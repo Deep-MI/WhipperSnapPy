@@ -2,7 +2,7 @@
  "cells": [
   {
    "cell_type": "markdown",
-   "id": "2c795daa",
+   "id": "3de09aec",
    "metadata": {},
    "source": [
     "# WhipperSnapPy Tutorial\n",
@@ -17,7 +17,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "8bd0a771",
+   "id": "c7520b73",
    "metadata": {},
    "source": [
     "## Subject Directory\n",
@@ -31,7 +31,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "30c14cc9",
+   "id": "75a22f9c",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -50,12 +50,12 @@
     "if not sdir:\n",
     "    sdir = fetch_sample_subject()[\"sdir\"]\n",
     "\n",
-    "print(\"Subject directory:\", sdir)\n"
+    "print(\"Subject directory:\", sdir)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "73dd4d58",
+   "id": "06c859f0",
    "metadata": {},
    "source": [
     "### Derive file paths from `sdir`\n",
@@ -67,7 +67,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "ec559dcd",
+   "id": "9ca0b13a",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -89,15 +89,15 @@
     "\n",
     "# Parcellation annotation (DKTatlas)\n",
     "lh_annot     = os.path.join(sdir, \"label\", \"lh.aparc.DKTatlas.mapped.annot\")\n",
-    "rh_annot     = os.path.join(sdir, \"label\", \"rh.aparc.DKTatlas.mapped.annot\")\n"
+    "rh_annot     = os.path.join(sdir, \"label\", \"rh.aparc.DKTatlas.mapped.annot\")"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "22be9ebf",
+   "id": "7fdab413",
    "metadata": {},
    "source": [
-    "## snap1 — Basic Single View\n",
+    "## snap1 \u2014 Basic Single View\n",
     "\n",
     "`snap1` renders a single static view of a surface mesh into a PIL Image.\n",
     "Here we render the left hemisphere with curvature texturing only (no overlay),\n",
@@ -107,7 +107,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "783e547b",
+   "id": "68e1a46a",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -116,15 +116,15 @@
     "from whippersnappy import snap1\n",
     "\n",
     "img = snap1(lh_white, bg_map=lh_curv)\n",
-    "display(img)\n"
+    "display(img)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "7173d312",
+   "id": "fbb6b125",
    "metadata": {},
    "source": [
-    "## snap1 — With Thickness Overlay\n",
+    "## snap1 \u2014 With Thickness Overlay\n",
     "\n",
     "By passing `overlay` and `roi`, the surface is colored by cortical\n",
     "thickness values, masked to the cortex label. The `view` parameter selects\n",
@@ -134,7 +134,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "13407b67",
+   "id": "82ee25b8",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -147,15 +147,15 @@
     "    roi=lh_label,\n",
     "    view=ViewType.LEFT,\n",
     ")\n",
-    "display(img)\n"
+    "display(img)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "4217c291",
+   "id": "043273a1",
    "metadata": {},
    "source": [
-    "## snap1 — With Parcellation Annotation\n",
+    "## snap1 \u2014 With Parcellation Annotation\n",
     "\n",
     "`annot` accepts a FreeSurfer `.annot` file and colors each vertex by\n",
     "its parcellation label. This example uses the DKTatlas parcellation."
@@ -164,7 +164,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "7271e902",
+   "id": "3fd2b433",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -173,15 +173,15 @@
     "    annot=lh_annot,\n",
     "    bg_map=lh_curv,\n",
     ")\n",
-    "display(img)\n"
+    "display(img)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "620c6c43",
+   "id": "a3b6350b",
    "metadata": {},
    "source": [
-    "## snap4 — Four-View Overview\n",
+    "## snap4 \u2014 Four-View Overview\n",
     "\n",
     "`snap4` renders lateral and medial views of both hemispheres and stitches\n",
     "them into a single composed image. Here we color both hemispheres by\n",
@@ -191,7 +191,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "903514b8",
+   "id": "e0d0405b",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -204,15 +204,15 @@
     "    colorbar=True,\n",
     "    caption=\"Cortical Thickness (mm)\",\n",
     ")\n",
-    "display(img)\n"
+    "display(img)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "5d98c87b",
+   "id": "f7006557",
    "metadata": {},
    "source": [
-    "## plot3d — Interactive 3D Viewer\n",
+    "## plot3d \u2014 Interactive 3D Viewer\n",
     "\n",
     "`plot3d` creates an interactive Three.js/WebGL viewer that works in all\n",
     "Jupyter environments. You can rotate, zoom, and pan with the mouse.\n",
@@ -222,7 +222,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "5d5a09c7",
+   "id": "ba49903c",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -233,35 +233,39 @@
     "    bg_map=lh_curv,\n",
     "    overlay=lh_thickness,\n",
     ")\n",
-    "display(viewer)\n"
+    "display(viewer)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "dc3970c3",
+   "id": "f2201a62",
    "metadata": {},
    "source": [
-    "## snap_rotate — Rotating 360° Animation\n",
+    "## snap_rotate \u2014 Rotating 360\u00b0 Animation\n",
     "\n",
-    "`snap_rotate` renders a full 360° rotation of the surface. We output an\n",
+    "`snap_rotate` renders a full 360\u00b0 rotation of the surface. We output an\n",
     "animated GIF so it displays inline in all Jupyter environments including\n",
     "PyCharm. Use `.mp4` as `outpath` instead for a smaller file when playing\n",
     "outside the notebook.\n",
-    "This cell takes the longest to run — execute it last."
+    "This cell takes the longest to run \u2014 execute it last."
    ]
   },
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "928a68ea",
+   "id": "15ea8375",
    "metadata": {},
    "outputs": [],
    "source": [
+    "import os\n",
+    "import tempfile\n",
+    "\n",
     "from IPython.display import Image\n",
     "\n",
     "from whippersnappy import snap_rotate\n",
     "\n",
-    "outpath_gif = \"/tmp/lh_thickness_rotate.gif\"\n",
+    "_gif_fd, outpath_gif = tempfile.mkstemp(suffix=\".gif\")\n",
+    "os.close(_gif_fd)\n",
     "\n",
     "snap_rotate(\n",
     "    mesh=lh_white,\n",
@@ -273,20 +277,18 @@
     "    fps=24,\n",
     "    width=800,\n",
     "    height=600,\n",
-    ")\n",
-    "print(\"GIF saved to:\", outpath_gif)\n"
+    ")\n"
    ]
   },
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "dcd38db4",
-   "metadata": {
-    "lines_to_next_cell": 2
-   },
+   "id": "9f0b2db4",
+   "metadata": {},
    "outputs": [],
    "source": [
-    "display(Image(filename=outpath_gif))\n"
+    "display(Image(filename=outpath_gif))\n",
+    "os.unlink(outpath_gif)\n"
    ]
   }
  ],
@@ -295,15 +297,6 @@
    "cell_metadata_filter": "-all",
    "main_language": "python",
    "notebook_metadata_filter": "-all"
-  },
-  "kernelspec": {
-   "display_name": "Python 3",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "name": "python",
-   "version": "3"
   }
  },
  "nbformat": 4,
