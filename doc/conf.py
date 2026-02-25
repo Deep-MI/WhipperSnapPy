@@ -300,3 +300,116 @@ def ensure_pandoc_installed(_):
 
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
+    # nbsphinx omits image/gif from its MIME-type pipeline, so animated GIFs
+    # produced by display(IPython.display.Image(...)) fall back to the
+    # text/plain repr.  Three patches are needed:
+    #
+    #  1. DISPLAY_DATA_PRIORITY_HTML — tell nbsphinx to *select* image/gif output.
+    #  2. RST_TEMPLATE — tell the Jinja template to render image/gif via the
+    #     standard ``.. image::`` directive (same as image/png / image/jpeg).
+    #  3. ExtractOutputPreprocessor.extract_output_types — tell nbconvert to
+    #     actually extract the GIF bytes to a file so the directive has a path.
+    try:
+        import nbsphinx as _nbsphinx
+
+        # 1. Priority list
+        if "image/gif" not in _nbsphinx.DISPLAY_DATA_PRIORITY_HTML:
+            idx = list(_nbsphinx.DISPLAY_DATA_PRIORITY_HTML).index("image/jpeg")
+            _nbsphinx.DISPLAY_DATA_PRIORITY_HTML = (
+                _nbsphinx.DISPLAY_DATA_PRIORITY_HTML[: idx + 1]
+                + ("image/gif",)
+                + _nbsphinx.DISPLAY_DATA_PRIORITY_HTML[idx + 1 :]
+            )
+
+        # 2. RST template — add image/gif alongside the other raster types
+        _nbsphinx.RST_TEMPLATE = _nbsphinx.RST_TEMPLATE.replace(
+            "datatype in ['image/svg+xml', 'image/png', 'image/jpeg', 'application/pdf']",
+            "datatype in ['image/svg+xml', 'image/png', 'image/jpeg', 'image/gif', 'application/pdf']",
+        )
+
+        # 3. nbconvert extractor — ExtractOutputPreprocessor hard-codes
+        #    {"image/png", "image/jpeg", "application/pdf"} as the types that
+        #    get base64-decoded.  image/gif falls into the "else: text" branch
+        #    and is written as a raw base64 string, producing a corrupt file.
+        #
+        #    Fix: patch preprocess_cell to add image/gif to the binary-decode
+        #    set by wrapping the method with one that temporarily re-defines the
+        #    check for known binary mime types.
+        from nbconvert.preprocessors import ExtractOutputPreprocessor as _EOP
+        import nbconvert.preprocessors.extractoutput as _eop_mod
+        from binascii import a2b_base64 as _a2b
+
+        # 3a — register image/gif in extract_output_types via __init__ patch
+        _eop_orig_init = _EOP.__init__
+        def _eop_patched_init(self, *args, **kwargs):
+            _eop_orig_init(self, *args, **kwargs)
+            self.extract_output_types = self.extract_output_types | {"image/gif"}
+        _EOP.__init__ = _eop_patched_init
+
+        # 3b — patch preprocess_cell by replacing the original method with a
+        #      version that has an expanded binary-mime set.
+        _BINARY_TYPES = {"image/png", "image/jpeg", "application/pdf", "image/gif"}
+        _eop_orig_preprocess_cell = _EOP.preprocess_cell
+
+        def _eop_patched_preprocess_cell(self, cell, resources, cell_index):
+            # Before calling the original, convert any image/gif from base64
+            # string to bytes — but the original then hits the
+            # `not isinstance(data, str)` → json branch for bytes, so we must
+            # pre-decode AND bypass the parent entirely for image/gif outputs.
+            #
+            # Strategy: strip image/gif from outputs before calling parent,
+            # then handle extraction ourselves, then restore.
+            import os as _os
+            gif_extractions = []  # list of (out, raw_b64) to process after parent
+
+            for out in cell.get("outputs", []):
+                if out.get("output_type") not in ("display_data", "execute_result"):
+                    continue
+                data = out.get("data", {})
+                if "image/gif" in data and isinstance(data["image/gif"], str):
+                    gif_extractions.append((out, data.pop("image/gif")))
+
+            # Run original preprocessor (without image/gif in data)
+            cell, resources = _eop_orig_preprocess_cell(self, cell, resources, cell_index)
+
+            if not gif_extractions:
+                return cell, resources
+
+            # Now handle image/gif extractions ourselves
+            unique_key = resources.get("unique_key", "output")
+            output_files_dir = resources.get("output_files_dir", None)
+            if not isinstance(resources.get("outputs"), dict):
+                resources["outputs"] = {}
+
+            outputs_list = cell.get("outputs", [])
+            for out, raw_b64 in gif_extractions:
+                # Restore the b64 string in the cell data for the RST template
+                out["data"]["image/gif"] = raw_b64
+                # Find the index of this output in the cell
+                try:
+                    index = outputs_list.index(out)
+                except ValueError:
+                    index = 0
+                # Build filename
+                filename = self.output_filename_template.format(
+                    unique_key=unique_key,
+                    cell_index=cell_index,
+                    index=index,
+                    extension=".gif",
+                )
+                if output_files_dir is not None:
+                    filename = _os.path.join(output_files_dir, filename)
+                # Store binary GIF bytes in resources
+                resources["outputs"][filename] = _a2b(raw_b64)
+                # Store filename in output metadata so the Jinja template uses it
+                if "metadata" not in out:
+                    out["metadata"] = {}
+                if "filenames" not in out["metadata"]:
+                    out["metadata"]["filenames"] = {}
+                out["metadata"]["filenames"]["image/gif"] = filename
+
+            return cell, resources
+
+        _EOP.preprocess_cell = _eop_patched_preprocess_cell
+    except Exception:
+        pass  # nbsphinx / nbconvert not installed or API changed — skip gracefully
