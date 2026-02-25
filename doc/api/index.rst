@@ -1,14 +1,13 @@
-API References
-==============
+.. _api_ref:
 
+API Reference
+=============
 
 .. currentmodule:: whippersnappy
 
-.. autosummary::
-    :toctree: generated/
+.. toctree::
+   :maxdepth: 2
 
-
-    config_app.ConfigWindow
-    core
-    cli.whippersnap
- 
+   cli.rst
+   snap.rst
+   plot3d.rst

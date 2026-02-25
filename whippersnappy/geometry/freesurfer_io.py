@@ -1,8 +1,26 @@
-"""Read FreeSurfer geometry (fix for dev, ll 126-128);
+"""FreeSurfer binary IO — surface geometry, morphometry, MGH, and annotation.
 
-Code was taken from nibabel.freesurfer package
-(https://github.com/nipy/nibabel/blob/master/nibabel/freesurfer/io.py).
-This software is licensed under the following license:
+This module contains readers for all FreeSurfer binary formats:
+
+* :func:`read_geometry`   — triangle surface (e.g. ``lh.white``, ``rh.pial``)
+* :func:`read_morph_data` — per-vertex morphometry scalar (e.g. ``lh.curv``,
+  ``lh.thickness``); the format FreeSurfer internally calls "curv files"
+* :func:`read_mgh_data`   — MGH/MGZ volumetric image used as per-vertex
+  overlay (shape ``N×1×1``)
+* :func:`read_annot_data` — FreeSurfer parcellation annotation (``.annot``)
+
+These functions are **low-level readers**.  In normal use you should go
+through the resolver functions in :mod:`whippersnappy.geometry.inputs`
+(:func:`~whippersnappy.geometry.inputs.resolve_mesh`,
+:func:`~whippersnappy.geometry.inputs.resolve_overlay`, etc.) which handle
+format dispatch, dtype conversion, and shape validation for you.
+
+License notice
+--------------
+The binary parsing code in this module is derived from the ``nibabel``
+FreeSurfer IO module
+(https://github.com/nipy/nibabel/blob/master/nibabel/freesurfer/io.py),
+used under the MIT licence reproduced below.
 
 The MIT License
 
@@ -14,12 +32,12 @@ Copyright (c) 2010-2011 Jarrod Millman <jarrod.millman@gmail.com>
 Copyright (c) 2011-2019 Yaroslav Halchenko <debian@onerussian.com>
 Copyright (c) 2015-2019 Chris Markiewicz <effigies@gmail.com>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
@@ -28,9 +46,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 """
 
 import warnings

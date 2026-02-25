@@ -1,6 +1,6 @@
 from io import StringIO
 
-from .._config import sys_info
+from whippersnappy._config import sys_info
 
 
 def test_sys_info():

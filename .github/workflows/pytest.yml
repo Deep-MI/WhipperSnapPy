@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu, macos, windows]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: ${{ matrix.os }} - py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}-latest
     defaults:
@@ -32,6 +32,9 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install system OpenGL/EGL libraries (Ubuntu)
+        if: matrix.os == 'ubuntu'
+        run: sudo apt-get install -y --no-install-recommends libegl1 libgl1
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel
@@ -39,7 +42,7 @@ jobs:
       - name: Display system information
         run: whippersnappy-sys_info --developer
       - name: Run pytest
-        run: pytest whippersnappy --cov=whippersnappy --cov-report=xml --cov-config=pyproject.toml
+        run: pytest tests --cov=whippersnappy --cov-report=xml --cov-config=pyproject.toml
       - name: Upload to codecov
         if: ${{ matrix.os == 'ubuntu' && matrix.python-version == '3.10' && github.repository == 'Deep-MI/WhipperSnapPy' }}
         uses: codecov/codecov-action@v5

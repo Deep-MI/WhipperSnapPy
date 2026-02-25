@@ -1,5 +1,8 @@
 """Version number."""
 
-from importlib.metadata import version
-
-__version__ = version(__package__)
+try:
+    from importlib.metadata import version
+    __version__ = version(__package__)
+except Exception:
+    # Fallback when package is not installed (e.g., running from source)
+    __version__ = "dev"

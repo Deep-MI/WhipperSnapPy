@@ -20,30 +20,35 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: ./main
-      - name: Setup Python 3.10
+      - name: Setup Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
+          python-version: '3.13'
+          cache: pip
+      - name: Install system dependencies
         run: |
-          sudo apt update
           sudo apt-get update
-          sudo apt-get -y install libgl1 libegl1
-          sudo apt install libxcb-cursor0
+          sudo apt-get -y install libgl1 libegl1 libxcb-cursor0 pandoc
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel
           python -m pip install --progress-bar off main/.[doc]
       - name: Display system information
         run: whippersnappy-sys_info --developer
+      - name: Cache WhipperSnapPy sample data
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/whippersnappy
+          key: sample-data-sub-rs-data-v1.0
       - name: Build doc
         run: TZ=UTC sphinx-build ./main/doc ./doc-build/dev -W --keep-going
       - name: Upload documentation
         uses: actions/upload-artifact@v6
         with:
           name: doc-dev
-          path: ./doc-build/dev
+          path: |
+            doc-build/dev
+            !doc-build/dev/.doctrees
 
   deploy:
     if: github.event_name == 'push'

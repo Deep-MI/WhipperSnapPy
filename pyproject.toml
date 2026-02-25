@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'whippersnappy'
-version = '1.4.0-dev'
+version = '2.0.0-dev'
 description = 'A package to plot and capture FastSurfer and FreeSurfer-style surface overlays.'
 readme = 'README.md'
 license = {file = 'LICENSE'}
@@ -26,10 +26,10 @@ classifiers = [
     'Operating System :: Unix',
     'Operating System :: MacOS',
     'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
     'Natural Language :: English',
     'License :: OSI Approved :: MIT License',
     'Intended Audience :: Science/Research',
@@ -38,10 +38,9 @@ dependencies = [
     'glfw',
     'numpy>=1.21',
     'pyrr',
-    'pillow',
-    'pyopengl==3.1.6',
+    'pillow>=9.1',
+    'pyopengl>=3.1.8',
     'nibabel',
-    'PyQt6',
     'psutil'
 ]
 
@@ -54,17 +53,34 @@ doc = [
     'furo!=2023.8.17',
     'matplotlib',
     'memory-profiler',
+    'myst-parser',
     'numpydoc',
     'sphinx!=7.2.*',
     'sphinxcontrib-bibtex',
     'sphinx-copybutton',
     'sphinx-design',
-    'sphinx-gallery',
     'sphinx-issues',
     'pypandoc',
     'nbsphinx',
     'IPython', # For syntax highlighting in notebooks
     'ipykernel',
+    # Needed to execute the tutorial notebook via nbsphinx:
+    'pooch>=1.6',
+    'pythreejs',
+    'ipywidgets',
+    'imageio>=2.28',
+]
+notebook = [
+    'pythreejs',    # Three.js for interactive 3D (works in all Jupyter environments)
+    'ipywidgets',   # Required for pythreejs
+    'pooch>=1.6',
+]
+gui = [
+    'PyQt6',
+]
+video = [
+    'imageio>=2.28',
+    'imageio-ffmpeg>=0.4.9',  # bundles its own ffmpeg binary
 ]
 style = [
     'bibclean',
@@ -82,6 +98,9 @@ all = [
     'whippersnappy[doc]',
     'whippersnappy[style]',
     'whippersnappy[test]',
+    'whippersnappy[notebook]',
+    'whippersnappy[gui]',
+    'whippersnappy[video]',
 ]
 full = [
     'whippersnappy[all]',
@@ -94,18 +113,20 @@ source = 'https://github.com/Deep-MI/WhipperSnapPy'
 tracker = 'https://github.com/Deep-MI/WhipperSnapPy/issues'
 
 [project.scripts]
-whippersnap = 'whippersnappy.cli:run'
+whippersnap = 'whippersnappy.cli.whippersnap:run'
+whippersnap1 = 'whippersnappy.cli.whippersnap1:run'
+whippersnap4 = 'whippersnappy.cli.whippersnap4:run'
 whippersnappy-sys_info = 'whippersnappy.commands.sys_info:run'
 
 [tool.setuptools]
-include-package-data = false
+include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ['whippersnappy*']
 exclude = ['whippersnappy*tests']
 
 [tool.setuptools.package-data]
-whippersnappy = ['*.ttf']
+whippersnappy = ['resources/fonts/*.ttf']
 
 [tool.pydocstyle]
 convention = 'numpy'
@@ -134,6 +155,12 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+
+[tool.codespell]
+ignore-words-list = 'aNormal,wheight'
+check-filenames = true
+check-hidden = true
+skip = './.git,./build,./.mypy_cache,./.pytest_cache'
 
 [tool.pytest.ini_options]
 minversion = '6.0'

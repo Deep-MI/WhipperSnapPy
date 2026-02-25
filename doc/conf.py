@@ -12,8 +12,6 @@ from datetime import date
 from importlib import import_module
 from typing import Dict, Optional
 
-# from sphinx_gallery.sorting import FileNameSortKey
-
 import whippersnappy
 
 project = "WhipperSnapPy"
@@ -37,6 +35,7 @@ root_doc = "index"
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.autosummary",
@@ -46,15 +45,24 @@ extensions = [
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
     "sphinx_design",
+    "nbsphinx",
+    "IPython.sphinxext.ipython_console_highlighting",
 ]
 
-templates_path = ["_templates"]
+# .md files are included via '.. include:: :parser: myst_parser.sphinx_'
+# in the RST stubs; they must NOT be registered as standalone Sphinx source
+# documents or autosectionlabel will produce duplicate-label warnings from
+# both the real file and the doc/ symlink.
 exclude_patterns = [
     "_build",
     "Thumbs.db",
     ".DS_Store",
     "**.ipynb_checkpoints",
+    "README.md",      # symlinked from root — included inline via rst, not as a page
+    "../*.md",        # exclude root-level .md files
 ]
+
+templates_path = ["_templates"]
 
 # Sphinx will warn about all references where the target cannot be found.
 nitpicky = False
@@ -93,13 +101,34 @@ html_theme_options = {
 }
 
 # -- autosummary -------------------------------------------------------------
-autosummary_generate = True
+# API stubs use automodule directly — no generated/ dir needed.
+autosummary_generate = False
 
 # -- autodoc -----------------------------------------------------------------
 autodoc_typehints = "none"
 autodoc_member_order = "groupwise"
 autodoc_warningiserror = True
 autoclass_content = "class"
+
+# Mock modules that may not be available in the doc builder environment
+# (PyQt6, OpenGL, GLFW, pythreejs, etc.). Adjust this list if your builder
+# provides any of these packages.
+autodoc_mock_imports = [
+    "PyQt6",
+    "PyQt6.QtWidgets",
+    "PyQt6.QtCore",
+    "PyQt6.QtGui",
+    "glfw",
+    "OpenGL",
+    "OpenGL.GL",
+    "OpenGL.GL.shaders",
+    "pythreejs",
+    "ipywidgets",
+    "pyopengl",
+    "pyrr",
+    "PIL",
+    "matplotlib",
+]
 
 # -- intersphinx -------------------------------------------------------------
 intersphinx_mapping = {
@@ -162,6 +191,9 @@ numpydoc_validation_exclude = {  # regex to ignore during docstring check
     r"\.__iter__",
     r"\.__div__",
     r"\.__neg__",
+    # Imported third-party objects exposed in plot3d module
+    r"\.HTML$",
+    r"\.VBox$",
 }
 
 # -- sphinxcontrib-bibtex ----------------------------------------------------
@@ -232,6 +264,19 @@ def linkcode_resolve(domain: str, info: Dict[str, str]) -> Optional[str]:
 # }
 
 
+# -- nbsphinx ----------------------------------------------------------------
+# Re-execute notebooks during the Sphinx build so outputs appear in the docs.
+# Notebooks are executed with the kernel specified by nbsphinx_kernel_name.
+# The sample data is fetched from the GitHub release assets (or from the
+# local sub-rs/ directory in the repo when the release is not yet published).
+nbsphinx_execute = "auto"
+
+# Kernel to use for execution (must be installed: pip install ipykernel).
+nbsphinx_kernel_name = "python3"
+
+# Maximum execution time per cell (seconds).
+nbsphinx_timeout = 600
+
 # -- make sure pandoc gets installed -----------------------------------------
 from inspect import getsourcefile
 import os
@@ -240,20 +285,18 @@ import os
 DOCS_DIRECTORY = os.path.dirname(os.path.abspath(getsourcefile(lambda: 0)))
 
 def ensure_pandoc_installed(_):
-    import pypandoc
+    try:
+        import pypandoc
+        pandoc_dir = os.path.join(DOCS_DIRECTORY, "bin")
+        if pandoc_dir not in os.environ["PATH"].split(os.pathsep):
+            os.environ["PATH"] += os.pathsep + pandoc_dir
+        pypandoc.ensure_pandoc_installed(
+            targetfolder=pandoc_dir,
+            delete_installer=True,
+        )
+    except Exception:
+        pass  # pandoc already on PATH (CI) or download failed (local SSL) — continue
 
-    # Download pandoc if necessary. If pandoc is already installed and on
-    # the PATH, the installed version will be used. Otherwise, we will
-    # download a copy of pandoc into docs/bin/ and add that to our PATH.
-    pandoc_dir = os.path.join(DOCS_DIRECTORY, "bin")
-    # Add dir containing pandoc binary to the PATH environment variable
-    if pandoc_dir not in os.environ["PATH"].split(os.pathsep):
-        os.environ["PATH"] += os.pathsep + pandoc_dir
-    pypandoc.ensure_pandoc_installed(
-        targetfolder=pandoc_dir,
-        delete_installer=True,
-    )
 
 def setup(app):
     app.connect("builder-inited", ensure_pandoc_installed)
-
