@@ -309,34 +309,59 @@ def setup(app):
     #     standard ``.. image::`` directive (same as image/png / image/jpeg).
     #  3. ExtractOutputPreprocessor.extract_output_types — tell nbconvert to
     #     actually extract the GIF bytes to a file so the directive has a path.
+    import logging
+    _logger = logging.getLogger(__name__)
     try:
         import nbsphinx as _nbsphinx
 
         # 1. Priority list
         if "image/gif" not in _nbsphinx.DISPLAY_DATA_PRIORITY_HTML:
-            idx = list(_nbsphinx.DISPLAY_DATA_PRIORITY_HTML).index("image/jpeg")
-            _nbsphinx.DISPLAY_DATA_PRIORITY_HTML = (
-                _nbsphinx.DISPLAY_DATA_PRIORITY_HTML[: idx + 1]
-                + ("image/gif",)
-                + _nbsphinx.DISPLAY_DATA_PRIORITY_HTML[idx + 1 :]
-            )
+            _priority = list(_nbsphinx.DISPLAY_DATA_PRIORITY_HTML)
+            try:
+                idx = _priority.index("image/jpeg")
+                _priority.insert(idx + 1, "image/gif")
+            except ValueError:
+                import warnings
+                warnings.warn(
+                    "whippersnappy/conf.py: 'image/jpeg' not found in "
+                    "nbsphinx.DISPLAY_DATA_PRIORITY_HTML; appending "
+                    "'image/gif' at the end instead. The GIF may still "
+                    "render correctly, but priority ordering is unknown.",
+                    stacklevel=2,
+                )
+                _priority.append("image/gif")
+            _nbsphinx.DISPLAY_DATA_PRIORITY_HTML = tuple(_priority)
 
-        # 2. RST template — add image/gif alongside the other raster types
-        _nbsphinx.RST_TEMPLATE = _nbsphinx.RST_TEMPLATE.replace(
-            "datatype in ['image/svg+xml', 'image/png', 'image/jpeg', 'application/pdf']",
-            "datatype in ['image/svg+xml', 'image/png', 'image/jpeg', 'image/gif', 'application/pdf']",
-        )
+        # 2. RST template — add image/gif alongside the other raster types.
+        #    We verify the substitution actually changed something; if the
+        #    upstream template text has changed, warn so the breakage is visible
+        #    rather than silently producing a broken GIF rendering.
+        import warnings as _warnings
+        _RST_OLD = "datatype in ['image/svg+xml', 'image/png', 'image/jpeg', 'application/pdf']"
+        _RST_NEW = "datatype in ['image/svg+xml', 'image/png', 'image/jpeg', 'image/gif', 'application/pdf']"
+        _patched_template = _nbsphinx.RST_TEMPLATE.replace(_RST_OLD, _RST_NEW)
+        if _patched_template == _nbsphinx.RST_TEMPLATE:
+            _warnings.warn(
+                "whippersnappy/conf.py: could not patch nbsphinx.RST_TEMPLATE "
+                "to add 'image/gif' support — the expected substring was not "
+                "found. Animated GIFs may not render in the documentation. "
+                "The nbsphinx template may have changed upstream; please update "
+                "the patch in doc/conf.py.",
+                stacklevel=2,
+            )
+        else:
+            _nbsphinx.RST_TEMPLATE = _patched_template
 
         # 3. nbconvert extractor — ExtractOutputPreprocessor hard-codes
         #    {"image/png", "image/jpeg", "application/pdf"} as the types that
-        #    get base64-decoded.  image/gif falls into the "else: text" branch
-        #    and is written as a raw base64 string, producing a corrupt file.
-        #
-        #    Fix: patch preprocess_cell to add image/gif to the binary-decode
-        #    set by wrapping the method with one that temporarily re-defines the
-        #    check for known binary mime types.
+        #    get base64-decoded to binary.  image/gif falls into the "else: text"
+        #    branch and is written as a raw base64 string, producing a corrupt
+        #    file.  Two sub-patches fix this:
+        #      3a  add "image/gif" to extract_output_types so the extractor
+        #          visits it at all.
+        #      3b  wrap preprocess_cell to strip gif data before the parent runs,
+        #          then decode it to bytes and inject the result into resources.
         from nbconvert.preprocessors import ExtractOutputPreprocessor as _EOP
-        import nbconvert.preprocessors.extractoutput as _eop_mod
         from binascii import a2b_base64 as _a2b
 
         # 3a — register image/gif in extract_output_types via __init__ patch
@@ -346,9 +371,11 @@ def setup(app):
             self.extract_output_types = self.extract_output_types | {"image/gif"}
         _EOP.__init__ = _eop_patched_init
 
-        # 3b — patch preprocess_cell by replacing the original method with a
-        #      version that has an expanded binary-mime set.
-        _BINARY_TYPES = {"image/png", "image/jpeg", "application/pdf", "image/gif"}
+        # 3b — patch preprocess_cell to handle image/gif as binary (base64 → bytes).
+        #      The parent hard-codes only png/jpeg/pdf for binary decode; gif falls
+        #      into the "else: text" branch and would be written as a raw base64
+        #      string (corrupt file).  We strip gif data before calling the parent,
+        #      decode it ourselves, and store the binary bytes in resources.
         _eop_orig_preprocess_cell = _EOP.preprocess_cell
 
         def _eop_patched_preprocess_cell(self, cell, resources, cell_index):
@@ -411,5 +438,16 @@ def setup(app):
             return cell, resources
 
         _EOP.preprocess_cell = _eop_patched_preprocess_cell
-    except Exception:
-        pass  # nbsphinx / nbconvert not installed or API changed — skip gracefully
+    except ImportError as exc:
+        _logger.warning(
+            "conf.py: could not patch nbsphinx/nbconvert for GIF support "
+            "(package not installed): %s. Animated GIFs will not render.",
+            exc,
+        )
+    except AttributeError as exc:
+        _logger.warning(
+            "conf.py: nbsphinx or nbconvert API has changed and the GIF patch "
+            "could not be applied: %s. Animated GIFs will not render. "
+            "Please update the patch in doc/conf.py.",
+            exc,
+        )
