@@ -1,6 +1,6 @@
 import argparse
 
-from .. import sys_info
+from .._config import sys_info
 
 
 def run():
