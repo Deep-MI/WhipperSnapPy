@@ -12,9 +12,8 @@ from PIL import Image, ImageFont
 from .geometry import estimate_overlay_thresholds, get_surf_name
 from .geometry.prepare import prepare_and_validate_geometry
 from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader, terminate_context
-from .gl.views import get_view_matrices
 from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
-from .utils.types import ColorSelection, OrientationType, ViewType
+from .utils.types import ColorSelection, OrientationType, ViewType, get_view_matrices
 
 # Module logger
 logger = logging.getLogger(__name__)

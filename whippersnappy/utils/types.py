@@ -2,6 +2,7 @@
 
 This module defines small enumeration types used across the package for
 controlling color selection, colorbar orientation, and predefined views.
+It also provides the canonical per-view 4×4 matrices used by the renderers.
 
 Classes
 -------
@@ -11,9 +12,18 @@ OrientationType
     Orientation of UI elements such as the colorbar (horizontal or vertical).
 ViewType
     Predefined canonical view orientations for rendering the brain surface.
+
+Functions
+---------
+get_view_matrices
+    Return a dict mapping every :class:`ViewType` to its 4×4 numpy matrix.
+get_view_matrix
+    Return the 4×4 numpy matrix for a single :class:`ViewType`.
 """
 
 import enum
+
+import numpy as np
 
 
 class ColorSelection(enum.Enum):
@@ -90,4 +100,41 @@ class ViewType(enum.Enum):
     FRONT = 4
     TOP = 5
     BOTTOM = 6
+
+
+def get_view_matrices() -> dict:
+    """Return canonical 4×4 view matrices for every :class:`ViewType`.
+
+    The matrices are pure numpy arrays (no OpenGL calls) and can be used
+    as the ``base_view`` argument to any renderer.
+
+    Returns
+    -------
+    dict
+        Mapping of :class:`ViewType` → 4×4 float32 numpy.ndarray.
+    """
+    return {
+        ViewType.LEFT:   np.array([[ 0, 0,-1, 0],[-1, 0, 0, 0],[ 0, 1, 0, 0],[0, 0, 0, 1]], dtype=np.float32),
+        ViewType.RIGHT:  np.array([[ 0, 0, 1, 0],[ 1, 0, 0, 0],[ 0, 1, 0, 0],[0, 0, 0, 1]], dtype=np.float32),
+        ViewType.BACK:   np.array([[ 1, 0, 0, 0],[ 0, 0,-1, 0],[ 0, 1, 0, 0],[0, 0, 0, 1]], dtype=np.float32),
+        ViewType.FRONT:  np.array([[-1, 0, 0, 0],[ 0, 0, 1, 0],[ 0, 1, 0, 0],[0, 0, 0, 1]], dtype=np.float32),
+        ViewType.TOP:    np.array([[ 1, 0, 0, 0],[ 0, 1, 0, 0],[ 0, 0, 1, 0],[0, 0, 0, 1]], dtype=np.float32),
+        ViewType.BOTTOM: np.array([[-1, 0, 0, 0],[ 0, 1, 0, 0],[ 0, 0,-1, 0],[0, 0, 0, 1]], dtype=np.float32),
+    }
+
+
+def get_view_matrix(view_type: "ViewType") -> np.ndarray:
+    """Return the 4×4 view matrix for a single :class:`ViewType`.
+
+    Parameters
+    ----------
+    view_type : ViewType
+        Enum member indicating the requested view.
+
+    Returns
+    -------
+    numpy.ndarray
+        4×4 float32 view matrix.
+    """
+    return get_view_matrices()[view_type]
 

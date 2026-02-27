@@ -32,8 +32,10 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering is supported natively via EGL on Linux — no
-`xvfb` required. See the <a href="DOCKER.md">Docker guide</a> for headless usage.
+Off-screen (headless) rendering is supported natively via OSMesa on Linux — no
+`xvfb` or GPU required. On macOS and Windows a GLFW invisible window is used
+instead (both platforms provide GPU drivers). See the
+<a href="DOCKER.md">Docker guide</a> for headless usage.
 
 ## Command-Line Usage
 
@@ -157,8 +159,8 @@ See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
 
 ## Docker
 
-The Docker image provides a fully headless EGL rendering environment — no
-display server or `xvfb` required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.
+The Docker image provides a fully headless OSMesa rendering environment — no
+display server, `xvfb`, or GPU required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.
 
 ## API Documentation
 
