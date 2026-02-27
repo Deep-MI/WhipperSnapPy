@@ -189,13 +189,19 @@ class TestPrepareGeometry:
 def _snap1_offscreen(**kwargs):
     """Call snap1 with an invisible (offscreen) GLFW context.
 
-    On macOS a visible GLFW window goes through the Cocoa compositor; the
-    first glReadPixels call may return all-black before the compositor has
-    finished its first composite pass.  An invisible context renders
-    directly to the driver framebuffer and reads back correctly.
+    Forces ``visible=False`` so that:
 
-    Skips the test automatically if no OpenGL context can be created
-    (headless CI without GPU or EGL support).
+    - On **macOS** the Cocoa compositor is bypassed and ``glReadPixels``
+      returns correct pixel data immediately.
+    - On **Windows** no on-screen window needs to be created.
+    - On **Linux CI** (no display) GLFW will fail and
+      :func:`~whippersnappy.gl.utils.create_window_with_fallback` will
+      automatically fall back to OSMesa software rendering.
+
+    The tests are expected to **run** on all CI platforms (Ubuntu/macOS/
+    Windows).  The ``pytest.skip`` is a safety net for exceptional cases
+    where the runner has no OpenGL support at all (e.g. a bare container
+    without Mesa and without a GPU).
     """
     import whippersnappy.gl.utils as gl_utils  # noqa: PLC0415
 
@@ -224,8 +230,15 @@ class TestSnap1Rendering:
     visible from any camera direction, unlike a flat surface which can
     appear edge-on and produce an all-black image.
 
-    Tests use an offscreen GLFW context (see ``_snap1_offscreen``) and are
-    skipped automatically when no OpenGL context is available.
+    Tests use an offscreen GLFW context (see :func:`_snap1_offscreen`) and
+    are expected to **run** on all CI platforms:
+
+    - **Ubuntu**: OSMesa headless rendering (``libosmesa6`` installed in CI).
+    - **macOS**: GLFW invisible window backed by the runner's GPU.
+    - **Windows**: GLFW invisible window backed by the runner's GPU drivers.
+
+    A ``pytest.skip`` is issued only if context creation fails completely,
+    which should not happen on any standard hosted runner.
     """
 
     def test_snap1_basic(self):

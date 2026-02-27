@@ -28,6 +28,7 @@ import argparse
 import logging
 import os
 import sys
+from dataclasses import dataclass, field
 
 if __name__ == "__main__" and __package__ is None:
     # Replace the current process with `python -m whippersnappy.cli.whippersnap`
@@ -36,6 +37,7 @@ if __name__ == "__main__" and __package__ is None:
     os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap"] + sys.argv[1:])
 
 import glfw
+import numpy as np
 import OpenGL.GL as gl
 import pyrr
 
@@ -48,19 +50,147 @@ except Exception:
 from .._version import __version__
 from ..geometry import get_surf_name, prepare_geometry
 from ..gl import (
-    ViewState,
-    arcball_rotation_matrix,
-    arcball_vector,
     capture_window,
-    compute_view_matrix,
-    get_view_matrices,
     init_window,
     setup_shader,
 )
-from ..utils.types import ViewType
+from ..utils.types import ViewType, get_view_matrices
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# ViewState — interactive GUI view parameters (GUI-only, not part of gl pkg)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ViewState:
+    """Mutable view parameters for the interactive render loop.
+
+    All mouse/keyboard interaction updates this object; the view matrix is
+    recomputed from it each frame via :func:`compute_view_matrix`.
+
+    Attributes
+    ----------
+    rotation : np.ndarray
+        4×4 float32 rotation matrix (identity = no rotation applied).
+    pan : np.ndarray
+        (x, y) pan offset in normalised screen-space units.
+    zoom : float
+        Z-translation contribution to the transform matrix.
+    last_mouse_pos : np.ndarray or None
+        Last recorded mouse position in pixels; ``None`` when no button held.
+    left_button_down : bool
+        Whether the left mouse button is currently pressed.
+    right_button_down : bool
+        Whether the right mouse button is currently pressed.
+    middle_button_down : bool
+        Whether the middle mouse button is currently pressed.
+    """
+    rotation: np.ndarray = field(
+        default_factory=lambda: np.eye(4, dtype=np.float32)
+    )
+    pan: np.ndarray = field(
+        default_factory=lambda: np.zeros(2, dtype=np.float32)
+    )
+    zoom: float = 0.4
+    last_mouse_pos: np.ndarray | None = None
+    left_button_down: bool = False
+    right_button_down: bool = False
+    middle_button_down: bool = False
+
+
+def arcball_vector(x: float, y: float, width: int, height: int) -> np.ndarray:
+    """Map a 2-D screen pixel to a point on the unit arcball sphere.
+
+    Parameters
+    ----------
+    x, y : float
+        Mouse position in pixels.
+    width, height : int
+        Window dimensions in pixels.
+
+    Returns
+    -------
+    np.ndarray
+        Unit 3-vector on (or clamped to) the arcball sphere.
+    """
+    s = min(width, height)
+    p = np.array([
+        (2.0 * x - width)  / s,
+        -(2.0 * y - height) / s,
+        0.0,
+    ], dtype=np.float64)
+    sq = p[0] ** 2 + p[1] ** 2
+    if sq <= 1.0:
+        p[2] = np.sqrt(1.0 - sq)
+    else:
+        p /= np.sqrt(sq)
+    n = np.linalg.norm(p)
+    return p / n if n > 0 else p
+
+
+def arcball_rotation_matrix(v1: np.ndarray, v2: np.ndarray) -> np.ndarray:
+    """Return a 4×4 rotation matrix that rotates unit vector *v1* to *v2*.
+
+    Uses Rodrigues' rotation formula in pure numpy.
+    Returns identity when *v1* and *v2* are coincident.
+
+    Parameters
+    ----------
+    v1, v2 : np.ndarray
+        Unit 3-vectors on the arcball sphere.
+
+    Returns
+    -------
+    np.ndarray
+        4×4 float32 rotation matrix.
+    """
+    axis = np.cross(v1, v2)
+    axis_len = np.linalg.norm(axis)
+    if axis_len < 1e-10:
+        return np.eye(4, dtype=np.float32)
+    axis = axis / axis_len
+    angle = np.arctan2(axis_len, np.dot(v1, v2))
+    c, s_a = np.cos(angle), np.sin(angle)
+    t = 1.0 - c
+    x, y, z = axis
+    r3 = np.array([
+        [t*x*x + c,    t*x*y - s_a*z, t*x*z + s_a*y],
+        [t*x*y + s_a*z, t*y*y + c,    t*y*z - s_a*x],
+        [t*x*z - s_a*y, t*y*z + s_a*x, t*z*z + c   ],
+    ], dtype=np.float32)
+    r4 = np.eye(4, dtype=np.float32)
+    r4[:3, :3] = r3
+    return r4
+
+
+def compute_view_matrix(view_state: ViewState, base_view: np.ndarray) -> np.ndarray:
+    """Return the ``transform`` uniform for the current :class:`ViewState`.
+
+    Packs ``transl * rotation * base_view`` matching the snap_rotate convention.
+
+    Parameters
+    ----------
+    view_state : ViewState
+        Current interactive view state.
+    base_view : np.ndarray
+        Fixed 4×4 orientation preset from :func:`~whippersnappy.utils.types.get_view_matrices`.
+
+    Returns
+    -------
+    np.ndarray
+        4×4 float32 matrix for the ``transform`` shader uniform.
+    """
+    transl = pyrr.Matrix44.from_translation((
+        view_state.pan[0],
+        view_state.pan[1],
+        0.4 + view_state.zoom,
+    ))
+    rot = pyrr.Matrix44(view_state.rotation)
+    return np.array(transl * rot * pyrr.Matrix44(base_view), dtype=np.float32)
+
 
 # Global thresholds shared between the GL render loop and the Qt config panel.
 # All access is from the main thread — no locking needed.
