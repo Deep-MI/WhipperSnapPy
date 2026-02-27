@@ -197,6 +197,10 @@ numpydoc_validation_exclude = {  # regex to ignore during docstring check
     # stdlib dataclasses re-exported into cli module scope
     r"\.dataclass$",
     r"\.field$",
+    # GUI-only dataclass: fields are documented as Attributes; numpydoc also
+    # validates the auto-generated __init__ signature and raises PR01 because
+    # the same names are not repeated in a Parameters section.
+    r"\.ViewState$",
 }
 
 # -- sphinxcontrib-bibtex ----------------------------------------------------
