@@ -290,10 +290,11 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
        window is needed (e.g. batch rendering).  Core Profile +
        ``FORWARD_COMPAT`` is tried first; Compatibility Profile is retried
        on non-macOS platforms (NSGL does not support Compatibility Profile).
-    3. **OSMesa software rendering** — fully headless; no display server,
-       no GPU, and no ``/dev/dri/`` devices required.  Only attempted on
-       Linux.  Requires ``libosmesa6`` (Debian/Ubuntu) or
-       ``mesa-libOSMesa`` (RHEL/Fedora).
+    3. **OSMesa software rendering** — Linux only.  Used when both GLFW
+       attempts fail (no display server).  Requires ``libosmesa6``
+       (Debian/Ubuntu) or ``mesa-libOSMesa`` (RHEL/Fedora).  On macOS and
+       Windows a platform-specific ``RuntimeError`` is raised instead,
+       because neither platform supports OSMesa in standard distributions.
 
     When OSMesa is used the module-level ``_offscreen_context`` is set and
     ``make_current()`` is called so that subsequent OpenGL calls work
@@ -319,7 +320,9 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
     Raises
     ------
     RuntimeError
-        If all three methods fail to produce a usable OpenGL context.
+        If no usable OpenGL context can be created.  On Linux this means
+        both GLFW and OSMesa failed.  On macOS/Windows it means GLFW failed
+        (those platforms have no OSMesa fallback).
     """
     global _offscreen_context
 
@@ -337,11 +340,19 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         if window:
             return window
 
-    # --- Step 3: OSMesa software rendering (Linux headless, no display needed) ---
-    # On macOS and Windows GLFW should have succeeded above via the GPU driver.
-    # OSMesa is the fallback for Linux environments without a display server.
+    # --- Step 3: OSMesa software rendering (Linux headless only) ---
+    # Only reached on Linux when both GLFW attempts failed (no display server).
+    # On macOS and Windows GLFW is the only supported headless path; if it
+    # failed here it means the system has no usable OpenGL driver at all.
+    if sys.platform != "linux":
+        raise RuntimeError(
+            "Could not create a GLFW OpenGL context. "
+            "On macOS a display connection is required (NSGL does not support "
+            "headless rendering). "
+            "On Windows ensure a GPU driver or Mesa opengl32.dll is available."
+        )
     # PYOPENGL_PLATFORM=osmesa was already set at module import time (top of
-    # this file) when no display was detected, so PyOpenGL already uses
+    # this file) when no display was detected, so PyOpenGL uses
     # OSMesaGetProcAddress for function pointer resolution.
     logger.info("No display detected — trying OSMesa software rendering (CPU).")
     try:
@@ -425,9 +436,10 @@ def capture_window(window):
     """Read the current GL framebuffer and return it as a PIL Image (RGB).
 
     Works for both GLFW windows and OSMesa headless contexts.  When OSMesa is
-    active (``window`` is ``None``) the pixels are read from the FBO that
-    was set up by :class:`~whippersnappy.gl.osmesa_context.OSMesaContext`; in
-    that case there is no HiDPI scaling to account for.
+    active (``window`` is ``None``) the pixels are read directly from the
+    OSMesa pixel buffer, which acts as the default framebuffer (FBO 0) — no
+    explicit FBO is created by :class:`~whippersnappy.gl.osmesa_context.OSMesaContext`;
+    in that case there is no HiDPI scaling to account for.
 
     Parameters
     ----------
@@ -442,7 +454,7 @@ def capture_window(window):
     """
     global _offscreen_context
 
-    # --- OSMesa path: read directly from the FBO ---
+    # --- OSMesa path: read from the OSMesa pixel buffer (default framebuffer) ---
     if _offscreen_context is not None:
         return _offscreen_context.read_pixels()  # type: ignore[union-attr]
 
