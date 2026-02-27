@@ -5,8 +5,9 @@ with color overlays or parcellations and generate screenshots — from the
 command line, in Jupyter notebooks, or via a desktop GUI.
 
 It works with FreeSurfer and FastSurfer brain surfaces as well as any
-triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI (.gii, .surf.gii) format, or
-passed directly as a NumPy ``(vertices, faces)`` tuple.
+triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI
+(`.gii`, `.surf.gii`) format, or passed directly as a NumPy
+`(vertices, faces)` tuple.
 
 ## Installation
 
@@ -14,7 +15,7 @@ passed directly as a NumPy ``(vertices, faces)`` tuple.
 pip install whippersnappy
 ```
 
-For rotation video support (MP4/WebM):
+For rotation video support (MP4/WebM — GIF works without this):
 
 ```bash
 pip install 'whippersnappy[video]'
@@ -32,10 +33,11 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering is supported natively via OSMesa on Linux — no
-`xvfb` or GPU required. On macOS and Windows a GLFW invisible window is used
-instead (both platforms provide GPU drivers). See the
-<a href="DOCKER.md">Docker guide</a> for headless usage.
+Off-screen (headless) rendering on **Linux** is supported natively via
+OSMesa — no `xvfb` or GPU required.  On **macOS** and **Windows** a real
+display connection is needed (GLFW creates an invisible window backed by the
+system GPU driver).  See the <a href="DOCKER.md">Docker guide</a> for
+headless Linux usage.
 
 ## Command-Line Usage
 
@@ -66,31 +68,37 @@ whippersnap1 --mesh $SUBJECT_DIR/surf/lh.white \
              --view left \
              -o snap1.png
 
-# Also works with OFF / VTK / PLY
-whippersnap1 --mesh mesh.off --overlay values.mgh -o snap1.png
+# Also works with OFF / VTK / PLY / GIfTI
+whippersnap1 --mesh mesh.off --overlay values.txt -o snap1.png
 whippersnap1 --mesh surface.surf.gii --overlay overlay.func.gii -o snap1.png
 ```
 
 ### Rotation video (`whippersnap1 --rotate`)
 
-Renders a 360° animation of any triangular surface mesh:
+Renders a 360° animation of any triangular surface mesh.  GIF output uses
+pure PIL (no extra install); MP4/WebM requires `pip install 'whippersnappy[video]'`.
 
 ```bash
 whippersnap1 --mesh $SUBJECT_DIR/surf/lh.white \
              --overlay $LH_OVERLAY \
              --rotate \
              -o rotation.mp4
+
+whippersnap1 --mesh $SUBJECT_DIR/surf/lh.white \
+             --rotate \
+             -o rotation.gif
 ```
 
 ### Desktop GUI (`whippersnap`)
 
-Launches an interactive Qt window with live threshold controls.
+Launches an interactive Qt window with live threshold controls and
+mouse-driven rotation, pan, and zoom.  Requires
+`pip install 'whippersnappy[gui]'`.
 
 **General mode** — any triangular mesh:
 
 ```bash
-pip install 'whippersnappy[gui]'
-whippersnap --mesh mesh.off --overlay values.mgh
+whippersnap --mesh mesh.off --overlay values.txt
 whippersnap --mesh lh.white --overlay lh.thickness --bg-map lh.curv
 ```
 
@@ -106,7 +114,8 @@ For all options run `whippersnap4 --help`, `whippersnap1 --help`, or `whippersna
 ## Python API
 
 ```python
-from whippersnappy import snap1, snap4, snap_rotate, plot3d
+from whippersnappy import snap1, snap4, snap_rotate
+from whippersnappy import plot3d  # requires whippersnappy[notebook]
 ```
 
 | Function | Description |
@@ -117,12 +126,16 @@ from whippersnappy import snap1, snap4, snap_rotate, plot3d
 | `plot3d` | Interactive 3D WebGL viewer for Jupyter notebooks |
 
 **Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
-FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII VTK PolyData (`.vtk`), ASCII PLY (`.ply`), GIfTI surface (`.gii`, `.surf.gii`), or a `(vertices, faces)` NumPy array tuple.
+FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII
+VTK PolyData (`.vtk`), ASCII PLY (`.ply`), GIfTI surface
+(`.gii`, `.surf.gii`), or a `(vertices, faces)` NumPy array tuple.
 
 **Supported overlay/label inputs:**
-FreeSurfer morph (`.curv`, `.thickness`), MGH/MGZ, ASCII (`.txt`, `.csv`), NumPy (`.npy`, `.npz`), GIfTI functional/label (`.func.gii`, `.label.gii`, `.gii`).
+FreeSurfer morph (`.curv`, `.thickness`), MGH/MGZ (`.mgh`, `.mgz`),
+plain text (`.txt`, `.csv`), NumPy (`.npy`, `.npz`),
+GIfTI functional/label (`.func.gii`, `.label.gii`).
 
-### Example
+### Examples
 
 ```python
 from whippersnappy import snap1, snap4
@@ -135,24 +148,24 @@ img = snap1('lh.white',
 img.save('snap1.png')
 
 # Four-view overview (FreeSurfer subject directory)
-img = snap4(sdir='/path/to/subject',
-            lh_overlay='/path/to/lh.thickness',
+img = snap4(lh_overlay='/path/to/lh.thickness',
             rh_overlay='/path/to/rh.thickness',
-            colorbar=True, caption='Cortical Thickness (mm)')
+            sdir='/path/to/subject',
+            colorbar=True,
+            caption='Cortical Thickness (mm)')
 img.save('snap4.png')
 
 # OFF / VTK / PLY / GIfTI mesh
-img = snap1('mesh.off', overlay='values.mgh')
+img = snap1('mesh.off', overlay='values.txt')
 img = snap1('surface.surf.gii', overlay='overlay.func.gii')
 
 # Array inputs (e.g. from LaPy or trimesh)
 import numpy as np
-v = np.random.randn(1000, 3).astype(np.float32)
-f = np.array([[0, 1, 2]], dtype=np.uint32)
-overlay = np.random.randn(1000).astype(np.float32)
+v = np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]], dtype=np.float32)
+f = np.array([[0,2,1],[0,1,3],[0,3,2],[1,2,3]], dtype=np.uint32)
+overlay = np.array([0.1, 0.5, 0.9, 0.3], dtype=np.float32)
 img = snap1((v, f), overlay=overlay)
 ```
-
 
 See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
 
