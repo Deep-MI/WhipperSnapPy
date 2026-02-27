@@ -167,8 +167,44 @@ def set_lighting_uniforms(shader, specular=True, ambient=0.0, light_color=(1.0, 
     gl.glUniform1f(ambient_loc, ambient)
 
 
+def _try_glfw_window(width, height, title, visible, core_profile):
+    """Attempt to create a single GLFW window with the given profile settings.
+
+    Parameters
+    ----------
+    core_profile : bool
+        If True request OpenGL 3.3 Core Profile + FORWARD_COMPAT (ideal).
+        If False request OpenGL 3.3 Compatibility Profile (works on Windows
+        Basic Render Driver and macOS software renderer in CI).
+
+    Returns
+    -------
+    window or None
+    """
+    glfw.default_window_hints()
+    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    if core_profile:
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    else:
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, False)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_COMPAT_PROFILE)
+    if not visible:
+        glfw.window_hint(glfw.VISIBLE, glfw.FALSE)
+    return glfw.create_window(width, height, title, None, None) or None
+
+
 def init_window(width, height, title="PyOpenGL", visible=True):
     """Create a GLFW window, make an OpenGL context current and return the window handle.
+
+    Tries OpenGL 3.3 Core Profile first, then falls back to 3.3 Compatibility
+    Profile.  The compatibility fallback is needed on:
+
+    - **Windows** GitHub Actions runners (Microsoft Basic Render Driver,
+      no Core Profile support without a Mesa ``opengl32.dll``).
+    - **macOS** GitHub Actions runners (Apple software renderer, which rejects
+      ``OPENGL_FORWARD_COMPAT`` on some configurations).
 
     Parameters
     ----------
@@ -190,13 +226,15 @@ def init_window(width, height, title="PyOpenGL", visible=True):
         if not glfw.init():
             return False
 
-    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
-    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
-    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-    if not visible:
-        glfw.window_hint(glfw.VISIBLE, glfw.FALSE)
-    window = glfw.create_window(width, height, title, None, None)
+    # Try Core Profile first (preferred — stricter, better error reporting).
+    window = _try_glfw_window(width, height, title, visible, core_profile=True)
+    if not window:
+        # Fall back to Compatibility Profile for CI runners without a real GPU
+        # (Windows Basic Render Driver, macOS software renderer).
+        logger.debug(
+            "OpenGL 3.3 Core Profile unavailable; retrying with Compatibility Profile."
+        )
+        window = _try_glfw_window(width, height, title, visible, core_profile=False)
     if not window:
         glfw.terminate()
         return False
@@ -213,8 +251,10 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
 
     1. **GLFW visible window** — normal path on workstations.
     2. **GLFW invisible window** — when a display exists but no screen is
-       needed.  On **macOS** and **Windows** this is typically sufficient
-       even in CI because both platforms provide GPU drivers to the runner.
+       needed.  On **macOS** and **Windows** CI runners this path succeeds
+       because :func:`init_window` automatically retries with a Compatibility
+       Profile when Core Profile is unavailable (e.g. Microsoft Basic Render
+       Driver or macOS software renderer).
     3. **OSMesa software rendering** — fully headless; no display server,
        no GPU, and no ``/dev/dri/`` devices required.  Used on **Linux CI**
        (Docker, GitHub Actions) where no display is available.  Requires

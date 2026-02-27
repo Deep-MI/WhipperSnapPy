@@ -192,16 +192,20 @@ def _snap1_offscreen(**kwargs):
     Forces ``visible=False`` so that:
 
     - On **macOS** the Cocoa compositor is bypassed and ``glReadPixels``
-      returns correct pixel data immediately.
-    - On **Windows** no on-screen window needs to be created.
-    - On **Linux CI** (no display) GLFW will fail and
-      :func:`~whippersnappy.gl.utils.create_window_with_fallback` will
-      automatically fall back to OSMesa software rendering.
+      returns correct pixel data immediately.  If the runner has no real GPU,
+      :func:`~whippersnappy.gl.utils.init_window` automatically retries with
+      an OpenGL 3.3 Compatibility Profile (dropping ``FORWARD_COMPAT`` and
+      ``CORE_PROFILE``), which the macOS software renderer accepts.
+    - On **Windows** the Microsoft Basic Render Driver does not support Core
+      Profile; the same Compatibility Profile retry allows context creation
+      to succeed without a real GPU.
+    - On **Linux CI** (no display) GLFW fails entirely and
+      :func:`~whippersnappy.gl.utils.create_window_with_fallback` falls back
+      to OSMesa software rendering.
 
     The tests are expected to **run** on all CI platforms (Ubuntu/macOS/
     Windows).  The ``pytest.skip`` is a safety net for exceptional cases
-    where the runner has no OpenGL support at all (e.g. a bare container
-    without Mesa and without a GPU).
+    where the runner has no OpenGL support at all.
     """
     import whippersnappy.gl.utils as gl_utils  # noqa: PLC0415
 
@@ -234,11 +238,13 @@ class TestSnap1Rendering:
     are expected to **run** on all CI platforms:
 
     - **Ubuntu**: OSMesa headless rendering (``libosmesa6`` installed in CI).
-    - **macOS**: GLFW invisible window backed by the runner's GPU.
-    - **Windows**: GLFW invisible window backed by the runner's GPU drivers.
+    - **macOS**: GLFW invisible window; Compatibility Profile fallback for
+      runners without a real GPU (macOS software renderer accepts OpenGL 3.3
+      Compat).
+    - **Windows**: GLFW invisible window; Compatibility Profile fallback for
+      Microsoft Basic Render Driver (no Core Profile support without Mesa).
 
-    A ``pytest.skip`` is issued only if context creation fails completely,
-    which should not happen on any standard hosted runner.
+    A ``pytest.skip`` is issued only if context creation fails completely.
     """
 
     def test_snap1_basic(self):

@@ -28,7 +28,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -y install libgl1 libegl1 libxcb-cursor0 pandoc
+          sudo apt-get -y install libgl1 libosmesa6 libxcb-cursor0 pandoc
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel
