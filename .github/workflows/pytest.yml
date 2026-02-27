@@ -36,13 +36,12 @@ jobs:
         if: matrix.os == 'ubuntu'
         run: sudo apt-get install -y --no-install-recommends libosmesa6 libgl1
         # Rendering strategy per platform:
-        #   Ubuntu: no display → GLFW fails → OSMesa headless (libosmesa6)
-        #   macOS:  runner has a real GPU → GLFW invisible window succeeds
-        #   Windows: runner has GPU drivers → GLFW invisible window succeeds
-        # On all three platforms the rendering tests in TestSnap1Rendering
-        # are expected to run (not skip). They only skip if the OpenGL context
-        # creation fails entirely (RuntimeError), which should not happen on
-        # any of these hosted runners.
+        #   Ubuntu:  no display → GLFW fails → OSMesa headless (libosmesa6)
+        #   macOS:   no real GPU on runner → GLFW retries with Compatibility
+        #            Profile (drops FORWARD_COMPAT + CORE_PROFILE) → succeeds
+        #   Windows: Basic Render Driver only → same Compatibility Profile
+        #            fallback in init_window → succeeds
+        # On all three platforms TestSnap1Rendering is expected to RUN, not skip.
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel
