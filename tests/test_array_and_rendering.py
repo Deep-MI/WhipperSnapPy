@@ -191,14 +191,12 @@ def _snap1_offscreen(**kwargs):
 
     Forces ``visible=False`` so that:
 
-    - On **macOS** the Cocoa compositor is bypassed and ``glReadPixels``
-      returns correct pixel data immediately.  If the runner has no real GPU,
-      :func:`~whippersnappy.gl.utils.init_window` automatically retries with
-      an OpenGL 3.3 Compatibility Profile (dropping ``FORWARD_COMPAT`` and
-      ``CORE_PROFILE``), which the macOS software renderer accepts.
-    - On **Windows** the Microsoft Basic Render Driver does not support Core
-      Profile; the same Compatibility Profile retry allows context creation
-      to succeed without a real GPU.
+    - On **macOS** the Cocoa compositor is bypassed.  Only Core Profile +
+      ``FORWARD_COMPAT`` is attempted — NSGL does not support Compatibility
+      Profile at all.
+    - On **Windows** CI, Mesa ``opengl32.dll`` (installed by the workflow)
+      provides software OpenGL 3.3 Core so the invisible window succeeds
+      without a real GPU.
     - On **Linux CI** (no display) GLFW fails entirely and
       :func:`~whippersnappy.gl.utils.create_window_with_fallback` falls back
       to OSMesa software rendering.
@@ -238,11 +236,10 @@ class TestSnap1Rendering:
     are expected to **run** on all CI platforms:
 
     - **Ubuntu**: OSMesa headless rendering (``libosmesa6`` installed in CI).
-    - **macOS**: GLFW invisible window; Compatibility Profile fallback for
-      runners without a real GPU (macOS software renderer accepts OpenGL 3.3
-      Compat).
-    - **Windows**: GLFW invisible window; Compatibility Profile fallback for
-      Microsoft Basic Render Driver (no Core Profile support without Mesa).
+    - **macOS**: GLFW invisible window, Core Profile + ``FORWARD_COMPAT``
+      (the only profile NSGL supports).
+    - **Windows**: GLFW invisible window backed by Mesa ``opengl32.dll``
+      (software OpenGL 3.3 Core, installed by the CI workflow).
 
     A ``pytest.skip`` is issued only if context creation fails completely.
     """

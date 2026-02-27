@@ -8,6 +8,7 @@ required for headless operation.
 """
 
 import logging
+import sys
 import warnings
 from typing import Any
 
@@ -167,20 +168,30 @@ def set_lighting_uniforms(shader, specular=True, ambient=0.0, light_color=(1.0, 
     gl.glUniform1f(ambient_loc, ambient)
 
 
+
 def _try_glfw_window(width, height, title, visible, core_profile):
     """Attempt to create a single GLFW window with the given profile settings.
+
+    Calls ``glfw.init()`` before and ``glfw.terminate()`` on failure so that
+    each attempt starts from a clean GLFW state.
 
     Parameters
     ----------
     core_profile : bool
-        If True request OpenGL 3.3 Core Profile + FORWARD_COMPAT (ideal).
-        If False request OpenGL 3.3 Compatibility Profile (works on Windows
-        Basic Render Driver and macOS software renderer in CI).
+        If True request OpenGL 3.3 Core Profile + FORWARD_COMPAT (required on
+        macOS; preferred everywhere).
+        If False request OpenGL 3.3 Compatibility Profile (Windows CI with a
+        software renderer that supports compat but not core).
 
     Returns
     -------
     window or None
     """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if not glfw.init():
+            return None
+
     glfw.default_window_hints()
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
@@ -192,19 +203,26 @@ def _try_glfw_window(width, height, title, visible, core_profile):
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_COMPAT_PROFILE)
     if not visible:
         glfw.window_hint(glfw.VISIBLE, glfw.FALSE)
-    return glfw.create_window(width, height, title, None, None) or None
+
+    window = glfw.create_window(width, height, title, None, None)
+    if not window:
+        glfw.terminate()
+        return None
+    return window
 
 
 def init_window(width, height, title="PyOpenGL", visible=True):
     """Create a GLFW window, make an OpenGL context current and return the window handle.
 
-    Tries OpenGL 3.3 Core Profile first, then falls back to 3.3 Compatibility
-    Profile.  The compatibility fallback is needed on:
+    On **macOS** only OpenGL 3.3 Core Profile + ``FORWARD_COMPAT`` is
+    attempted — NSGL does not support Compatibility Profile at all.
 
-    - **Windows** GitHub Actions runners (Microsoft Basic Render Driver,
-      no Core Profile support without a Mesa ``opengl32.dll``).
-    - **macOS** GitHub Actions runners (Apple software renderer, which rejects
-      ``OPENGL_FORWARD_COMPAT`` on some configurations).
+    On **Windows** and **Linux** Core Profile is tried first; if it fails
+    (e.g. on a Windows CI runner with a basic software renderer that supports
+    compat but not core) Compatibility Profile is retried.
+
+    Each attempt calls ``glfw.init()`` / ``glfw.terminate()`` independently
+    so that a failed attempt leaves no stale GLFW state for the next.
 
     Parameters
     ----------
@@ -213,35 +231,38 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     title : str, optional, default 'PyOpenGL'
         Window title.
     visible : bool, optional, default True
-        If False create an invisible/offscreen window (useful for headless
-        rendering when a display is available but no screen is needed).
+        If False create an invisible/offscreen window.
 
     Returns
     -------
     window or False
         GLFW window handle on success, or False on failure.
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        if not glfw.init():
-            return False
-
-    # Try Core Profile first (preferred — stricter, better error reporting).
+    # Core Profile (required on macOS, preferred everywhere).
     window = _try_glfw_window(width, height, title, visible, core_profile=True)
-    if not window:
-        # Fall back to Compatibility Profile for CI runners without a real GPU
-        # (Windows Basic Render Driver, macOS software renderer).
-        logger.debug(
-            "OpenGL 3.3 Core Profile unavailable; retrying with Compatibility Profile."
-        )
-        window = _try_glfw_window(width, height, title, visible, core_profile=False)
-    if not window:
-        glfw.terminate()
+    if window:
+        glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
+        glfw.make_context_current(window)
+        glfw.swap_interval(0)
+        return window
+
+    # macOS NSGL does not support Compatibility Profile — don't retry.
+    if sys.platform == "darwin":
         return False
-    glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
-    glfw.make_context_current(window)
-    glfw.swap_interval(0)
-    return window
+
+    # Non-macOS: retry with Compatibility Profile (helps on some Windows CI
+    # runners with software renderers that support compat but not core).
+    logger.debug(
+        "OpenGL 3.3 Core Profile unavailable; retrying with Compatibility Profile."
+    )
+    window = _try_glfw_window(width, height, title, visible, core_profile=False)
+    if window:
+        glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
+        glfw.make_context_current(window)
+        glfw.swap_interval(0)
+        return window
+
+    return False
 
 
 def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=True):
@@ -251,10 +272,10 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
 
     1. **GLFW visible window** — normal path on workstations.
     2. **GLFW invisible window** — when a display exists but no screen is
-       needed.  On **macOS** and **Windows** CI runners this path succeeds
-       because :func:`init_window` automatically retries with a Compatibility
-       Profile when Core Profile is unavailable (e.g. Microsoft Basic Render
-       Driver or macOS software renderer).
+       needed.  On **macOS** only Core Profile is attempted (NSGL has no
+       Compatibility Profile).  On **Windows** CI, Mesa ``opengl32.dll``
+       (installed by the CI workflow) provides a software OpenGL 3.3 Core
+       implementation so the invisible-window path succeeds.
     3. **OSMesa software rendering** — fully headless; no display server,
        no GPU, and no ``/dev/dri/`` devices required.  Used on **Linux CI**
        (Docker, GitHub Actions) where no display is available.  Requires
