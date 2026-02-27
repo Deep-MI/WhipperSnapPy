@@ -6,9 +6,10 @@ Headless rendering on Linux uses OSMesa (CPU software renderer) via
 when no display server or GPU is available.  No EGL or GPU driver is
 required for headless operation.
 
-On Linux without a display, ``PYOPENGL_PLATFORM=osmesa`` is set
-automatically at import time (before ``OpenGL.GL`` is imported) so that
-PyOpenGL resolves all function pointers via ``OSMesaGetProcAddress``.
+On Linux with no ``DISPLAY`` or ``WAYLAND_DISPLAY`` set,
+``PYOPENGL_PLATFORM=osmesa`` is set automatically at import time (before
+``OpenGL.GL`` is imported) so that PyOpenGL resolves all function pointers
+via ``OSMesaGetProcAddress`` rather than GLX.
 """
 
 import logging
@@ -17,11 +18,10 @@ import sys
 import warnings
 from typing import Any
 
-# On Linux, if no display is available, pre-set PYOPENGL_PLATFORM=osmesa so
-# that PyOpenGL resolves function pointers via OSMesaGetProcAddress rather
-# than GLX (which returns null pointers when there is no X11 display).
-# This must happen *before* "import OpenGL.GL" below.
-# On macOS and Windows we leave the default (CGL / WGL) so GLFW works.
+# On Linux with no display, pre-set PYOPENGL_PLATFORM=osmesa before
+# importing OpenGL.GL so PyOpenGL uses OSMesaGetProcAddress for function
+# pointer resolution instead of GLX (which returns null pointers without
+# an X11/Wayland display).  Has no effect on macOS or Windows.
 if (
     sys.platform == "linux"
     and "PYOPENGL_PLATFORM" not in os.environ
@@ -196,12 +196,10 @@ def _try_glfw_window(width, height, title, visible, core_profile):
     Parameters
     ----------
     core_profile : bool
-        If True request OpenGL 3.3 Core Profile (preferred everywhere).
-        ``OPENGL_FORWARD_COMPAT`` is only set on non-macOS platforms —
-        macOS CGL rejects the pixel format when it is set for invisible
-        windows on some runners (ARM, macOS 14+).
+        If True request OpenGL 3.3 Core Profile + ``FORWARD_COMPAT``
+        (preferred on all platforms).
         If False request OpenGL 3.3 Compatibility Profile (fallback for
-        some Windows software renderers).
+        Windows software renderers that don't support Core Profile).
 
     Returns
     -------
@@ -216,11 +214,7 @@ def _try_glfw_window(width, height, title, visible, core_profile):
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     if core_profile:
-        # FORWARD_COMPAT is needed on Linux/Windows to exclude deprecated
-        # features but macOS CGL rejects the pixel format when it is set
-        # together with an invisible window on ARM runners.
-        if sys.platform != "darwin":
-            glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
     else:
         glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, False)
@@ -238,13 +232,9 @@ def _try_glfw_window(width, height, title, visible, core_profile):
 def init_window(width, height, title="PyOpenGL", visible=True):
     """Create a GLFW window, make an OpenGL context current and return the window handle.
 
-    Tries OpenGL 3.3 Core Profile first.  ``OPENGL_FORWARD_COMPAT`` is set
-    on Linux/Windows but **not** on macOS — Apple CGL rejects the pixel
-    format for invisible windows when it is set on ARM runners (macOS 14+).
-
-    On **macOS** only Core Profile is attempted — NSGL has no Compatibility
-    Profile.  On **Windows** and **Linux**, Compatibility Profile is retried
-    if Core Profile fails.
+    Tries OpenGL 3.3 Core Profile + ``FORWARD_COMPAT`` first, then falls
+    back to Compatibility Profile on non-macOS platforms.  NSGL (macOS) does
+    not support Compatibility Profile, so only one attempt is made there.
 
     Each attempt calls ``glfw.init()`` / ``glfw.terminate()`` independently
     so that a failed attempt leaves no stale GLFW state for the next.
@@ -295,16 +285,15 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
 
     The function attempts context creation in this priority order:
 
-    1. **GLFW visible window** — normal path on workstations.
-    2. **GLFW invisible window** — when a display exists but no screen is
-       needed.  On **macOS** only Core Profile is attempted (NSGL has no
-       Compatibility Profile).  On **Windows** CI, Mesa ``opengl32.dll``
-       (installed by the CI workflow) provides a software OpenGL 3.3 Core
-       implementation so the invisible-window path succeeds.
+    1. **GLFW visible window** — normal path on workstations with a display.
+    2. **GLFW invisible window** — when a display exists but no on-screen
+       window is needed (e.g. batch rendering).  Core Profile +
+       ``FORWARD_COMPAT`` is tried first; Compatibility Profile is retried
+       on non-macOS platforms (NSGL does not support Compatibility Profile).
     3. **OSMesa software rendering** — fully headless; no display server,
-       no GPU, and no ``/dev/dri/`` devices required.  Used on **Linux CI**
-       (Docker, GitHub Actions) where no display is available.  Requires
-       ``libosmesa6`` (Debian/Ubuntu) or ``mesa-libOSMesa`` (RHEL/Fedora).
+       no GPU, and no ``/dev/dri/`` devices required.  Only attempted on
+       Linux.  Requires ``libosmesa6`` (Debian/Ubuntu) or
+       ``mesa-libOSMesa`` (RHEL/Fedora).
 
     When OSMesa is used the module-level ``_offscreen_context`` is set and
     ``make_current()`` is called so that subsequent OpenGL calls work

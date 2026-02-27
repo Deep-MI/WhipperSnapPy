@@ -53,8 +53,8 @@ jobs:
         #   Ubuntu:  no display → GLFW fails → OSMesa headless (libosmesa6)
         #   macOS:   rendering tests SKIPPED — NSGL requires a real display
         #            connection even for invisible windows; CI runners have none
-        #   Windows: Mesa opengl32.dll on PATH → GLFW invisible window,
-        #            Core Profile succeeds via llvmpipe; tests run normally
+        #   Windows: Mesa opengl32.dll (MSVC build) on PATH → GLFW invisible
+        #            window with Core Profile + FORWARD_COMPAT via llvmpipe
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel
