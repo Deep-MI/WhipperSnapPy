@@ -5,6 +5,9 @@ pipeline entirely without touching any file on disk, using small synthetic
 triangle meshes.
 """
 
+import os
+import sys
+
 import numpy as np
 import pytest
 
@@ -19,6 +22,15 @@ from whippersnappy.geometry.prepare import (
     estimate_overlay_thresholds,
     prepare_geometry,
     prepare_geometry_from_arrays,
+)
+
+# macOS CI runners (GitHub Actions) have no display connection.
+# NSGL (Apple's OpenGL layer) requires a real display even for invisible
+# windows — glfwCreateWindow always fails with "NSGL: Failed to find a
+# suitable pixel format" regardless of hints.  Skip rendering tests there.
+_SKIP_RENDER_MACOS = pytest.mark.skipif(
+    sys.platform == "darwin" and "CI" in os.environ,
+    reason="macOS CI runners have no display; NSGL cannot create an OpenGL context.",
 )
 
 # ---------------------------------------------------------------------------
@@ -191,20 +203,17 @@ def _snap1_offscreen(**kwargs):
 
     Forces ``visible=False`` so that:
 
-    - On **macOS** the Cocoa compositor is bypassed.  Core Profile is
-      requested *without* ``OPENGL_FORWARD_COMPAT`` — Apple CGL on ARM
-      runners (macOS 14+) rejects the pixel format when that flag is set
-      for invisible windows.
-    - On **Windows** CI, Mesa ``opengl32.dll`` is on ``PATH`` (installed by
-      the workflow), providing software OpenGL 3.3 Core via llvmpipe so the
-      invisible window succeeds without a real GPU.
+    - On **Windows CI**, Mesa ``opengl32.dll`` is on ``PATH`` (installed by
+      the workflow), providing software OpenGL 3.3 Core via llvmpipe.
     - On **Linux CI** (no display) GLFW fails entirely and
       :func:`~whippersnappy.gl.utils.create_window_with_fallback` falls back
       to OSMesa software rendering.
+    - On **macOS CI** the containing :class:`TestSnap1Rendering` is skipped
+      entirely via ``_SKIP_RENDER_MACOS`` — NSGL requires a real display
+      connection even for invisible windows, which CI runners don't provide.
 
-    The tests are expected to **run** on all CI platforms (Ubuntu/macOS/
-    Windows).  The ``pytest.skip`` is a safety net for exceptional cases
-    where the runner has no OpenGL support at all.
+    The ``pytest.skip`` inside this function is a safety net for any other
+    environment where context creation fails unexpectedly.
     """
     import whippersnappy.gl.utils as gl_utils  # noqa: PLC0415
 
@@ -226,6 +235,7 @@ def _snap1_offscreen(**kwargs):
         gl_utils.create_window_with_fallback = original
 
 
+@_SKIP_RENDER_MACOS
 class TestSnap1Rendering:
     """End-to-end rendering tests: snap1 must return a non-empty PIL Image.
 
@@ -234,15 +244,17 @@ class TestSnap1Rendering:
     appear edge-on and produce an all-black image.
 
     Tests use an offscreen GLFW context (see :func:`_snap1_offscreen`) and
-    are expected to **run** on all CI platforms:
+    run on:
 
-    - **Ubuntu**: OSMesa headless rendering (``libosmesa6`` installed in CI).
-    - **macOS**: GLFW invisible window, Core Profile without ``FORWARD_COMPAT``
-      (CGL on ARM runners rejects pixel format when it is set).
-    - **Windows**: GLFW invisible window backed by Mesa ``opengl32.dll``
+    - **Ubuntu CI**: OSMesa headless rendering (``libosmesa6`` installed).
+    - **Windows CI**: GLFW invisible window backed by Mesa ``opengl32.dll``
       (software OpenGL 3.3 Core via llvmpipe, on ``PATH`` from CI workflow).
+    - **macOS CI**: **skipped** — NSGL requires a real display connection
+      even for invisible windows; GitHub Actions runners have none.
+    - **local macOS**: runs if a display is connected (normal developer use).
 
-    A ``pytest.skip`` is issued only if context creation fails completely.
+    The ``pytest.skip`` inside ``_snap1_offscreen`` is a safety net for any
+    other environment where context creation fails completely.
     """
 
     def test_snap1_basic(self):
