@@ -5,12 +5,30 @@ Headless rendering on Linux uses OSMesa (CPU software renderer) via
 :class:`~whippersnappy.gl.osmesa_context.OSMesaContext` as a fallback
 when no display server or GPU is available.  No EGL or GPU driver is
 required for headless operation.
+
+On Linux without a display, ``PYOPENGL_PLATFORM=osmesa`` is set
+automatically at import time (before ``OpenGL.GL`` is imported) so that
+PyOpenGL resolves all function pointers via ``OSMesaGetProcAddress``.
 """
 
 import logging
+import os
 import sys
 import warnings
 from typing import Any
+
+# On Linux, if no display is available, pre-set PYOPENGL_PLATFORM=osmesa so
+# that PyOpenGL resolves function pointers via OSMesaGetProcAddress rather
+# than GLX (which returns null pointers when there is no X11 display).
+# This must happen *before* "import OpenGL.GL" below.
+# On macOS and Windows we leave the default (CGL / WGL) so GLFW works.
+if (
+    sys.platform == "linux"
+    and "PYOPENGL_PLATFORM" not in os.environ
+    and not os.environ.get("DISPLAY")
+    and not os.environ.get("WAYLAND_DISPLAY")
+):
+    os.environ["PYOPENGL_PLATFORM"] = "osmesa"
 
 import glfw
 import OpenGL.GL as gl
@@ -326,9 +344,12 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
     # --- Step 3: OSMesa software rendering (Linux headless, no display needed) ---
     # On macOS and Windows GLFW should have succeeded above via the GPU driver.
     # OSMesa is the fallback for Linux environments without a display server.
+    # PYOPENGL_PLATFORM=osmesa was already set at module import time (top of
+    # this file) when no display was detected, so PyOpenGL already uses
+    # OSMesaGetProcAddress for function pointer resolution.
     logger.info("No display detected — trying OSMesa software rendering (CPU).")
     try:
-        from .osmesa_context import OSMesaContext
+        from .osmesa_context import OSMesaContext  # noqa: PLC0415
         ctx = OSMesaContext(width, height)
         ctx.make_current()
         _offscreen_context = ctx
