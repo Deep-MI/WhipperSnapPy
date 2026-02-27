@@ -196,10 +196,12 @@ def _try_glfw_window(width, height, title, visible, core_profile):
     Parameters
     ----------
     core_profile : bool
-        If True request OpenGL 3.3 Core Profile + FORWARD_COMPAT (required on
-        macOS; preferred everywhere).
-        If False request OpenGL 3.3 Compatibility Profile (Windows CI with a
-        software renderer that supports compat but not core).
+        If True request OpenGL 3.3 Core Profile (preferred everywhere).
+        ``OPENGL_FORWARD_COMPAT`` is only set on non-macOS platforms —
+        macOS CGL rejects the pixel format when it is set for invisible
+        windows on some runners (ARM, macOS 14+).
+        If False request OpenGL 3.3 Compatibility Profile (fallback for
+        some Windows software renderers).
 
     Returns
     -------
@@ -214,7 +216,11 @@ def _try_glfw_window(width, height, title, visible, core_profile):
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     if core_profile:
-        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+        # FORWARD_COMPAT is needed on Linux/Windows to exclude deprecated
+        # features but macOS CGL rejects the pixel format when it is set
+        # together with an invisible window on ARM runners.
+        if sys.platform != "darwin":
+            glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
     else:
         glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, False)
@@ -232,12 +238,13 @@ def _try_glfw_window(width, height, title, visible, core_profile):
 def init_window(width, height, title="PyOpenGL", visible=True):
     """Create a GLFW window, make an OpenGL context current and return the window handle.
 
-    On **macOS** only OpenGL 3.3 Core Profile + ``FORWARD_COMPAT`` is
-    attempted — NSGL does not support Compatibility Profile at all.
+    Tries OpenGL 3.3 Core Profile first.  ``OPENGL_FORWARD_COMPAT`` is set
+    on Linux/Windows but **not** on macOS — Apple CGL rejects the pixel
+    format for invisible windows when it is set on ARM runners (macOS 14+).
 
-    On **Windows** and **Linux** Core Profile is tried first; if it fails
-    (e.g. on a Windows CI runner with a basic software renderer that supports
-    compat but not core) Compatibility Profile is retried.
+    On **macOS** only Core Profile is attempted — NSGL has no Compatibility
+    Profile.  On **Windows** and **Linux**, Compatibility Profile is retried
+    if Core Profile fails.
 
     Each attempt calls ``glfw.init()`` / ``glfw.terminate()`` independently
     so that a failed attempt leaves no stale GLFW state for the next.

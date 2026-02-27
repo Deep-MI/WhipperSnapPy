@@ -191,12 +191,13 @@ def _snap1_offscreen(**kwargs):
 
     Forces ``visible=False`` so that:
 
-    - On **macOS** the Cocoa compositor is bypassed.  Only Core Profile +
-      ``FORWARD_COMPAT`` is attempted — NSGL does not support Compatibility
-      Profile at all.
-    - On **Windows** CI, Mesa ``opengl32.dll`` (installed by the workflow)
-      provides software OpenGL 3.3 Core so the invisible window succeeds
-      without a real GPU.
+    - On **macOS** the Cocoa compositor is bypassed.  Core Profile is
+      requested *without* ``OPENGL_FORWARD_COMPAT`` — Apple CGL on ARM
+      runners (macOS 14+) rejects the pixel format when that flag is set
+      for invisible windows.
+    - On **Windows** CI, Mesa ``opengl32.dll`` is on ``PATH`` (installed by
+      the workflow), providing software OpenGL 3.3 Core via llvmpipe so the
+      invisible window succeeds without a real GPU.
     - On **Linux CI** (no display) GLFW fails entirely and
       :func:`~whippersnappy.gl.utils.create_window_with_fallback` falls back
       to OSMesa software rendering.
@@ -236,10 +237,10 @@ class TestSnap1Rendering:
     are expected to **run** on all CI platforms:
 
     - **Ubuntu**: OSMesa headless rendering (``libosmesa6`` installed in CI).
-    - **macOS**: GLFW invisible window, Core Profile + ``FORWARD_COMPAT``
-      (the only profile NSGL supports).
+    - **macOS**: GLFW invisible window, Core Profile without ``FORWARD_COMPAT``
+      (CGL on ARM runners rejects pixel format when it is set).
     - **Windows**: GLFW invisible window backed by Mesa ``opengl32.dll``
-      (software OpenGL 3.3 Core, installed by the CI workflow).
+      (software OpenGL 3.3 Core via llvmpipe, on ``PATH`` from CI workflow).
 
     A ``pytest.skip`` is issued only if context creation fails completely.
     """
