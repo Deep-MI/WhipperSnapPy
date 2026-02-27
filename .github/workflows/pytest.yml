@@ -35,12 +35,28 @@ jobs:
       - name: Install system OSMesa library (Ubuntu)
         if: matrix.os == 'ubuntu'
         run: sudo apt-get install -y --no-install-recommends libosmesa6 libgl1
+      - name: Install Mesa software OpenGL (Windows)
+        if: matrix.os == 'windows'
+        # mesa-dist-win provides a software OpenGL 3.3 Core implementation
+        # (opengl32.dll / libglapi.dll) that replaces the stub shipped with
+        # the Windows Basic Render Driver, which has no real OpenGL support.
+        # We drop the DLLs next to the Python executable so they are found
+        # before the system driver.
+        shell: pwsh
+        run: |
+          $url = "https://github.com/pal1000/mesa-dist-win/releases/download/24.3.4/mesa3d-24.3.4-release-mingw.7z"
+          $archive = "$env:TEMP\mesa.7z"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          7z e $archive -o"$env:TEMP\mesa" x64\opengl32.dll x64\libglapi.dll -y
+          $pydir = Split-Path (python -c "import sys; print(sys.executable)")
+          Copy-Item "$env:TEMP\mesa\opengl32.dll" "$pydir\opengl32.dll" -Force
+          Copy-Item "$env:TEMP\mesa\libglapi.dll" "$pydir\libglapi.dll" -Force
         # Rendering strategy per platform:
         #   Ubuntu:  no display → GLFW fails → OSMesa headless (libosmesa6)
-        #   macOS:   no real GPU on runner → GLFW retries with Compatibility
-        #            Profile (drops FORWARD_COMPAT + CORE_PROFILE) → succeeds
-        #   Windows: Basic Render Driver only → same Compatibility Profile
-        #            fallback in init_window → succeeds
+        #   macOS:   GLFW invisible window, Core Profile + FORWARD_COMPAT
+        #            (NSGL does not support Compatibility Profile at all)
+        #   Windows: Mesa software opengl32.dll → GLFW invisible window,
+        #            Core Profile succeeds via llvmpipe
         # On all three platforms TestSnap1Rendering is expected to RUN, not skip.
       - name: Install package
         run: |
