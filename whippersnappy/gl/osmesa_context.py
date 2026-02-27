@@ -9,22 +9,11 @@ display is available and no GPU is required.  It requires:
   - PyOpenGL >= 3.1 (already a project dependency).
   - No GPU, no ``/dev/dri/`` devices, no display server.
 
-**Important:** ``PYOPENGL_PLATFORM=osmesa`` must be set in the environment
-*before* the first ``import OpenGL.GL`` anywhere in the process.
-:func:`~whippersnappy.gl.utils.create_window_with_fallback` takes care of
-this automatically.
-
-Typical usage (internal, called from ``create_window_with_fallback``)::
-
-    import os
-    os.environ["PYOPENGL_PLATFORM"] = "osmesa"   # must be first
-    from whippersnappy.gl.osmesa_context import OSMesaContext
-
-    ctx = OSMesaContext(width, height)
-    ctx.make_current()
-    # ... OpenGL calls render into ctx's internal pixel buffer ...
-    img = ctx.read_pixels()
-    ctx.destroy()
+This module is not intended to be used directly.  It is instantiated by
+:func:`~whippersnappy.gl.utils.create_window_with_fallback` when GLFW
+cannot create a window (Linux headless).  That function also sets
+``PYOPENGL_PLATFORM=osmesa`` at import time so that PyOpenGL resolves
+function pointers via ``OSMesaGetProcAddress``.
 
 Notes
 -----
@@ -36,7 +25,6 @@ reads directly from the OSMesa buffer.
 import ctypes
 import ctypes.util
 import logging
-import sys
 
 import OpenGL.GL as gl
 from PIL import Image
@@ -53,20 +41,12 @@ _GL_UNSIGNED_BYTE    = 0x1401
 
 
 def _load_libosmesa():
-    """Try several candidate names and return the loaded ctypes CDLL.
+    """Try several candidate library names and return the loaded ctypes CDLL.
 
-    Candidate names are platform-specific but we always try all of them so
-    that e.g. a macOS user with a non-default Homebrew prefix still has a
-    chance of success.
+    Only called on Linux — OSMesa is not attempted on macOS or Windows
+    (GLFW handles those platforms).
     """
-    if sys.platform == "win32":
-        candidates = ["osmesa", "osmesa.dll", "libOSMesa.dll"]
-    elif sys.platform == "darwin":
-        # Homebrew mesa does NOT build libOSMesa — a custom build with
-        # -Dosmesa=true is needed.  We still try in case the user has one.
-        candidates = ["libOSMesa.dylib", "libOSMesa.8.dylib"]
-    else:  # Linux / WSL2
-        candidates = ["libOSMesa.so.8", "libOSMesa.so.6", "libOSMesa.so"]
+    candidates = ["libOSMesa.so.8", "libOSMesa.so.6", "libOSMesa.so"]
 
     # ctypes.util.find_library may resolve a shorter name to the real path
     found = ctypes.util.find_library("OSMesa")
@@ -83,21 +63,11 @@ def _load_libosmesa():
         except (OSError, AttributeError) as exc:
             last_err = exc
 
-    if sys.platform == "win32":
-        hint = "Install via MSYS2: pacman -S mingw-w64-x86_64-mesa"
-    elif sys.platform == "darwin":
-        hint = (
-            "libOSMesa is not available via 'brew install mesa' (Homebrew does not "
-            "build OSMesa). A custom Mesa build with -Dosmesa=true is required, or "
-            "use a display/GLFW for rendering on macOS."
-        )
-    else:
-        hint = (
-            "Install with: sudo apt-get install libosmesa6  (Debian/Ubuntu) "
-            "or sudo dnf install mesa-libOSMesa  (RHEL/Fedora)"
-        )
-
-    raise RuntimeError(f"Could not load libOSMesa ({last_err}). {hint}")
+    raise RuntimeError(
+        f"Could not load libOSMesa ({last_err}). "
+        "Install with:  sudo apt-get install libosmesa6  (Debian/Ubuntu) "
+        "or:  sudo dnf install mesa-libOSMesa  (RHEL/Fedora)"
+    )
 
 
 class OSMesaContext:
@@ -106,10 +76,6 @@ class OSMesaContext:
     OSMesa renders into its own pixel buffer which serves as the default
     framebuffer.  No explicit FBO is required — ``glReadPixels`` reads
     directly from the OSMesa buffer.
-
-    ``PYOPENGL_PLATFORM=osmesa`` **must** already be set in the environment
-    before this class is imported (handled by
-    :func:`~whippersnappy.gl.utils.create_window_with_fallback`).
 
     Parameters
     ----------
@@ -154,7 +120,11 @@ class OSMesaContext:
         lib.OSMesaDestroyContext.argtypes = [ctypes.c_void_p]
 
         ctx = lib.OSMesaCreateContextExt(
-            _OSMESA_RGBA, 24, 8, 0, None,
+            _OSMESA_RGBA,  # pixel format
+            24,            # depth bits
+            8,             # stencil bits
+            0,             # accum bits
+            None,          # no shared context
         )
         if not ctx:
             raise RuntimeError(
@@ -163,6 +133,7 @@ class OSMesaContext:
             )
         self._ctx = ctx
 
+        # Allocate the pixel buffer that OSMesa renders into
         buf_size = self.width * self.height * 4  # RGBA bytes
         self._buf = (ctypes.c_ubyte * buf_size)()
         logger.info("OSMesa context created (%dx%d)", self.width, self.height)
@@ -170,10 +141,11 @@ class OSMesaContext:
     def make_current(self):
         """Make this OSMesa context current.
 
-        OSMesa renders into its own internal pixel buffer which acts as the
-        default framebuffer (FBO 0).  No FBO creation is needed.
-        ``PYOPENGL_PLATFORM=osmesa`` must already be set so that PyOpenGL
-        resolves function pointers via OSMesaGetProcAddress.
+        ``OSMesaMakeCurrent`` binds ``self._buf`` as the default framebuffer
+        (FBO 0) of this context.  The buffer already has colour (RGBA8),
+        depth (24-bit) and stencil (8-bit) attached — requested via
+        ``OSMesaCreateContextExt`` — so no explicit FBO creation is needed.
+        All rendering goes into ``self._buf`` automatically.
         """
         ok = self._libosmesa.OSMesaMakeCurrent(
             self._ctx,
@@ -191,15 +163,14 @@ class OSMesaContext:
     def read_pixels(self) -> Image.Image:
         """Read the OSMesa framebuffer and return a PIL RGB Image.
 
-        Reads from the default framebuffer (FBO 0), which is OSMesa's own
-        pixel buffer.  No FBO bind needed.
+        FBO 0 is always current (set by ``OSMesaMakeCurrent``), so
+        ``glReadPixels`` reads from ``self._buf`` directly.
 
         Returns
         -------
         PIL.Image.Image
             Captured frame, vertically flipped to top-left origin convention.
         """
-        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
         gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
         buf = gl.glReadPixels(
             0, 0, self.width, self.height, gl.GL_RGB, gl.GL_UNSIGNED_BYTE
