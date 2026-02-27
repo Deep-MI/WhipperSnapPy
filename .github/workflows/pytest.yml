@@ -51,11 +51,10 @@ jobs:
           echo "C:\mesa" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         # Rendering strategy per platform:
         #   Ubuntu:  no display → GLFW fails → OSMesa headless (libosmesa6)
-        #   macOS:   GLFW invisible window, Core Profile WITHOUT FORWARD_COMPAT
-        #            (CGL on ARM runners rejects pixel format with FORWARD_COMPAT)
+        #   macOS:   rendering tests SKIPPED — NSGL requires a real display
+        #            connection even for invisible windows; CI runners have none
         #   Windows: Mesa opengl32.dll on PATH → GLFW invisible window,
-        #            Core Profile succeeds via llvmpipe
-        # On all three platforms TestSnap1Rendering is expected to RUN, not skip.
+        #            Core Profile succeeds via llvmpipe; tests run normally
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel

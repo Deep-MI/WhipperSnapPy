@@ -152,7 +152,7 @@ autosectionlabel_prefix_document = True
 # Whether to create a Sphinx table of contents for the lists of class methods and attributes.
 # If a table of contents is made, Sphinx expects each entry to have a separate page. True by default.
 #numpydoc_class_members_toctree = False
-#numpydoc_attributes_as_param_list = False
+numpydoc_attributes_as_param_list = False  # dataclass fields → Attributes, not Parameters
 numpydoc_show_class_members = False
 
 # x-ref
@@ -194,6 +194,9 @@ numpydoc_validation_exclude = {  # regex to ignore during docstring check
     # Imported third-party objects exposed in plot3d module
     r"\.HTML$",
     r"\.VBox$",
+    # stdlib dataclasses re-exported into cli module scope
+    r"\.dataclass$",
+    r"\.field$",
 }
 
 # -- sphinxcontrib-bibtex ----------------------------------------------------
