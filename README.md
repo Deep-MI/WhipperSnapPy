@@ -114,16 +114,29 @@ For all options run `whippersnap4 --help`, `whippersnap1 --help`, or `whippersna
 ## Python API
 
 ```python
-from whippersnappy import snap1, snap4, snap_rotate
+from whippersnappy import snap1, snap4, snap_rotate, ViewType
 from whippersnappy import plot3d  # requires whippersnappy[notebook]
 ```
 
-| Function | Description |
+| Function / Class | Description |
 |---|---|
 | `snap1` | Single-view snapshot of any triangular mesh → PIL Image |
 | `snap4` | Four-view composed image (FreeSurfer subject, lateral/medial both hemispheres) |
 | `snap_rotate` | 360° rotation video of any triangular surface mesh (MP4, WebM, or GIF) |
 | `plot3d` | Interactive 3D WebGL viewer for Jupyter notebooks |
+| `ViewType` | Enum of camera presets used by `snap1` and `snap_rotate` |
+
+**`ViewType` values** — pass to the `view` parameter of `snap1` or the
+`start_view` parameter of `snap_rotate`:
+
+| Value | Description |
+|---|---|
+| `ViewType.LEFT` | Left lateral view *(default)* |
+| `ViewType.RIGHT` | Right lateral view |
+| `ViewType.FRONT` | Frontal / anterior view |
+| `ViewType.BACK` | Posterior view |
+| `ViewType.TOP` | Superior / dorsal view |
+| `ViewType.BOTTOM` | Inferior / ventral view |
 
 **Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
 FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII
@@ -138,14 +151,18 @@ GIfTI functional/label (`.func.gii`, `.label.gii`).
 ### Examples
 
 ```python
-from whippersnappy import snap1, snap4
+from whippersnappy import snap1, snap4, ViewType
 
-# FreeSurfer surface with overlay
+# FreeSurfer surface with overlay — default left lateral view
 img = snap1('lh.white',
             overlay='lh.thickness',
             bg_map='lh.curv',
             roi='lh.cortex.label')
 img.save('snap1.png')
+
+# Specific view
+img = snap1('lh.white', overlay='lh.thickness', view=ViewType.FRONT)
+img.save('snap1_front.png')
 
 # Four-view overview (FreeSurfer subject directory)
 img = snap4(lh_overlay='/path/to/lh.thickness',

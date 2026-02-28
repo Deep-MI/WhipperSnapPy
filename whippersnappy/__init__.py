@@ -12,8 +12,7 @@ overlays and annotations. It includes:
 
 For static image generation::
 
-    from whippersnappy import snap1, snap4
-    from whippersnappy.utils.types import ViewType
+    from whippersnappy import snap1, snap4, ViewType
     from IPython.display import display
 
     img = snap1('path/to/lh.white', view=ViewType.LEFT)
