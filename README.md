@@ -34,10 +34,11 @@ pip install 'whippersnappy[notebook]'
 ```
 
 Off-screen (headless) rendering on **Linux** is supported natively via
-OSMesa — no `xvfb` or GPU required.  On **macOS** and **Windows** a real
-display connection is needed (GLFW creates an invisible window backed by the
-system GPU driver).  See the <a href="DOCKER.md">Docker guide</a> for
-headless Linux usage.
+OSMesa — no `xvfb` or GPU required.  On **Windows**, GLFW creates an
+invisible window; a GPU driver or a Mesa software renderer
+(`opengl32.dll`) is sufficient — no display needed.  On **macOS**, a real
+display connection is required (NSGL does not support headless rendering).
+See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.
 
 ## Command-Line Usage
 
