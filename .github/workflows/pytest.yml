@@ -32,9 +32,29 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install system OpenGL/EGL libraries (Ubuntu)
+      - name: Install system OSMesa library (Ubuntu)
         if: matrix.os == 'ubuntu'
-        run: sudo apt-get install -y --no-install-recommends libegl1 libgl1
+        run: sudo apt-get install -y --no-install-recommends libosmesa6 libgl1
+      - name: Install Mesa software OpenGL (Windows)
+        if: matrix.os == 'windows'
+        # mesa-dist-win (MSVC build) provides software OpenGL 3.3 Core via
+        # llvmpipe — compatible with Python's MSVC runtime.
+        # All x64 DLLs are extracted to C:\mesa and prepended to PATH so that
+        # Windows DLL search finds opengl32.dll and all its Mesa dependencies.
+        shell: pwsh
+        run: |
+          $url = "https://github.com/pal1000/mesa-dist-win/releases/download/24.3.4/mesa3d-24.3.4-release-msvc.7z"
+          $archive = "$env:TEMP\mesa.7z"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          New-Item -ItemType Directory -Force -Path "C:\mesa" | Out-Null
+          7z e $archive -o"C:\mesa" "x64\*" -y
+          echo "C:\mesa" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        # Rendering strategy per platform:
+        #   Ubuntu:  no display → GLFW fails → OSMesa headless (libosmesa6)
+        #   macOS:   rendering tests SKIPPED — NSGL requires a real display
+        #            connection even for invisible windows; CI runners have none
+        #   Windows: Mesa opengl32.dll (MSVC build) on PATH → GLFW invisible
+        #            window with Core Profile + FORWARD_COMPAT via llvmpipe
       - name: Install package
         run: |
           python -m pip install --progress-bar off --upgrade pip setuptools wheel

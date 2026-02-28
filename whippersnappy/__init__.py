@@ -7,12 +7,12 @@ overlays and annotations. It includes:
 - **3D plotting**: For Jupyter notebooks with mouse-controlled 3D (via Three.js)
 - **GUI**: Interactive desktop viewer via the ``whippersnap`` command
 - **CLI tools**: ``whippersnap1`` and ``whippersnap4`` for batch processing
-- **Local mesh IO**: OFF, VTK ASCII PolyData, and PLY in addition to FreeSurfer surfaces
+- **Local mesh IO**: OFF, VTK ASCII PolyData, PLY, and GIFTI in addition to
+  FreeSurfer surfaces
 
 For static image generation::
 
-    from whippersnappy import snap1, snap4
-    from whippersnappy.utils.types import ViewType
+    from whippersnappy import snap1, snap4, ViewType
     from IPython.display import display
 
     img = snap1('path/to/lh.white', view=ViewType.LEFT)
@@ -40,42 +40,6 @@ For the interactive desktop GUI::
 
 """
 
-import os
-import sys
-
-
-def _check_display():
-    """Return True if a display is available or the platform handles GL natively.
-
-    On macOS (CGL) and Windows (WGL) PyOpenGL does not use EGL, so we always
-    return True to avoid setting ``PYOPENGL_PLATFORM=egl`` on those systems.
-    On Linux we probe for an X11/Wayland display server.
-    """
-    if sys.platform != "linux":
-        # macOS uses CGL, Windows uses WGL — no EGL needed on either.
-        return True
-    display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
-    if not display:
-        return False
-    try:
-        import ctypes
-        import ctypes.util
-        libx11 = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
-        libx11.XOpenDisplay.restype = ctypes.c_void_p
-        libx11.XOpenDisplay.argtypes = [ctypes.c_char_p]
-        libx11.XCloseDisplay.restype = None
-        libx11.XCloseDisplay.argtypes = [ctypes.c_void_p]
-        dpy = libx11.XOpenDisplay(display.encode())
-        if dpy:
-            libx11.XCloseDisplay(dpy)
-            return True
-        return False
-    except Exception:
-        return False
-
-if "PYOPENGL_PLATFORM" not in os.environ:
-    if not _check_display():
-        os.environ["PYOPENGL_PLATFORM"] = "egl"
 
 from ._config import sys_info  # noqa: F401, E402
 from ._version import __version__  # noqa: F401, E402

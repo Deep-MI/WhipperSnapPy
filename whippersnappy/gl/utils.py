@@ -1,6 +1,15 @@
 """GL helper utilities.
 
 Contains the implementation of OpenGL helpers used by the package.
+Headless rendering on Linux uses OSMesa (CPU software renderer) via
+:class:`~whippersnappy.gl.osmesa_context.OSMesaContext` as a fallback
+when no display server or GPU is available.  No EGL or GPU driver is
+required for headless operation.
+
+On Linux with no ``DISPLAY`` or ``WAYLAND_DISPLAY`` set,
+``PYOPENGL_PLATFORM=osmesa`` is set automatically at import time (before
+``OpenGL.GL`` is imported) so that PyOpenGL resolves all function pointers
+via ``OSMesaGetProcAddress`` rather than GLX.
 """
 
 import logging
@@ -8,6 +17,18 @@ import os
 import sys
 import warnings
 from typing import Any
+
+# On Linux with no display, pre-set PYOPENGL_PLATFORM=osmesa before
+# importing OpenGL.GL so PyOpenGL uses OSMesaGetProcAddress for function
+# pointer resolution instead of GLX (which returns null pointers without
+# an X11/Wayland display).  Has no effect on macOS or Windows.
+if (
+    sys.platform == "linux"
+    and "PYOPENGL_PLATFORM" not in os.environ
+    and not os.environ.get("DISPLAY")
+    and not os.environ.get("WAYLAND_DISPLAY")
+):
+    os.environ["PYOPENGL_PLATFORM"] = "osmesa"
 
 import glfw
 import OpenGL.GL as gl
@@ -20,8 +41,9 @@ from .shaders import get_default_shaders
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Module-level EGL context handle (None when GLFW is used instead)
-_egl_context: Any = None
+# Module-level offscreen context handle (None when GLFW is used instead).
+# May hold an OSMesaContext instance on headless environments.
+_offscreen_context: Any = None
 
 
 def create_vao():
@@ -164,8 +186,58 @@ def set_lighting_uniforms(shader, specular=True, ambient=0.0, light_color=(1.0, 
     gl.glUniform1f(ambient_loc, ambient)
 
 
+
+def _try_glfw_window(width, height, title, visible, core_profile):
+    """Attempt to create a single GLFW window with the given profile settings.
+
+    Calls ``glfw.init()`` before and ``glfw.terminate()`` on failure so that
+    each attempt starts from a clean GLFW state.
+
+    Parameters
+    ----------
+    core_profile : bool
+        If True request OpenGL 3.3 Core Profile + ``FORWARD_COMPAT``
+        (preferred on all platforms).
+        If False request OpenGL 3.3 Compatibility Profile (fallback for
+        Windows software renderers that don't support Core Profile).
+
+    Returns
+    -------
+    window or None
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if not glfw.init():
+            return None
+
+    glfw.default_window_hints()
+    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    if core_profile:
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    else:
+        glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, False)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_COMPAT_PROFILE)
+    if not visible:
+        glfw.window_hint(glfw.VISIBLE, glfw.FALSE)
+
+    window = glfw.create_window(width, height, title, None, None)
+    if not window:
+        glfw.terminate()
+        return None
+    return window
+
+
 def init_window(width, height, title="PyOpenGL", visible=True):
     """Create a GLFW window, make an OpenGL context current and return the window handle.
+
+    Tries OpenGL 3.3 Core Profile + ``FORWARD_COMPAT`` first, then falls
+    back to Compatibility Profile on non-macOS platforms.  NSGL (macOS) does
+    not support Compatibility Profile, so only one attempt is made there.
+
+    Each attempt calls ``glfw.init()`` / ``glfw.terminate()`` independently
+    so that a failed attempt leaves no stale GLFW state for the next.
 
     Parameters
     ----------
@@ -174,49 +246,57 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     title : str, optional, default 'PyOpenGL'
         Window title.
     visible : bool, optional, default True
-        If False create an invisible/offscreen window (useful for headless
-        rendering when a display is available but no screen is needed).
+        If False create an invisible/offscreen window.
 
     Returns
     -------
     window or False
         GLFW window handle on success, or False on failure.
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        if not glfw.init():
-            return False
+    # Core Profile (required on macOS, preferred everywhere).
+    window = _try_glfw_window(width, height, title, visible, core_profile=True)
+    if window:
+        glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
+        glfw.make_context_current(window)
+        glfw.swap_interval(0)
+        return window
 
-    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
-    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
-    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-    if not visible:
-        glfw.window_hint(glfw.VISIBLE, glfw.FALSE)
-    window = glfw.create_window(width, height, title, None, None)
-    if not window:
-        glfw.terminate()
+    # macOS NSGL does not support Compatibility Profile — don't retry.
+    if sys.platform == "darwin":
         return False
-    glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
-    glfw.make_context_current(window)
-    glfw.swap_interval(0)
-    return window
+
+    # Non-macOS: retry with Compatibility Profile (helps on some Windows CI
+    # runners with software renderers that support compat but not core).
+    logger.debug(
+        "OpenGL 3.3 Core Profile unavailable; retrying with Compatibility Profile."
+    )
+    window = _try_glfw_window(width, height, title, visible, core_profile=False)
+    if window:
+        glfw.set_input_mode(window, glfw.STICKY_KEYS, gl.GL_TRUE)
+        glfw.make_context_current(window)
+        glfw.swap_interval(0)
+        return window
+
+    return False
 
 
 def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=True):
-    """Create an OpenGL context, trying GLFW first and EGL as a fallback.
+    """Create an OpenGL context, trying GLFW first and OSMesa as a fallback.
 
     The function attempts context creation in this priority order:
 
-    1. **GLFW visible window** — normal path on workstations.
-    2. **GLFW invisible window** — when a display exists but no screen
-       is needed (e.g. a remote desktop session).
-    3. **EGL pbuffer** — fully headless; no display server required.
-       Works with NVIDIA/AMD GPU drivers and Mesa (llvmpipe) on CPU-only
-       systems.  Requires ``libegl1`` (already installed in the Docker
-       image) and ``pyopengl >= 3.1``.
+    1. **GLFW visible window** — normal path on workstations with a display.
+    2. **GLFW invisible window** — when a display exists but no on-screen
+       window is needed (e.g. batch rendering).  Core Profile +
+       ``FORWARD_COMPAT`` is tried first; Compatibility Profile is retried
+       on non-macOS platforms (NSGL does not support Compatibility Profile).
+    3. **OSMesa software rendering** — Linux only.  Used when both GLFW
+       attempts fail (no display server).  Requires ``libosmesa6``
+       (Debian/Ubuntu) or ``mesa-libOSMesa`` (RHEL/Fedora).  On macOS and
+       Windows a platform-specific ``RuntimeError`` is raised instead,
+       because neither platform supports OSMesa in standard distributions.
 
-    When EGL is used the module-level ``_egl_context`` is set and
+    When OSMesa is used the module-level ``_offscreen_context`` is set and
     ``make_current()`` is called so that subsequent OpenGL calls work
     identically to the GLFW path.
 
@@ -234,38 +314,17 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
     Returns
     -------
     GLFWwindow or None
-        GLFW window handle when GLFW succeeded, ``None`` when EGL is used
-        (the context is already current via ``_egl_context.make_current()``).
+        GLFW window handle when GLFW succeeded, ``None`` when OSMesa is used
+        (the context is already current via ``_offscreen_context.make_current()``).
 
     Raises
     ------
     RuntimeError
-        If all three methods fail to produce a usable OpenGL context.
+        If no usable OpenGL context can be created.  On Linux this means
+        both GLFW and OSMesa failed.  On macOS/Windows it means GLFW failed
+        (those platforms have no OSMesa fallback).
     """
-    global _egl_context
-
-    # Fast-path: if _check_display() already determined there is no working
-    # display, skip the two doomed GLFW attempts and go straight to EGL.
-    # This avoids warning noise and wasted time in Docker/CI/headless SSH.
-    # The sys.platform guard is preserved — EGL is Linux-only.
-    if os.environ.get("PYOPENGL_PLATFORM") == "egl":
-        if sys.platform != "linux":
-            raise RuntimeError(
-                f"Could not create any OpenGL context via GLFW on {sys.platform}. "
-                "Ensure a display is available."
-            )
-        logger.info("No working display detected — using EGL headless directly.")
-        try:
-            from .egl_context import EGLContext
-            ctx = EGLContext(width, height)
-            ctx.make_current()
-            _egl_context = ctx
-            logger.info("Using EGL headless context — no display server required.")
-            return None
-        except (ImportError, RuntimeError) as exc:
-            raise RuntimeError(
-                f"EGL headless context failed: {exc}"
-            ) from exc
+    global _offscreen_context
 
     # --- Step 1: GLFW visible window ---
     window = init_window(width, height, title, visible=visible)
@@ -281,27 +340,32 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         if window:
             return window
 
-    # --- Step 3: EGL headless pbuffer (Linux only) ---
-    logger.warning(
-        "GLFW context creation failed entirely (no display?). "
-        "Attempting EGL headless context."
-    )
+    # --- Step 3: OSMesa software rendering (Linux headless only) ---
+    # Only reached on Linux when both GLFW attempts failed (no display server).
+    # On macOS and Windows GLFW is the only supported headless path; if it
+    # failed here it means the system has no usable OpenGL driver at all.
     if sys.platform != "linux":
         raise RuntimeError(
-            f"Could not create any OpenGL context via GLFW on {sys.platform}. "
-            "Ensure a display is available."
+            "Could not create a GLFW OpenGL context. "
+            "On macOS a display connection is required (NSGL does not support "
+            "headless rendering). "
+            "On Windows ensure a GPU driver or Mesa opengl32.dll is available."
         )
+    # PYOPENGL_PLATFORM=osmesa was already set at module import time (top of
+    # this file) when no display was detected, so PyOpenGL uses
+    # OSMesaGetProcAddress for function pointer resolution.
+    logger.info("No display detected — trying OSMesa software rendering (CPU).")
     try:
-        from .egl_context import EGLContext
-        ctx = EGLContext(width, height)
+        from .osmesa_context import OSMesaContext  # noqa: PLC0415
+        ctx = OSMesaContext(width, height)
         ctx.make_current()
-        _egl_context = ctx
-        logger.info("Using EGL headless context — no display server required.")
+        _offscreen_context = ctx
+        logger.info("Using OSMesa headless context — no display server or GPU required.")
         return None
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError(
             "Could not create any OpenGL context (tried GLFW visible, "
-            f"GLFW invisible, EGL pbuffer). Last error: {exc}"
+            f"GLFW invisible, OSMesa). Last error: {exc}"
         ) from exc
 
 
@@ -309,19 +373,19 @@ def terminate_context(window):
     """Release the active OpenGL context regardless of how it was created.
 
     This is a drop-in replacement for ``glfw.terminate()`` that also
-    handles the EGL path.  Call it at the end of every rendering function
-    instead of calling ``glfw.terminate()`` directly.
+    handles the OSMesa headless path.  Call it at the end of every rendering
+    function instead of calling ``glfw.terminate()`` directly.
 
     Parameters
     ----------
     window : GLFWwindow or None
         The GLFW window handle returned by ``create_window_with_fallback``,
-        or ``None`` when EGL is active.
+        or ``None`` when an OSMesa context is active.
     """
-    global _egl_context
-    if _egl_context is not None:
-        _egl_context.destroy()  # type: ignore[union-attr]
-        _egl_context = None
+    global _offscreen_context
+    if _offscreen_context is not None:
+        _offscreen_context.destroy()  # type: ignore[union-attr]
+        _offscreen_context = None
     else:
         glfw.terminate()
 
@@ -371,15 +435,16 @@ def setup_shader(meshdata, triangles, width, height, specular=True, ambient=0.0)
 def capture_window(window):
     """Read the current GL framebuffer and return it as a PIL Image (RGB).
 
-    Works for both GLFW windows and EGL headless contexts.  When EGL is
-    active (``window`` is ``None``) the pixels are read from the FBO that
-    was set up by :class:`~whippersnappy.gl.egl_context.EGLContext`; in
-    that case there is no HiDPI scaling to account for.
+    Works for both GLFW windows and OSMesa headless contexts.  When OSMesa is
+    active (``window`` is ``None``) the pixels are read directly from the
+    OSMesa pixel buffer, which acts as the default framebuffer (FBO 0) — no
+    explicit FBO is created by :class:`~whippersnappy.gl.osmesa_context.OSMesaContext`;
+    in that case there is no HiDPI scaling to account for.
 
     Parameters
     ----------
     window : GLFWwindow or None
-        GLFW window handle, or ``None`` when an EGL context is active.
+        GLFW window handle, or ``None`` when an OSMesa context is active.
 
     Returns
     -------
@@ -387,11 +452,11 @@ def capture_window(window):
         RGB image of the rendered frame, with the vertical flip applied so
         that the origin is at the top-left (image convention).
     """
-    global _egl_context
+    global _offscreen_context
 
-    # --- EGL path: read directly from the FBO ---
-    if _egl_context is not None:
-        return _egl_context.read_pixels()  # type: ignore[union-attr]
+    # --- OSMesa path: read from the OSMesa pixel buffer (default framebuffer) ---
+    if _offscreen_context is not None:
+        return _offscreen_context.read_pixels()  # type: ignore[union-attr]
 
     # --- GLFW path: read from the default framebuffer ---
     monitor = glfw.get_primary_monitor()

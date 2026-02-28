@@ -1,7 +1,9 @@
 # Docker Guide
 
-The Docker image provides a fully headless rendering environment with EGL
-off-screen support. No display server or `xvfb` is required.
+The Docker image provides a fully headless rendering environment using
+[OSMesa](https://docs.mesa3d.org/osmesa.html) (Mesa's off-screen software
+renderer). No display server, `xvfb`, or GPU is required — rendering runs
+entirely in software on the CPU.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -167,4 +169,7 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
+- Headless rendering uses **OSMesa** (Mesa's CPU software renderer, provided by
+  the `libosmesa6` system package). No GPU, no `/dev/dri/` device, and no
+  `--privileged` flag are needed.
 
