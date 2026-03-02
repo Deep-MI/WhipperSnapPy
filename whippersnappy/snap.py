@@ -11,7 +11,7 @@ from PIL import Image, ImageFont
 
 from .geometry import estimate_overlay_thresholds, get_surf_name
 from .geometry.prepare import prepare_and_validate_geometry
-from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader, terminate_context
+from .gl.utils import capture_window, init_offscreen_context, render_scene, setup_shader, terminate_context
 from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
 from .utils.types import ColorSelection, OrientationType, ViewType, get_view_matrix
 
@@ -187,7 +187,7 @@ def snap1(
     logger.debug("M-Display (width,height) = (%s,%s)", mesh_display_width, mesh_display_height)
 
     # will raise exception if it cannot be created
-    window = create_window_with_fallback(mesh_display_width, mesh_display_height)
+    window = init_offscreen_context(mesh_display_width, mesh_display_height)
     try:
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
             mesh,
@@ -409,7 +409,7 @@ def snap4(
         logger.debug("Global color range: fthresh=%s  fmax=%s", fthresh, fmax)
 
     # will raise exception if it cannot be created
-    window = create_window_with_fallback(wwidth, wheight)
+    window = init_offscreen_context(wwidth, wheight)
     try:
         view_left  = get_view_matrix(ViewType.LEFT)
         view_right = get_view_matrix(ViewType.RIGHT)
@@ -661,7 +661,7 @@ def snap_rotate(
             ) from exc
         import imageio
 
-    window = create_window_with_fallback(width, height)
+    window = init_offscreen_context(width, height)
     try:
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
             mesh,

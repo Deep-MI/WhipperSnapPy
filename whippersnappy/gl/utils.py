@@ -280,7 +280,7 @@ def init_window(width, height, title="WhipperSnapPy", visible=True):
     return False
 
 
-def create_window_with_fallback(width, height):
+def init_offscreen_context(width, height):
     """Create an invisible OpenGL context for off-screen rendering.
 
     Always creates an invisible GLFW window — no title is shown.
@@ -356,7 +356,7 @@ def terminate_context(window):
     Parameters
     ----------
     window : GLFWwindow or None
-        The GLFW window handle returned by ``create_window_with_fallback``,
+        The GLFW window handle returned by :func:`init_offscreen_context`,
         or ``None`` when an OSMesa context is active.
     """
     global _offscreen_context
@@ -364,6 +364,8 @@ def terminate_context(window):
         _offscreen_context.destroy()  # type: ignore[union-attr]
         _offscreen_context = None
     else:
+        if window:
+            glfw.destroy_window(window)
         glfw.terminate()
 
 
