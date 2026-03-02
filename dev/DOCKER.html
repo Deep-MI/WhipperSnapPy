@@ -317,7 +317,11 @@ as arguments:</p>
 <hr class="docutils" />
 <section id="running-single-view-snapshot-whippersnap1">
 <h2>Running — single-view snapshot (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code>)<a class="headerlink" href="#running-single-view-snapshot-whippersnap1" title="Link to this heading">¶</a></h2>
-<p>Override the entry point with <code class="docutils literal notranslate"><span class="pre">--entrypoint</span> <span class="pre">whippersnap1</span></code>:</p>
+<p>Override the entry point with <code class="docutils literal notranslate"><span class="pre">--entrypoint</span> <span class="pre">whippersnap1</span></code>.  Any triangular
+mesh format is supported: FreeSurfer binary surfaces, OFF, ASCII VTK
+PolyData, ASCII PLY, and GIfTI (<code class="docutils literal notranslate"><span class="pre">.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.surf.gii</span></code>).</p>
+<section id="freesurfer-surface">
+<h3>FreeSurfer surface<a class="headerlink" href="#freesurfer-surface" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--entrypoint<span class="w"> </span>whippersnap1<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-v<span class="w"> </span>/path/to/subject:/subject<span class="w"> </span><span class="se">\</span>
@@ -327,11 +331,27 @@ as arguments:</p>
 <span class="w">  </span>--mesh<span class="w"> </span>/subject/surf/lh.white<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--overlay<span class="w"> </span>/subject/surf/lh.thickness<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--bg-map<span class="w"> </span>/subject/surf/lh.curv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--roi<span class="w"> </span>/subject/label/lh.cortex.label<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--view<span class="w"> </span>left<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--fthresh<span class="w"> </span><span class="m">2</span>.0<span class="w"> </span>--fmax<span class="w"> </span><span class="m">4</span>.0<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-o<span class="w"> </span>/output/snap1.png
 </pre></div>
 </div>
+</section>
+<section id="off-vtk-ply-gifti-mesh">
+<h3>OFF / VTK / PLY / GIfTI mesh<a class="headerlink" href="#off-vtk-ply-gifti-mesh" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--entrypoint<span class="w"> </span>whippersnap1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/path/to/data:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/path/to/output:/output<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--user<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>:<span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnappy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--mesh<span class="w"> </span>/data/mesh.off<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--overlay<span class="w"> </span>/data/values.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-o<span class="w"> </span>/output/snap1.png
+</pre></div>
+</div>
+</section>
 <section id="all-whippersnap1-options">
 <h3>All <code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code> options<a class="headerlink" href="#all-whippersnap1-options" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--entrypoint<span class="w"> </span>whippersnap1<span class="w"> </span>whippersnappy<span class="w"> </span>--help
@@ -494,6 +514,8 @@ the <code class="docutils literal notranslate"><span class="pre">libosmesa6</spa
 </ul>
 </li>
 <li><a class="reference internal" href="#running-single-view-snapshot-whippersnap1">Running — single-view snapshot (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code>)</a><ul>
+<li><a class="reference internal" href="#freesurfer-surface">FreeSurfer surface</a></li>
+<li><a class="reference internal" href="#off-vtk-ply-gifti-mesh">OFF / VTK / PLY / GIfTI mesh</a></li>
 <li><a class="reference internal" href="#all-whippersnap1-options">All <code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code> options</a></li>
 </ul>
 </li>
