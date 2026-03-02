@@ -115,7 +115,7 @@ For all options run `whippersnap4 --help`, `whippersnap1 --help`, or `whippersna
 ## Python API
 
 ```python
-from whippersnappy import snap1, snap4, snap_rotate, ViewType
+from whippersnappy import snap1, snap4, snap_rotate, ViewType, get_view_matrix
 from whippersnappy import plot3d  # requires whippersnappy[notebook]
 ```
 
@@ -126,6 +126,7 @@ from whippersnappy import plot3d  # requires whippersnappy[notebook]
 | `snap_rotate` | 360° rotation video of any triangular surface mesh (MP4, WebM, or GIF) |
 | `plot3d` | Interactive 3D WebGL viewer for Jupyter notebooks |
 | `ViewType` | Enum of camera presets used by `snap1` and `snap_rotate` |
+| `get_view_matrix` | Return the 4×4 view matrix for a `ViewType` preset |
 
 **`ViewType` values** — pass to the `view` parameter of `snap1` or the
 `start_view` parameter of `snap_rotate`:
@@ -138,6 +139,22 @@ from whippersnappy import plot3d  # requires whippersnappy[notebook]
 | `ViewType.BACK` | Posterior view |
 | `ViewType.TOP` | Superior / dorsal view |
 | `ViewType.BOTTOM` | Inferior / ventral view |
+
+`get_view_matrix` lets you retrieve a preset matrix and modify it before
+passing it back via `view` (for both `snap1` and `snap_rotate`):
+
+```python
+import numpy as np
+from whippersnappy import snap1, snap_rotate, ViewType, get_view_matrix
+
+# Tilt the left-lateral view slightly downward
+mat = get_view_matrix(ViewType.LEFT).copy()
+# apply a small x-rotation …
+img = snap1('lh.white', overlay='lh.thickness', view=mat)
+
+# Start a rotation video from a custom orientation
+snap_rotate('lh.white', 'rotation.mp4', start_view=mat)
+```
 
 **Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
 FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII

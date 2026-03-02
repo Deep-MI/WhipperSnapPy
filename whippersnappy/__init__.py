@@ -12,11 +12,15 @@ overlays and annotations. It includes:
 
 For static image generation::
 
-    from whippersnappy import snap1, snap4, ViewType
+    from whippersnappy import snap1, snap4, ViewType, get_view_matrix
     from IPython.display import display
 
     img = snap1('path/to/lh.white', view=ViewType.LEFT)
     display(img)
+
+    # Custom view: retrieve a preset matrix, modify it, pass to snap1
+    mat = get_view_matrix(ViewType.LEFT)
+    img = snap1('lh.white', view=mat)
 
 For interactive 3D in Jupyter notebooks::
 
@@ -45,7 +49,7 @@ from ._config import sys_info  # noqa: F401, E402
 from ._version import __version__  # noqa: F401, E402
 from .snap import snap1, snap4, snap_rotate  # noqa: E402
 from .utils.datasets import fetch_sample_subject  # noqa: E402
-from .utils.types import ViewType  # noqa: E402
+from .utils.types import ViewType, get_view_matrix  # noqa: E402
 
 # 3D plotting for notebooks (Three.js-based, works in all Jupyter environments)
 try:
@@ -63,6 +67,7 @@ __all__ = [
     "snap_rotate",
     "fetch_sample_subject",
     "ViewType",
+    "get_view_matrix",
 ]
 
 if _has_plot3d:
