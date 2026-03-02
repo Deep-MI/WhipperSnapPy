@@ -248,14 +248,15 @@
 with color overlays or parcellations and generate screenshots — from the
 command line, in Jupyter notebooks, or via a desktop GUI.</p>
 <p>It works with FreeSurfer and FastSurfer brain surfaces as well as any
-triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI (.gii, .surf.gii) format, or
-passed directly as a NumPy <code class="docutils literal notranslate"><span class="pre">(vertices,</span> <span class="pre">faces)</span></code> tuple.</p>
+triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI
+(<code class="docutils literal notranslate"><span class="pre">.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.surf.gii</span></code>) format, or passed directly as a NumPy
+<code class="docutils literal notranslate"><span class="pre">(vertices,</span> <span class="pre">faces)</span></code> tuple.</p>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>whippersnappy
 </pre></div>
 </div>
-<p>For rotation video support (MP4/WebM):</p>
+<p>For rotation video support (MP4/WebM — GIF works without this):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[video]&#39;</span>
 </pre></div>
 </div>
@@ -267,8 +268,12 @@ passed directly as a NumPy <code class="docutils literal notranslate"><span clas
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[notebook]&#39;</span>
 </pre></div>
 </div>
-<p>Off-screen (headless) rendering is supported natively via EGL on Linux — no
-<code class="docutils literal notranslate"><span class="pre">xvfb</span></code> required. See the <a href="DOCKER.md">Docker guide</a> for headless usage.</p>
+<p>Off-screen (headless) rendering on <strong>Linux</strong> is supported natively via
+OSMesa — no <code class="docutils literal notranslate"><span class="pre">xvfb</span></code> or GPU required.  On <strong>Windows</strong>, GLFW creates an
+invisible window; a GPU driver or a Mesa software renderer
+(<code class="docutils literal notranslate"><span class="pre">opengl32.dll</span></code>) is sufficient — no display needed.  On <strong>macOS</strong>, a real
+display connection is required (NSGL does not support headless rendering).
+See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.</p>
 </section>
 <section id="command-line-usage">
 <h2>Command-Line Usage<a class="headerlink" href="#command-line-usage" title="Link to this heading">¶</a></h2>
@@ -295,28 +300,34 @@ passed directly as a NumPy <code class="docutils literal notranslate"><span clas
 <span class="w">             </span>--view<span class="w"> </span>left<span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>-o<span class="w"> </span>snap1.png
 
-<span class="c1"># Also works with OFF / VTK / PLY</span>
-whippersnap1<span class="w"> </span>--mesh<span class="w"> </span>mesh.off<span class="w"> </span>--overlay<span class="w"> </span>values.mgh<span class="w"> </span>-o<span class="w"> </span>snap1.png
+<span class="c1"># Also works with OFF / VTK / PLY / GIfTI</span>
+whippersnap1<span class="w"> </span>--mesh<span class="w"> </span>mesh.off<span class="w"> </span>--overlay<span class="w"> </span>values.txt<span class="w"> </span>-o<span class="w"> </span>snap1.png
 whippersnap1<span class="w"> </span>--mesh<span class="w"> </span>surface.surf.gii<span class="w"> </span>--overlay<span class="w"> </span>overlay.func.gii<span class="w"> </span>-o<span class="w"> </span>snap1.png
 </pre></div>
 </div>
 </section>
 <section id="rotation-video-whippersnap1-rotate">
 <h3>Rotation video (<code class="docutils literal notranslate"><span class="pre">whippersnap1</span> <span class="pre">--rotate</span></code>)<a class="headerlink" href="#rotation-video-whippersnap1-rotate" title="Link to this heading">¶</a></h3>
-<p>Renders a 360° animation of any triangular surface mesh:</p>
+<p>Renders a 360° animation of any triangular surface mesh.  GIF output uses
+pure PIL (no extra install); MP4/WebM requires <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'whippersnappy[video]'</span></code>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap1<span class="w"> </span>--mesh<span class="w"> </span><span class="nv">$SUBJECT_DIR</span>/surf/lh.white<span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>--overlay<span class="w"> </span><span class="nv">$LH_OVERLAY</span><span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>--rotate<span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>-o<span class="w"> </span>rotation.mp4
+
+whippersnap1<span class="w"> </span>--mesh<span class="w"> </span><span class="nv">$SUBJECT_DIR</span>/surf/lh.white<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--rotate<span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>-o<span class="w"> </span>rotation.gif
 </pre></div>
 </div>
 </section>
 <section id="desktop-gui-whippersnap">
 <h3>Desktop GUI (<code class="docutils literal notranslate"><span class="pre">whippersnap</span></code>)<a class="headerlink" href="#desktop-gui-whippersnap" title="Link to this heading">¶</a></h3>
-<p>Launches an interactive Qt window with live threshold controls.</p>
+<p>Launches an interactive Qt window with live threshold controls and
+mouse-driven rotation, pan, and zoom.  Requires
+<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">'whippersnappy[gui]'</span></code>.</p>
 <p><strong>General mode</strong> — any triangular mesh:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[gui]&#39;</span>
-whippersnap<span class="w"> </span>--mesh<span class="w"> </span>mesh.off<span class="w"> </span>--overlay<span class="w"> </span>values.mgh
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>whippersnap<span class="w"> </span>--mesh<span class="w"> </span>mesh.off<span class="w"> </span>--overlay<span class="w"> </span>values.txt
 whippersnap<span class="w"> </span>--mesh<span class="w"> </span>lh.white<span class="w"> </span>--overlay<span class="w"> </span>lh.thickness<span class="w"> </span>--bg-map<span class="w"> </span>lh.curv
 </pre></div>
 </div>
@@ -330,13 +341,14 @@ whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$
 </section>
 <section id="python-api">
 <h2>Python API<a class="headerlink" href="#python-api" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">snap_rotate</span><span class="p">,</span> <span class="n">plot3d</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">snap_rotate</span><span class="p">,</span> <span class="n">ViewType</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot3d</span>  <span class="c1"># requires whippersnappy[notebook]</span>
 </pre></div>
 </div>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
-<tr class="row-odd"><th class="head"><p>Function</p></th>
+<tr class="row-odd"><th class="head"><p>Function / Class</p></th>
 <th class="head"><p>Description</p></th>
 </tr>
 </thead>
@@ -353,40 +365,83 @@ whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">plot3d</span></code></p></td>
 <td><p>Interactive 3D WebGL viewer for Jupyter notebooks</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType</span></code></p></td>
+<td><p>Enum of camera presets used by <code class="docutils literal notranslate"><span class="pre">snap1</span></code> and <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong><code class="docutils literal notranslate"><span class="pre">ViewType</span></code> values</strong> — pass to the <code class="docutils literal notranslate"><span class="pre">view</span></code> parameter of <code class="docutils literal notranslate"><span class="pre">snap1</span></code> or the
+<code class="docutils literal notranslate"><span class="pre">start_view</span></code> parameter of <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code>:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Value</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType.LEFT</span></code></p></td>
+<td><p>Left lateral view <em>(default)</em></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType.RIGHT</span></code></p></td>
+<td><p>Right lateral view</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType.FRONT</span></code></p></td>
+<td><p>Frontal / anterior view</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType.BACK</span></code></p></td>
+<td><p>Posterior view</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType.TOP</span></code></p></td>
+<td><p>Superior / dorsal view</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType.BOTTOM</span></code></p></td>
+<td><p>Inferior / ventral view</p></td>
+</tr>
 </tbody>
 </table>
 </div>
 <p><strong>Supported mesh inputs for <code class="docutils literal notranslate"><span class="pre">snap1</span></code>, <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code>, and <code class="docutils literal notranslate"><span class="pre">plot3d</span></code>:</strong>
-FreeSurfer binary surfaces (e.g. <code class="docutils literal notranslate"><span class="pre">lh.white</span></code>), OFF (<code class="docutils literal notranslate"><span class="pre">.off</span></code>), legacy ASCII VTK PolyData (<code class="docutils literal notranslate"><span class="pre">.vtk</span></code>), ASCII PLY (<code class="docutils literal notranslate"><span class="pre">.ply</span></code>), GIfTI surface (<code class="docutils literal notranslate"><span class="pre">.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.surf.gii</span></code>), or a <code class="docutils literal notranslate"><span class="pre">(vertices,</span> <span class="pre">faces)</span></code> NumPy array tuple.</p>
+FreeSurfer binary surfaces (e.g. <code class="docutils literal notranslate"><span class="pre">lh.white</span></code>), OFF (<code class="docutils literal notranslate"><span class="pre">.off</span></code>), legacy ASCII
+VTK PolyData (<code class="docutils literal notranslate"><span class="pre">.vtk</span></code>), ASCII PLY (<code class="docutils literal notranslate"><span class="pre">.ply</span></code>), GIfTI surface
+(<code class="docutils literal notranslate"><span class="pre">.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.surf.gii</span></code>), or a <code class="docutils literal notranslate"><span class="pre">(vertices,</span> <span class="pre">faces)</span></code> NumPy array tuple.</p>
 <p><strong>Supported overlay/label inputs:</strong>
-FreeSurfer morph (<code class="docutils literal notranslate"><span class="pre">.curv</span></code>, <code class="docutils literal notranslate"><span class="pre">.thickness</span></code>), MGH/MGZ, ASCII (<code class="docutils literal notranslate"><span class="pre">.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">.csv</span></code>), NumPy (<code class="docutils literal notranslate"><span class="pre">.npy</span></code>, <code class="docutils literal notranslate"><span class="pre">.npz</span></code>), GIfTI functional/label (<code class="docutils literal notranslate"><span class="pre">.func.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.label.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.gii</span></code>).</p>
-<section id="example">
-<h3>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span>
+FreeSurfer morph (<code class="docutils literal notranslate"><span class="pre">.curv</span></code>, <code class="docutils literal notranslate"><span class="pre">.thickness</span></code>), MGH/MGZ (<code class="docutils literal notranslate"><span class="pre">.mgh</span></code>, <code class="docutils literal notranslate"><span class="pre">.mgz</span></code>),
+plain text (<code class="docutils literal notranslate"><span class="pre">.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">.csv</span></code>), NumPy (<code class="docutils literal notranslate"><span class="pre">.npy</span></code>, <code class="docutils literal notranslate"><span class="pre">.npz</span></code>),
+GIfTI functional/label (<code class="docutils literal notranslate"><span class="pre">.func.gii</span></code>, <code class="docutils literal notranslate"><span class="pre">.label.gii</span></code>).</p>
+<section id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">ViewType</span>
 
-<span class="c1"># FreeSurfer surface with overlay</span>
+<span class="c1"># FreeSurfer surface with overlay — default left lateral view</span>
 <span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span>
             <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span>
             <span class="n">bg_map</span><span class="o">=</span><span class="s1">&#39;lh.curv&#39;</span><span class="p">,</span>
             <span class="n">roi</span><span class="o">=</span><span class="s1">&#39;lh.cortex.label&#39;</span><span class="p">)</span>
 <span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap1.png&#39;</span><span class="p">)</span>
 
+<span class="c1"># Specific view</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">ViewType</span><span class="o">.</span><span class="n">FRONT</span><span class="p">)</span>
+<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap1_front.png&#39;</span><span class="p">)</span>
+
 <span class="c1"># Four-view overview (FreeSurfer subject directory)</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap4</span><span class="p">(</span><span class="n">sdir</span><span class="o">=</span><span class="s1">&#39;/path/to/subject&#39;</span><span class="p">,</span>
-            <span class="n">lh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/lh.thickness&#39;</span><span class="p">,</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap4</span><span class="p">(</span><span class="n">lh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/lh.thickness&#39;</span><span class="p">,</span>
             <span class="n">rh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/rh.thickness&#39;</span><span class="p">,</span>
-            <span class="n">colorbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">caption</span><span class="o">=</span><span class="s1">&#39;Cortical Thickness (mm)&#39;</span><span class="p">)</span>
+            <span class="n">sdir</span><span class="o">=</span><span class="s1">&#39;/path/to/subject&#39;</span><span class="p">,</span>
+            <span class="n">colorbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">caption</span><span class="o">=</span><span class="s1">&#39;Cortical Thickness (mm)&#39;</span><span class="p">)</span>
 <span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap4.png&#39;</span><span class="p">)</span>
 
 <span class="c1"># OFF / VTK / PLY / GIfTI mesh</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;mesh.off&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;values.mgh&#39;</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;mesh.off&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;values.txt&#39;</span><span class="p">)</span>
 <span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;surface.surf.gii&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;overlay.func.gii&#39;</span><span class="p">)</span>
 
 <span class="c1"># Array inputs (e.g. from LaPy or trimesh)</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
-<span class="n">overlay</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<span class="n">f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">],[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+<span class="n">overlay</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 <span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">f</span><span class="p">),</span> <span class="n">overlay</span><span class="o">=</span><span class="n">overlay</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -395,8 +450,8 @@ FreeSurfer morph (<code class="docutils literal notranslate"><span class="pre">.
 </section>
 <section id="docker">
 <h2>Docker<a class="headerlink" href="#docker" title="Link to this heading">¶</a></h2>
-<p>The Docker image provides a fully headless EGL rendering environment — no
-display server or <code class="docutils literal notranslate"><span class="pre">xvfb</span></code> required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
+<p>The Docker image provides a fully headless OSMesa rendering environment — no
+display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
 </section>
 <section id="api-documentation">
 <h2>API Documentation<a class="headerlink" href="#api-documentation" title="Link to this heading">¶</a></h2>
@@ -471,7 +526,7 @@ display server or <code class="docutils literal notranslate"><span class="pre">x
 </ul>
 </li>
 <li><a class="reference internal" href="#python-api">Python API</a><ul>
-<li><a class="reference internal" href="#example">Example</a></li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#docker">Docker</a></li>
