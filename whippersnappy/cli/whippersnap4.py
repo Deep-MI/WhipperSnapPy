@@ -76,7 +76,7 @@ def run():
     * ``-s`` / ``--surf_name`` — surface basename (e.g. ``white``);
       auto-detected if not provided.
     * ``--diffuse`` — use diffuse-only shading (no specular highlights).
-    * ``--brain-scale`` — geometry scale factor (default: 1.85).
+    * ``--scale`` — geometry scale factor (default: 1.85).
     * ``--ambient`` — ambient light strength (default: 0.0).
     * ``--font`` — path to a TTF font file for captions.
     """
@@ -140,7 +140,7 @@ def run():
                         help="Diffuse-only shading (no specular).")
     parser.add_argument("--ambient", type=float, default=0.0,
                         help="Ambient light strength (default: 0.0).")
-    parser.add_argument("--brain-scale", type=float, default=1.85,
+    parser.add_argument("--scale", type=float, default=1.85,
                         help="Geometry scale factor (default: 1.85).")
     parser.add_argument("--font", type=str, default=None,
                         help="Path to a TTF font for captions.")
@@ -205,7 +205,7 @@ def run():
             font_file=args.font,
             specular=args.specular,
             ambient=args.ambient,
-            brain_scale=args.brain_scale,
+            scale=args.scale,
         )
         logger.info(
             "Snapshot saved to %s (%dx%d)", args.output_path, img.width, img.height

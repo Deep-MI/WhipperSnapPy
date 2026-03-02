@@ -229,7 +229,7 @@ def _try_glfw_window(width, height, title, visible, core_profile):
     return window
 
 
-def init_window(width, height, title="PyOpenGL", visible=True):
+def init_window(width, height, title="WhipperSnapPy", visible=True):
     """Create a GLFW window, make an OpenGL context current and return the window handle.
 
     Tries OpenGL 3.3 Core Profile + ``FORWARD_COMPAT`` first, then falls
@@ -243,7 +243,7 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     ----------
     width, height : int
         Window dimensions in pixels.
-    title : str, optional, default 'PyOpenGL'
+    title : str, optional, default 'WhipperSnapPy'
         Window title.
     visible : bool, optional, default True
         If False create an invisible/offscreen window.
@@ -280,25 +280,16 @@ def init_window(width, height, title="PyOpenGL", visible=True):
     return False
 
 
-def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=True):
-    """Create an OpenGL context, trying GLFW first and OSMesa as a fallback.
+def create_window_with_fallback(width, height):
+    """Create an invisible OpenGL context for off-screen rendering.
 
-    The function attempts context creation in this priority order:
+    Always creates an invisible GLFW window — no title is shown.
+    Interactive GUI code calls :func:`init_window` directly with
+    ``visible=True``.
 
-    1. **GLFW visible window** — normal path on workstations with a display.
-    2. **GLFW invisible window** — when a display exists but no on-screen
-       window is needed (e.g. batch rendering).  Core Profile +
-       ``FORWARD_COMPAT`` is tried first; Compatibility Profile is retried
-       on non-macOS platforms (NSGL does not support Compatibility Profile).
-    3. **OSMesa software rendering** — Linux only.  Used when both GLFW
-       attempts fail (no display server).  Requires ``libosmesa6``
-       (Debian/Ubuntu) or ``mesa-libOSMesa`` (RHEL/Fedora).  On macOS and
-       Windows a platform-specific ``RuntimeError`` is raised instead,
-       because neither platform supports OSMesa in standard distributions.
-
-    When OSMesa is used the module-level ``_offscreen_context`` is set and
-    ``make_current()`` is called so that subsequent OpenGL calls work
-    identically to the GLFW path.
+    On Linux, if GLFW fails (no display server), falls back to OSMesa
+    software rendering.  On macOS and Windows, GLFW is the only supported
+    path — a ``RuntimeError`` is raised if it fails.
 
     Parameters
     ----------
@@ -306,10 +297,6 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         Render target width in pixels.
     height : int
         Render target height in pixels.
-    title : str, optional
-        Window title (used for GLFW paths only). Default is ``'WhipperSnapPy'``.
-    visible : bool, optional
-        Prefer a visible window. Default is ``True``.
 
     Returns
     -------
@@ -326,24 +313,15 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
     """
     global _offscreen_context
 
-    # --- Step 1: GLFW visible window ---
-    window = init_window(width, height, title, visible=visible)
+    # --- Step 1: GLFW invisible window ---
+    window = init_window(width, height, visible=False)
     if window:
         return window
 
-    # --- Step 2: GLFW invisible window ---
-    if visible:
-        logger.warning(
-            "Could not create visible GLFW window; retrying with invisible window."
-        )
-        window = init_window(width, height, title, visible=False)
-        if window:
-            return window
-
-    # --- Step 3: OSMesa software rendering (Linux headless only) ---
-    # Only reached on Linux when both GLFW attempts failed (no display server).
-    # On macOS and Windows GLFW is the only supported headless path; if it
-    # failed here it means the system has no usable OpenGL driver at all.
+    # --- Step 2: OSMesa software rendering (Linux headless only) ---
+    # Only reached on Linux when GLFW failed entirely (no display server).
+    # On macOS and Windows GLFW is the only supported path; raise a clear
+    # platform-specific error instead of a confusing libOSMesa hint.
     if sys.platform != "linux":
         raise RuntimeError(
             "Could not create a GLFW OpenGL context. "
@@ -351,9 +329,8 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
             "headless rendering). "
             "On Windows ensure a GPU driver or Mesa opengl32.dll is available."
         )
-    # PYOPENGL_PLATFORM=osmesa was already set at module import time (top of
-    # this file) when no display was detected, so PyOpenGL uses
-    # OSMesaGetProcAddress for function pointer resolution.
+    # PYOPENGL_PLATFORM=osmesa was set at module import time when no display
+    # was detected, so PyOpenGL uses OSMesaGetProcAddress for all GL calls.
     logger.info("No display detected — trying OSMesa software rendering (CPU).")
     try:
         from .osmesa_context import OSMesaContext  # noqa: PLC0415
@@ -364,8 +341,8 @@ def create_window_with_fallback(width, height, title="WhipperSnapPy", visible=Tr
         return None
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError(
-            "Could not create any OpenGL context (tried GLFW visible, "
-            f"GLFW invisible, OSMesa). Last error: {exc}"
+            "Could not create any OpenGL context (tried GLFW invisible window "
+            f"and OSMesa). Last error: {exc}"
         ) from exc
 
 
