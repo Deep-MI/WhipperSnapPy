@@ -13,7 +13,7 @@ from .geometry import estimate_overlay_thresholds, get_surf_name
 from .geometry.prepare import prepare_and_validate_geometry
 from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader, terminate_context
 from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
-from .utils.types import ColorSelection, OrientationType, ViewType, get_view_matrices
+from .utils.types import ColorSelection, OrientationType, ViewType, get_view_matrix
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -27,7 +27,6 @@ def snap1(
     bg_map=None,
     roi=None,
     view=ViewType.LEFT,
-    viewmat=None,
     width=700,
     height=500,
     fthresh=None,
@@ -82,11 +81,11 @@ def snap1(
         Path to a FreeSurfer label file **or** a (N,) boolean array.
         Vertices with ``True`` receive overlay coloring; others fall back
         to *bg_map* shading.
-    view : ViewType, optional
-        Which pre-defined view to render (left, right, front, ...).
-        Default is ``ViewType.LEFT``.
-    viewmat : 4x4 matrix-like, optional
-        Optional view matrix to override the pre-defined view.
+    view : ViewType or array-like, optional
+        Camera orientation.  Either a :class:`ViewType` preset
+        (e.g. ``ViewType.LEFT``) or a 4×4 float32 view matrix (e.g.
+        obtained from :func:`~whippersnappy.get_view_matrix` and then
+        modified).  Default is ``ViewType.LEFT``.
     width, height : int, optional
         Output canvas size in pixels. Defaults to (700×500).
     fthresh, fmax : float or None, optional
@@ -131,16 +130,27 @@ def snap1(
     --------
     FreeSurfer surface with overlay::
 
-        >>> from whippersnappy import snap1
+        >>> from whippersnappy import snap1, ViewType
         >>> img = snap1('lh.white', overlay='lh.thickness',
         ...             bg_map='lh.curv', roi='lh.cortex.label')
         >>> img.save('/tmp/lh.png')
 
+    Specific view preset::
+
+        >>> img = snap1('lh.white', overlay='lh.thickness', view=ViewType.FRONT)
+
+    Custom view matrix::
+
+        >>> from whippersnappy import get_view_matrix
+        >>> mat = get_view_matrix(ViewType.LEFT).copy()
+        >>> # modify mat …
+        >>> img = snap1('lh.white', view=mat)
+
     Array inputs (any triangular mesh)::
 
         >>> import numpy as np
-        >>> v = np.random.randn(100, 3).astype(np.float32)
-        >>> f = np.array([[0, 1, 2]], dtype=np.uint32)
+        >>> v = np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]], dtype=np.float32)
+        >>> f = np.array([[0,1,2],[0,1,3],[0,2,3],[1,2,3]], dtype=np.uint32)
         >>> img = snap1((v, f))
 
     OFF / VTK / PLY file::
@@ -196,8 +206,12 @@ def snap1(
                               specular=specular, ambient=ambient)
 
         transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
-        view_mats = get_view_matrices()
-        viewmat = transl * (view_mats[view] if viewmat is None else viewmat)
+        resolved_view = (
+            get_view_matrix(view)
+            if isinstance(view, ViewType)
+            else np.asarray(view, dtype=np.float32)
+        )
+        viewmat = transl * resolved_view
         render_scene(shader, triangles, viewmat)
 
         # Center the brain rendering in the output image, clamp to zero
@@ -397,10 +411,8 @@ def snap4(
     # will raise exception if it cannot be created
     window = create_window_with_fallback(wwidth, wheight, "WhipperSnapPy", visible=True)
     try:
-        # Use standard view matrices from get_view_matrices and ViewType
-        view_mats = get_view_matrices()
-        view_left = view_mats[ViewType.LEFT]
-        view_right = view_mats[ViewType.RIGHT]
+        view_left  = get_view_matrix(ViewType.LEFT)
+        view_right = get_view_matrix(ViewType.RIGHT)
         transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
 
         # Predefine hemisphere images so static analysis knows they exist even if
@@ -591,9 +603,11 @@ def snap_rotate(
         Ambient lighting strength. Default is ``0.0``.
     brain_scale : float, optional
         Geometry scale factor. Default is ``1.5``.
-    start_view : ViewType, optional
-        Pre-defined view to start the rotation from.
-        Default is ``ViewType.LEFT``.
+    start_view : ViewType or array-like, optional
+        Starting orientation for the rotation.  Either a :class:`ViewType`
+        preset (e.g. ``ViewType.LEFT``) or a 4×4 float32 view matrix
+        (e.g. obtained from :func:`~whippersnappy.get_view_matrix` and then
+        modified).  Default is ``ViewType.LEFT``.
     color_mode : ColorSelection, optional
         Which overlay sign to color (POSITIVE/NEGATIVE/BOTH).
         Default is ``ColorSelection.BOTH``.
@@ -670,7 +684,11 @@ def snap_rotate(
                               specular=specular, ambient=ambient)
 
         transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
-        base_view = get_view_matrices()[start_view]
+        base_view = (
+            get_view_matrix(start_view)
+            if isinstance(start_view, ViewType)
+            else np.asarray(start_view, dtype=np.float32)
+        )
 
         frames = []
         for i in range(n_frames):
