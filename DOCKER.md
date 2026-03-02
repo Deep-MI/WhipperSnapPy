@@ -81,7 +81,11 @@ docker run --rm whippersnappy --help
 
 ## Running — single-view snapshot (`whippersnap1`)
 
-Override the entry point with `--entrypoint whippersnap1`:
+Override the entry point with `--entrypoint whippersnap1`.  Any triangular
+mesh format is supported: FreeSurfer binary surfaces, OFF, ASCII VTK
+PolyData, ASCII PLY, and GIfTI (`.gii`, `.surf.gii`).
+
+### FreeSurfer surface
 
 ```bash
 docker run --rm --init \
@@ -93,8 +97,23 @@ docker run --rm --init \
   --mesh /subject/surf/lh.white \
   --overlay /subject/surf/lh.thickness \
   --bg-map /subject/surf/lh.curv \
+  --roi /subject/label/lh.cortex.label \
   --view left \
   --fthresh 2.0 --fmax 4.0 \
+  -o /output/snap1.png
+```
+
+### OFF / VTK / PLY / GIfTI mesh
+
+```bash
+docker run --rm --init \
+  --entrypoint whippersnap1 \
+  -v /path/to/data:/data \
+  -v /path/to/output:/output \
+  --user $(id -u):$(id -g) \
+  whippersnappy \
+  --mesh /data/mesh.off \
+  --overlay /data/values.txt \
   -o /output/snap1.png
 ```
 
