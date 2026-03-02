@@ -199,31 +199,15 @@ class TestPrepareGeometry:
 # ---------------------------------------------------------------------------
 
 def _snap1_offscreen(**kwargs):
-    """Call snap1 with an invisible (offscreen) GLFW context.
+    """Call snap1, skipping if no OpenGL context is available.
 
-    Forces ``visible=False`` so that:
+    ``pytest.skip`` is a safety net for environments where context creation
+    fails completely (e.g. macOS CI without a display).
 
-    - On **Windows CI**, Mesa ``opengl32.dll`` is on ``PATH`` (installed by
-      the workflow), providing software OpenGL 3.3 Core via llvmpipe.
-    - On **Linux CI** (no display) GLFW fails entirely and
-      :func:`~whippersnappy.gl.utils.create_window_with_fallback` falls back
-      to OSMesa software rendering.
-    - On **macOS CI** the containing :class:`TestSnap1Rendering` is skipped
-      entirely via ``_SKIP_RENDER_MACOS`` — NSGL requires a real display
-      connection even for invisible windows, which CI runners don't provide.
-
-    The ``pytest.skip`` inside this function is a safety net for any other
-    environment where context creation fails unexpectedly.
+    - **Ubuntu CI**: OSMesa headless rendering (``libosmesa6`` installed).
+    - **Windows CI**: GLFW invisible window backed by Mesa ``opengl32.dll``.
+    - **macOS CI**: skipped via ``_SKIP_RENDER_MACOS``.
     """
-    import whippersnappy.gl.utils as gl_utils  # noqa: PLC0415
-
-    original = gl_utils.create_window_with_fallback
-
-    def _invisible(*args, **kw):
-        kw["visible"] = False
-        return original(*args, **kw)
-
-    gl_utils.create_window_with_fallback = _invisible
     try:
         from whippersnappy import snap1  # noqa: PLC0415
         return snap1(width=200, height=200, colorbar=False, **kwargs)
@@ -231,8 +215,6 @@ def _snap1_offscreen(**kwargs):
         if "context" in str(exc).lower() or "opengl" in str(exc).lower():
             pytest.skip(f"No OpenGL context available: {exc}")
         raise
-    finally:
-        gl_utils.create_window_with_fallback = original
 
 
 @_SKIP_RENDER_MACOS
@@ -243,18 +225,14 @@ class TestSnap1Rendering:
     visible from any camera direction, unlike a flat surface which can
     appear edge-on and produce an all-black image.
 
-    Tests use an offscreen GLFW context (see :func:`_snap1_offscreen`) and
-    run on:
+    Tests run on:
 
     - **Ubuntu CI**: OSMesa headless rendering (``libosmesa6`` installed).
     - **Windows CI**: GLFW invisible window backed by Mesa ``opengl32.dll``
-      (software OpenGL 3.3 Core via llvmpipe, on ``PATH`` from CI workflow).
+      (software OpenGL 3.3 Core via llvmpipe).
     - **macOS CI**: **skipped** — NSGL requires a real display connection
       even for invisible windows; GitHub Actions runners have none.
     - **local macOS**: runs if a display is connected (normal developer use).
-
-    The ``pytest.skip`` inside ``_snap1_offscreen`` is a safety net for any
-    other environment where context creation fails completely.
     """
 
     def test_snap1_basic(self):

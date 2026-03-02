@@ -11,7 +11,8 @@ from PIL import Image, ImageFont
 
 from .geometry import estimate_overlay_thresholds, get_surf_name
 from .geometry.prepare import prepare_and_validate_geometry
-from .gl.utils import capture_window, create_window_with_fallback, render_scene, setup_shader, terminate_context
+from .gl.context import capture_window, init_offscreen_context, render_scene, terminate_context
+from .gl.pipeline import setup_shader
 from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
 from .utils.types import ColorSelection, OrientationType, ViewType, get_view_matrix
 
@@ -44,7 +45,7 @@ def snap1(
     color_mode=ColorSelection.BOTH,
     font_file=None,
     specular=True,
-    brain_scale=1.5,
+    scale=1.5,
     ambient=0.0,
 ):
     """Render a single static snapshot of a surface mesh.
@@ -106,7 +107,7 @@ def snap1(
         Path to a TTF font for captions; fallback to bundled font if None.
     specular : bool, optional
         Enable specular highlights. Default is ``True``.
-    brain_scale : float, optional
+    scale : float, optional
         Scale factor applied when preparing the geometry. Default is ``1.5``.
     ambient : float, optional
         Ambient lighting strength for shader. Default is ``0.0``.
@@ -178,16 +179,16 @@ def snap1(
 
     image = Image.new("RGB", (width, height))
 
-    bwidth = int(540 * brain_scale * ui_scale)
-    bheight = int(450 * brain_scale * ui_scale)
-    brain_display_width = min(bwidth, width)
-    brain_display_height = min(bheight, height)
+    bwidth = int(540 * scale * ui_scale)
+    bheight = int(450 * scale * ui_scale)
+    mesh_display_width = min(bwidth, width)
+    mesh_display_height = min(bheight, height)
     logger.debug("Requested (width,height) = (%s,%s)", width, height)
-    logger.debug("Brain (width,height)     = (%s,%s)", bwidth, bheight)
-    logger.debug("B-Display (width,height) = (%s,%s)", brain_display_width, brain_display_height)
+    logger.debug("Mesh (width,height)      = (%s,%s)", bwidth, bheight)
+    logger.debug("M-Display (width,height) = (%s,%s)", mesh_display_width, mesh_display_height)
 
     # will raise exception if it cannot be created
-    window = create_window_with_fallback(brain_display_width, brain_display_height, "WhipperSnapPy", visible=True)
+    window = init_offscreen_context(mesh_display_width, mesh_display_height)
     try:
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
             mesh,
@@ -198,11 +199,11 @@ def snap1(
             fthresh,
             fmax,
             invert,
-            scale=brain_scale,
+            scale=scale,
             color_mode=color_mode,
         )
 
-        shader = setup_shader(meshdata, triangles, brain_display_width, brain_display_height,
+        shader = setup_shader(meshdata, triangles, mesh_display_width, mesh_display_height,
                               specular=specular, ambient=ambient)
 
         transl = pyrr.Matrix44.from_translation((0, 0, 0.4))
@@ -214,10 +215,10 @@ def snap1(
         viewmat = transl * resolved_view
         render_scene(shader, triangles, viewmat)
 
-        # Center the brain rendering in the output image, clamp to zero
-        brain_x = max(0, (width - brain_display_width) // 2)
-        brain_y = max(0, (height - brain_display_height) // 2)
-        image.paste(capture_window(window), (brain_x, brain_y))
+        # Center the mesh rendering in the output image, clamp to zero
+        mesh_x = max(0, (width - mesh_display_width) // 2)
+        mesh_y = max(0, (height - mesh_display_height) // 2)
+        image.paste(capture_window(window), (mesh_x, mesh_y))
 
         bar = (
             create_colorbar(
@@ -299,7 +300,7 @@ def snap4(
     font_file=None,
     specular=True,
     ambient=0.0,
-    brain_scale=1.85,
+    scale=1.85,
     color_mode=ColorSelection.BOTH,
 ):
     """Render four snapshot views (left/right hemispheres, lateral/medial).
@@ -351,7 +352,7 @@ def snap4(
         Enable/disable specular highlights in the renderer. Default is ``True``.
     ambient : float, optional
         Ambient lighting strength. Default is ``0``.
-    brain_scale : float, optional
+    scale : float, optional
         Scaling factor passed to geometry preparation. Default is ``1.85``.
     color_mode : ColorSelection, optional
         Which sign of overlay to color (POSITIVE/NEGATIVE/BOTH). Default is ``ColorSelection.BOTH``.
@@ -409,7 +410,7 @@ def snap4(
         logger.debug("Global color range: fthresh=%s  fmax=%s", fthresh, fmax)
 
     # will raise exception if it cannot be created
-    window = create_window_with_fallback(wwidth, wheight, "WhipperSnapPy", visible=True)
+    window = init_offscreen_context(wwidth, wheight)
     try:
         view_left  = get_view_matrix(ViewType.LEFT)
         view_right = get_view_matrix(ViewType.RIGHT)
@@ -454,7 +455,7 @@ def snap4(
             try:
                 meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
                     mesh, overlay, annot, bg_map, roi, fthresh, fmax, invert,
-                    scale=brain_scale, color_mode=color_mode
+                    scale=scale, color_mode=color_mode
                 )
             except Exception as e:
                 logger.error("prepare_geometry failed for %s: %s", mesh, e)
@@ -548,7 +549,7 @@ def snap_rotate(
     invert=False,
     specular=True,
     ambient=0.0,
-    brain_scale=1.5,
+    scale=1.5,
     start_view=ViewType.LEFT,
     color_mode=ColorSelection.BOTH,
 ):
@@ -601,7 +602,7 @@ def snap_rotate(
         Enable specular highlights. Default is ``True``.
     ambient : float, optional
         Ambient lighting strength. Default is ``0.0``.
-    brain_scale : float, optional
+    scale : float, optional
         Geometry scale factor. Default is ``1.5``.
     start_view : ViewType or array-like, optional
         Starting orientation for the rotation.  Either a :class:`ViewType`
@@ -661,7 +662,7 @@ def snap_rotate(
             ) from exc
         import imageio
 
-    window = create_window_with_fallback(width, height, "WhipperSnapPy", visible=True)
+    window = init_offscreen_context(width, height)
     try:
         meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
             mesh,
@@ -672,7 +673,7 @@ def snap_rotate(
             fthresh,
             fmax,
             invert,
-            scale=brain_scale,
+            scale=scale,
             color_mode=color_mode,
         )
         logger.info(

@@ -196,7 +196,7 @@ def run():
     )
     parser.add_argument("--diffuse", dest="specular", action="store_false", default=True,
                         help="Use diffuse-only shading (no specular).")
-    parser.add_argument("--brain-scale", type=float, default=1.5,
+    parser.add_argument("--scale", type=float, default=1.5,
                         help="Geometry scale factor (default: 1.5).")
     parser.add_argument("--ambient", type=float, default=0.0,
                         help="Ambient light strength (default: 0.0).")
@@ -263,7 +263,7 @@ def run():
                 invert=args.invert,
                 specular=args.specular,
                 ambient=args.ambient,
-                brain_scale=args.brain_scale,
+                scale=args.scale,
                 start_view=_VIEW_CHOICES[args.rotate_start_view],
                 color_mode=_COLOR_CHOICES[args.color_mode],
             )
@@ -305,7 +305,7 @@ def run():
                 orientation=_ORIENT_CHOICES[args.orientation],
                 font_file=args.font,
                 specular=args.specular,
-                brain_scale=args.brain_scale,
+                scale=args.scale,
                 ambient=args.ambient,
             )
             log.info("Snapshot saved to %s (%dx%d)", outpath, img.width, img.height)

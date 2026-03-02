@@ -1,4 +1,30 @@
-"""Shared shader sources inside the gl package."""
+"""Shared shader sources and compilation inside the gl package."""
+
+from . import _headless  # noqa: F401, I001 — must precede OpenGL.GL import on headless Linux
+import OpenGL.GL as gl  # noqa: E402
+import OpenGL.GL.shaders as _gl_shaders  # noqa: E402
+
+
+def compile_shader_program(vertex_src, fragment_src):
+    """Compile GLSL vertex and fragment sources and link them into a program.
+
+    Parameters
+    ----------
+    vertex_src : str
+        Vertex shader source code.
+    fragment_src : str
+        Fragment shader source code.
+
+    Returns
+    -------
+    int
+        OpenGL program handle.
+    """
+    return _gl_shaders.compileProgram(
+        _gl_shaders.compileShader(vertex_src, gl.GL_VERTEX_SHADER),
+        _gl_shaders.compileShader(fragment_src, gl.GL_FRAGMENT_SHADER),
+    )
+
 
 def get_default_shaders():
     """Return the default GLSL 330 vertex and fragment shader sources.
