@@ -11,7 +11,8 @@ from PIL import Image, ImageFont
 
 from .geometry import estimate_overlay_thresholds, get_surf_name
 from .geometry.prepare import prepare_and_validate_geometry
-from .gl.utils import capture_window, init_offscreen_context, render_scene, setup_shader, terminate_context
+from .gl.context import capture_window, init_offscreen_context, render_scene, terminate_context
+from .gl.pipeline import setup_shader
 from .utils.image import create_colorbar, draw_caption, draw_colorbar, load_roboto_font, text_size
 from .utils.types import ColorSelection, OrientationType, ViewType, get_view_matrix
 

@@ -10,7 +10,7 @@ display is available and no GPU is required.  It requires:
   - No GPU, no ``/dev/dri/`` devices, no display server.
 
 This module is not intended to be used directly.  It is instantiated by
-:func:`~whippersnappy.gl.utils.init_offscreen_context` when GLFW
+:func:`~whippersnappy.gl.context.init_offscreen_context` when GLFW
 cannot create a window (Linux headless).  That function also sets
 ``PYOPENGL_PLATFORM=osmesa`` at import time so that PyOpenGL resolves
 function pointers via ``OSMesaGetProcAddress``.

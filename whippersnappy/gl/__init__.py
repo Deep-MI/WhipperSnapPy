@@ -1,38 +1,39 @@
-"""OpenGL helper utilities (gl package).
+"""OpenGL context management and rendering helpers (gl package).
 
-This package contains the low-level OpenGL helpers used by the renderers.
-View preset matrices (:func:`~whippersnappy.utils.types.get_view_matrices`)
-live in :mod:`whippersnappy.utils.types` alongside :class:`~whippersnappy.utils.types.ViewType`.
+This package contains the low-level OpenGL helpers used by the renderers:
 
-Functions are re-exported at package level for convenience::
+- :mod:`~whippersnappy.gl.context` — context lifecycle (create, capture, destroy).
+- :mod:`~whippersnappy.gl.pipeline` — one-time GPU upload: VAO, buffers, uniforms, shader setup.
+- :mod:`~whippersnappy.gl.shaders` — GLSL shader source and compilation.
+- :mod:`~whippersnappy.gl.camera` — projection, view, and model matrices.
+- :mod:`~whippersnappy.gl.osmesa_context` — OSMesa headless context (Linux).
 
-    from whippersnappy.gl import init_window, setup_shader
+Public API re-exported at package level::
+
+    from whippersnappy.gl import init_window, init_offscreen_context, setup_shader
 
 """
 
 from .camera import make_model, make_projection, make_view
-from .shaders import get_default_shaders, get_webgl_shaders
-from .utils import (
+from .context import (
     capture_window,
-    compile_shader_program,
-    create_vao,
     init_offscreen_context,
     init_window,
     render_scene,
-    set_camera_uniforms,
-    set_default_gl_state,
-    set_lighting_uniforms,
-    setup_buffers,
-    setup_shader,
-    setup_vertex_attributes,
     terminate_context,
 )
+from .pipeline import setup_shader
+from .shaders import compile_shader_program, get_default_shaders, get_webgl_shaders
 
 __all__ = [
-    'create_vao', 'compile_shader_program', 'setup_buffers', 'setup_vertex_attributes',
-    'set_default_gl_state', 'set_camera_uniforms', 'set_lighting_uniforms',
-    'init_window', 'render_scene', 'setup_shader', 'capture_window',
-    'init_offscreen_context', 'terminate_context',
+    # context lifecycle
+    'init_window', 'init_offscreen_context', 'terminate_context',
+    # rendering
+    'render_scene', 'capture_window',
+    # pipeline setup
+    'setup_shader',
+    # shaders
+    'compile_shader_program', 'get_default_shaders', 'get_webgl_shaders',
+    # camera
     'make_model', 'make_projection', 'make_view',
-    'get_default_shaders', 'get_webgl_shaders',
 ]
