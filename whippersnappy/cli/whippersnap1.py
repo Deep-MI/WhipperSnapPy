@@ -196,7 +196,7 @@ def run():
     )
     parser.add_argument("--diffuse", dest="specular", action="store_false", default=True,
                         help="Use diffuse-only shading (no specular).")
-    parser.add_argument("--brain-scale", type=float, default=1.5,
+    parser.add_argument("--scale", type=float, default=1.5,
                         help="Geometry scale factor (default: 1.5).")
     parser.add_argument("--ambient", type=float, default=0.0,
                         help="Ambient light strength (default: 0.0).")

@@ -9,32 +9,26 @@ Headless rendering on Linux uses OSMesa (CPU software renderer) via
 server or GPU is available.  No EGL or GPU driver is required.
 
 On Linux with no ``DISPLAY`` or ``WAYLAND_DISPLAY`` set,
-``PYOPENGL_PLATFORM=osmesa`` is set automatically at import time (before
-``OpenGL.GL`` is imported) so that PyOpenGL resolves all function pointers
-via ``OSMesaGetProcAddress`` rather than GLX.
+``PYOPENGL_PLATFORM=osmesa`` is set automatically before ``OpenGL.GL`` is
+imported.  The guard lives in :mod:`whippersnappy.gl._headless`, which is
+imported first both here and in every other GL submodule, so the variable
+is always set in time regardless of which submodule is imported first.
 """
+# ruff: noqa: I001  — import order is intentional: _headless must precede OpenGL.GL
 
 import logging
-import os
 import sys
 import warnings
 from typing import Any
 
-# On Linux with no display, pre-set PYOPENGL_PLATFORM=osmesa before
-# importing OpenGL.GL so PyOpenGL uses OSMesaGetProcAddress for function
-# pointer resolution instead of GLX (which returns null pointers without
-# an X11/Wayland display).  Has no effect on macOS or Windows.
-if (
-    sys.platform == "linux"
-    and "PYOPENGL_PLATFORM" not in os.environ
-    and not os.environ.get("DISPLAY")
-    and not os.environ.get("WAYLAND_DISPLAY")
-):
-    os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+# Ensure PYOPENGL_PLATFORM=osmesa is set on headless Linux before OpenGL.GL
+# is imported.  The actual guard lives in _headless so it runs whenever any
+# submodule of this package is imported first.
+from . import _headless  # noqa: F401, I001
 
-import glfw
-import OpenGL.GL as gl
-from PIL import Image
+import glfw  # noqa: E402
+import OpenGL.GL as gl  # noqa: E402
+from PIL import Image  # noqa: E402
 
 # Module logger
 logger = logging.getLogger(__name__)

@@ -1,7 +1,8 @@
 """Shared shader sources and compilation inside the gl package."""
 
-import OpenGL.GL as gl
-import OpenGL.GL.shaders as _gl_shaders
+from . import _headless  # noqa: F401, I001 — must precede OpenGL.GL import on headless Linux
+import OpenGL.GL as gl  # noqa: E402
+import OpenGL.GL.shaders as _gl_shaders  # noqa: E402
 
 
 def compile_shader_program(vertex_src, fragment_src):

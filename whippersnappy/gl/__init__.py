@@ -2,6 +2,10 @@
 
 This package contains the low-level OpenGL helpers used by the renderers:
 
+- :mod:`~whippersnappy.gl._headless` — sets ``PYOPENGL_PLATFORM=osmesa`` on
+  headless Linux *before* any ``OpenGL.GL`` import; imported first here and
+  in every GL submodule so the guard takes effect even when a submodule is
+  imported directly.
 - :mod:`~whippersnappy.gl.context` — context lifecycle (create, capture, destroy).
 - :mod:`~whippersnappy.gl.pipeline` — one-time GPU upload: VAO, buffers, uniforms, shader setup.
 - :mod:`~whippersnappy.gl.shaders` — GLSL shader source and compilation.
@@ -14,6 +18,7 @@ Public API re-exported at package level::
 
 """
 
+from . import _headless  # noqa: F401 — must be first; sets PYOPENGL_PLATFORM before any OpenGL.GL import
 from .camera import make_model, make_projection, make_view
 from .context import (
     capture_window,

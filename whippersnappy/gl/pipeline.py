@@ -13,10 +13,11 @@ context is created and before the first draw call:
 five steps in order and returns the compiled shader program handle.
 """
 
-import OpenGL.GL as gl
+from . import _headless  # noqa: F401, I001 — must precede OpenGL.GL import on headless Linux
+import OpenGL.GL as gl  # noqa: E402
 
-from .camera import make_model, make_projection, make_view
-from .shaders import compile_shader_program, get_default_shaders
+from .camera import make_model, make_projection, make_view  # noqa: E402
+from .shaders import compile_shader_program, get_default_shaders  # noqa: E402
 
 
 def create_vao():
