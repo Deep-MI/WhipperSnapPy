@@ -35,27 +35,14 @@ pip install 'whippersnappy[notebook]'
 
 Off-screen (headless) rendering on **Linux** is supported natively via
 OSMesa — no `xvfb` or GPU required.  On **Windows**, GLFW creates an
-invisible window; a GPU driver or a Mesa software renderer
-(`opengl32.dll`) is sufficient — no display needed.  On **macOS**, a real
-display connection is required (NSGL does not support headless rendering).
+invisible window; a GPU driver is sufficient — no display needed.  On
+**macOS**, a real display connection is required (NSGL does not support
+headless rendering).
 See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.
 
 ## Command-Line Usage
 
 After installation the following commands are available:
-
-### Four-view snapshot (`whippersnap4`)
-
-Renders lateral and medial views of both hemispheres into a single composed image:
-
-```bash
-whippersnap4 -lh $LH_OVERLAY \
-             -rh $RH_OVERLAY \
-             -sd $SUBJECT_DIR \
-             --fmax 4 --fthresh 2 \
-             --caption "Cortical Thickness" \
-             -o snap4.png
-```
 
 ### Single-view snapshot (`whippersnap1`)
 
@@ -69,9 +56,22 @@ whippersnap1 --mesh $SUBJECT_DIR/surf/lh.white \
              --view left \
              -o snap1.png
 
-# Also works with OFF / VTK / PLY / GIfTI
+# Also works with OFF / VTK / PLY / GIfTI and plain-text overlays
 whippersnap1 --mesh mesh.off --overlay values.txt -o snap1.png
 whippersnap1 --mesh surface.surf.gii --overlay overlay.func.gii -o snap1.png
+```
+
+### Four-view snapshot (`whippersnap4`)
+
+Renders lateral and medial views of both hemispheres into a single composed image:
+
+```bash
+whippersnap4 -lh $LH_OVERLAY \
+             -rh $RH_OVERLAY \
+             -sd $SUBJECT_DIR \
+             --fmax 4 --fthresh 2 \
+             --caption "Cortical Thickness" \
+             -o snap4.png
 ```
 
 ### Rotation video (`whippersnap1 --rotate`)
@@ -110,7 +110,7 @@ whippersnap -sd $SUBJECT_DIR --hemi lh -lh $LH_OVERLAY
 whippersnap -sd $SUBJECT_DIR --hemi rh --annot rh.aparc.annot
 ```
 
-For all options run `whippersnap4 --help`, `whippersnap1 --help`, or `whippersnap --help`.
+For all options run `whippersnap1 --help`, `whippersnap4 --help`, or `whippersnap --help`.
 
 ## Python API
 
@@ -140,30 +140,32 @@ from whippersnappy import plot3d  # requires whippersnappy[notebook]
 | `ViewType.TOP` | Superior / dorsal view |
 | `ViewType.BOTTOM` | Inferior / ventral view |
 
-`get_view_matrix` lets you retrieve a preset matrix and modify it before
-passing it back via `view` (for both `snap1` and `snap_rotate`):
+Both `snap1` and `snap_rotate` also accept a raw 4×4 NumPy matrix for
+`view` / `start_view`.  Use `get_view_matrix` to start from a preset and
+modify it:
 
 ```python
 import numpy as np
+import pyrr
 from whippersnappy import snap1, snap_rotate, ViewType, get_view_matrix
 
-# Tilt the left-lateral view slightly downward
+# Tilt the left-lateral preset slightly downward
 mat = get_view_matrix(ViewType.LEFT).copy()
-# apply a small x-rotation …
-img = snap1('lh.white', overlay='lh.thickness', view=mat)
+tilt = np.array(pyrr.Matrix44.from_x_rotation(np.radians(10)), dtype=np.float32)
+mat = tilt @ mat
 
-# Start a rotation video from a custom orientation
+img = snap1('lh.white', overlay='lh.thickness', view=mat)
 snap_rotate('lh.white', 'rotation.mp4', start_view=mat)
 ```
 
-**Supported mesh inputs for `snap1`, `snap_rotate`, and `plot3d`:**
+**Supported mesh inputs** (for `snap1`, `snap_rotate`, and `plot3d`):
 FreeSurfer binary surfaces (e.g. `lh.white`), OFF (`.off`), legacy ASCII
 VTK PolyData (`.vtk`), ASCII PLY (`.ply`), GIfTI surface
 (`.gii`, `.surf.gii`), or a `(vertices, faces)` NumPy array tuple.
 
-**Supported overlay/label inputs:**
+**Supported overlay / label inputs:**
 FreeSurfer morph (`.curv`, `.thickness`), MGH/MGZ (`.mgh`, `.mgz`),
-plain text (`.txt`, `.csv`), NumPy (`.npy`, `.npz`),
+plain text / CSV (`.txt`, `.csv`), NumPy (`.npy`, `.npz`),
 GIfTI functional/label (`.func.gii`, `.label.gii`).
 
 ### Examples
@@ -190,7 +192,7 @@ img = snap4(lh_overlay='/path/to/lh.thickness',
             caption='Cortical Thickness (mm)')
 img.save('snap4.png')
 
-# OFF / VTK / PLY / GIfTI mesh
+# OFF / VTK / PLY / GIfTI mesh with a plain-text overlay
 img = snap1('mesh.off', overlay='values.txt')
 img = snap1('surface.surf.gii', overlay='overlay.func.gii')
 
