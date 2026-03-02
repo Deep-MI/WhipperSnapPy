@@ -341,7 +341,7 @@ whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$
 </section>
 <section id="python-api">
 <h2>Python API<a class="headerlink" href="#python-api" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">snap_rotate</span><span class="p">,</span> <span class="n">ViewType</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">snap_rotate</span><span class="p">,</span> <span class="n">ViewType</span><span class="p">,</span> <span class="n">get_view_matrix</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot3d</span>  <span class="c1"># requires whippersnappy[notebook]</span>
 </pre></div>
 </div>
@@ -367,6 +367,9 @@ whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ViewType</span></code></p></td>
 <td><p>Enum of camera presets used by <code class="docutils literal notranslate"><span class="pre">snap1</span></code> and <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">get_view_matrix</span></code></p></td>
+<td><p>Return the 4×4 view matrix for a <code class="docutils literal notranslate"><span class="pre">ViewType</span></code> preset</p></td>
 </tr>
 </tbody>
 </table>
@@ -401,6 +404,20 @@ whippersnap<span class="w"> </span>-sd<span class="w"> </span><span class="nv">$
 </tr>
 </tbody>
 </table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">get_view_matrix</span></code> lets you retrieve a preset matrix and modify it before
+passing it back via <code class="docutils literal notranslate"><span class="pre">view</span></code> (for both <code class="docutils literal notranslate"><span class="pre">snap1</span></code> and <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code>):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap_rotate</span><span class="p">,</span> <span class="n">ViewType</span><span class="p">,</span> <span class="n">get_view_matrix</span>
+
+<span class="c1"># Tilt the left-lateral view slightly downward</span>
+<span class="n">mat</span> <span class="o">=</span> <span class="n">get_view_matrix</span><span class="p">(</span><span class="n">ViewType</span><span class="o">.</span><span class="n">LEFT</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="c1"># apply a small x-rotation …</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
+
+<span class="c1"># Start a rotation video from a custom orientation</span>
+<span class="n">snap_rotate</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span> <span class="s1">&#39;rotation.mp4&#39;</span><span class="p">,</span> <span class="n">start_view</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
+</pre></div>
 </div>
 <p><strong>Supported mesh inputs for <code class="docutils literal notranslate"><span class="pre">snap1</span></code>, <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code>, and <code class="docutils literal notranslate"><span class="pre">plot3d</span></code>:</strong>
 FreeSurfer binary surfaces (e.g. <code class="docutils literal notranslate"><span class="pre">lh.white</span></code>), OFF (<code class="docutils literal notranslate"><span class="pre">.off</span></code>), legacy ASCII
