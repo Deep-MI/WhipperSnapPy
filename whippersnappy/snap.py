@@ -494,16 +494,10 @@ def snap4(
                 rhimg.paste(im2, (0, 0))
                 rhimg.paste(im1, (0, im2.height))
 
-        # Add small padding around each hemisphere to avoid cropping at edges
-        pad = max(4, int(0.03 * wwidth))
-        padded_lh = Image.new("RGB", (lhimg.width + 2 * pad, lhimg.height + 2 * pad), (0, 0, 0))
-        padded_lh.paste(lhimg, (pad, pad))
-        padded_rh = Image.new("RGB", (rhimg.width + 2 * pad, rhimg.height + 2 * pad), (0, 0, 0))
-        padded_rh.paste(rhimg, (pad, pad))
-
-        image = Image.new("RGB", (padded_lh.width + padded_rh.width, padded_lh.height))
-        image.paste(padded_lh, (0, 0))
-        image.paste(padded_rh, (padded_lh.width, 0))
+        # vertically stack left and right images
+        image = Image.new("RGB", (lhimg.width + rhimg.width, lhimg.height))
+        image.paste(lhimg, (0, 0))
+        image.paste(rhimg, (lhimg.width, 0))
 
         # Colorbar near vertical center (between top and bottom panels)
         if lh_annot is None and rh_annot is None and colorbar:
