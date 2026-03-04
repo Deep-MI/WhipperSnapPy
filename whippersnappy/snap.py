@@ -475,9 +475,13 @@ def snap4(
                 logger.error("setup_shader failed: %s", e)
                 raise
 
-            render_scene(shader, triangles, transl * view_left)
+            # snap from left side and move camera a little closer for left hemi (outside view)
+            viewmat = view_left if hemi == "rh" else transl * view_left
+            render_scene(shader, triangles, viewmat)
             im1 = capture_window(window)
-            render_scene(shader, triangles, transl * view_right)
+            # snape from right side and move camera a little closer for right hemi (outside view)
+            viewmat = view_right if hemi == "lh" else transl * view_right
+            render_scene(shader, triangles, viewmat)
             im2 = capture_window(window)
 
             if hemi == "lh":
@@ -501,26 +505,18 @@ def snap4(
         image.paste(padded_lh, (0, 0))
         image.paste(padded_rh, (padded_lh.width, 0))
 
-        font = load_roboto_font(20) if font_file is None else ImageFont.truetype(font_file, 20) if caption else None
-        # Place caption at bottom, colorbar above if both present
-        text_w, text_h = text_size(caption, font) if caption and font else (0, 0)
-        bottom_pad = 20
-        gap = 4
-        caption_y = image.height - bottom_pad - text_h
-        bar = (
-            create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg)
-            if lh_annot is None and rh_annot is None and colorbar
-            else None
-        )
-        bar_h = bar.height if bar is not None else 0
-        if bar is not None and caption:
-            bar_y = image.height - bottom_pad - text_h - gap - bar_h
+        # Colorbar near vertical center (between top and bottom panels)
+        if lh_annot is None and rh_annot is None and colorbar:
+            bar = create_colorbar(fthresh, fmax, invert, pos=pos, neg=neg)
+            bar_y = image.height // 2 - bar.height // 2
             draw_colorbar(image, bar, OrientationType.HORIZONTAL, y=bar_y)
-            draw_caption(image, caption, font, OrientationType.HORIZONTAL, y=caption_y)
-        elif bar is not None:
-            bar_y = image.height - bottom_pad - bar_h
-            draw_colorbar(image, bar, OrientationType.HORIZONTAL, y=bar_y)
-        elif caption:
+
+        # Caption at the bottom
+        if caption:
+            font = load_roboto_font(20) if font_file is None else ImageFont.truetype(font_file, 20) if caption else None
+            text_w, text_h = text_size(caption, font) if caption and font else (0, 0)
+            bottom_pad = 20
+            caption_y = image.height - bottom_pad - text_h
             draw_caption(image, caption, font, OrientationType.HORIZONTAL, y=caption_y)
 
         # If outpath is specified, save to disk
