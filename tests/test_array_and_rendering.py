@@ -146,7 +146,7 @@ class TestEstimateOverlayThresholds:
         fmin, fmax = estimate_overlay_thresholds(arr)
         assert fmin >= 0 and fmax == pytest.approx(3.0)
         # explicit values passed through unchanged
-        fmin2, fmax2 = estimate_overlay_thresholds(arr, minval=0.5, maxval=5.0)
+        fmin2, fmax2 = estimate_overlay_thresholds(arr, fthresh=0.5, fmax=5.0)
         assert fmin2 == pytest.approx(0.5) and fmax2 == pytest.approx(5.0)
 
 

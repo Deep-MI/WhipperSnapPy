@@ -79,39 +79,39 @@ def vertex_normals(v, t):
     return n
 
 
-def _estimate_thresholds_from_array(mapdata, minval=None, maxval=None):
+def _estimate_thresholds_from_array(mapdata, fthresh=None, fmax=None):
     """Estimate threshold and saturation values from an already-loaded array.
 
     Parameters
     ----------
     mapdata : numpy.ndarray
         Per-vertex overlay values.
-    minval : float or None, optional
+    fthresh : float or None, optional
         If provided, used as-is; otherwise estimated as the minimum absolute
         value in the data.
-    maxval : float or None, optional
+    fmax : float or None, optional
         If provided, used as-is; otherwise estimated as the maximum absolute
         value in the data.
 
     Returns
     -------
-    minval : float
+    fthresh : float
         Threshold value (lower bound of the color scale).
-    maxval : float
+    fmax : float
         Saturation value (upper bound of the color scale).
     """
     valabs = np.abs(mapdata)
-    if maxval is None:
-        maxval = float(np.max(valabs)) if np.any(valabs) else 0.0
-    if minval is None:
-        minval = float(max(0.0, np.min(valabs) if np.any(valabs) else 0.0))
-    return minval, maxval
+    if fmax is None:
+        fmax = float(np.max(valabs)) if np.any(valabs) else 0.0
+    if fthresh is None:
+        fthresh = float(max(0.0, np.min(valabs) if np.any(valabs) else 0.0))
+    return fthresh, fmax
 
 
-def estimate_overlay_thresholds(overlay, minval=None, maxval=None):
+def estimate_overlay_thresholds(overlay, fthresh=None, fmax=None):
     """Estimate threshold and saturation values from an overlay file or array.
 
-    Reads the overlay data and derives ``fmin`` / ``fmax`` from the absolute
+    Reads the overlay data and derives ``fthresh`` / ``fmax`` from the absolute
     values without performing any geometry or color work.  Both values are
     returned unchanged when they are already provided by the caller, making
     the function safe to call unconditionally.
@@ -121,18 +121,18 @@ def estimate_overlay_thresholds(overlay, minval=None, maxval=None):
     overlay : str or array-like
         Path to the overlay file (.mgh or FreeSurfer morph format), or a
         numpy array / array-like of per-vertex scalar values.
-    minval : float or None, optional
+    fthresh : float or None, optional
         If provided, used as-is for the threshold; otherwise estimated as
         the minimum absolute value in the overlay.
-    maxval : float or None, optional
+    fmax : float or None, optional
         If provided, used as-is for the saturation; otherwise estimated as
         the maximum absolute value in the overlay.
 
     Returns
     -------
-    minval : float
+    fthresh : float
         Threshold value (lower bound of the color scale).
-    maxval : float
+    fmax : float
         Saturation value (upper bound of the color scale).
     """
     if isinstance(overlay, str):
@@ -140,7 +140,7 @@ def estimate_overlay_thresholds(overlay, minval=None, maxval=None):
         overlay_arr = resolve_overlay(overlay, n_vertices=None)
     else:
         overlay_arr = np.asarray(overlay)
-    return _estimate_thresholds_from_array(overlay_arr, minval, maxval)
+    return _estimate_thresholds_from_array(overlay_arr, fthresh, fmax)
 
 
 def prepare_geometry_from_arrays(
@@ -151,8 +151,8 @@ def prepare_geometry_from_arrays(
     ctab=None,
     bg_map=None,
     roi=None,
-    minval=None,
-    maxval=None,
+    fthresh=None,
+    fmax=None,
     invert=False,
     scale=1.85,
     color_mode=ColorSelection.BOTH,
@@ -183,7 +183,7 @@ def prepare_geometry_from_arrays(
         Boolean mask of shape (N,).  ``True`` = vertex is inside the region
         of interest and receives overlay coloring; ``False`` = vertex falls
         back to background shading.  When ``None`` all vertices are in-ROI.
-    minval, maxval : float or None, optional
+    fthresh, fmax : float or None, optional
         Threshold and saturation values for overlay scaling.
     invert : bool, optional, default False
         Invert color mapping.
@@ -242,9 +242,9 @@ def prepare_geometry_from_arrays(
                 "(e.g. RH overlay used with LH surface). Provide the correct overlay."
             )
         mapdata = overlay.copy().astype(np.float64)
-        minval, maxval = _estimate_thresholds_from_array(mapdata, minval, maxval)
+        fthresh, fmax = _estimate_thresholds_from_array(mapdata, fthresh, fmax)
         mapdata = mask_sign(mapdata, color_mode)
-        mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, minval, maxval)
+        mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, fthresh, fmax)
         colors = heat_color(mapdata, invert)
         # Some mapdata values could be nan (below min threshold) — fall back to bg
         missing = np.isnan(mapdata)
@@ -286,8 +286,8 @@ def prepare_geometry(
     annot=None,
     bg_map=None,
     roi=None,
-    minval=None,
-    maxval=None,
+    fthresh=None,
+    fmax=None,
     invert=False,
     scale=1.85,
     color_mode=ColorSelection.BOTH,
@@ -316,7 +316,7 @@ def prepare_geometry(
     roi : str, array-like, or None, optional
         Path to a FreeSurfer label file or a (N,) boolean array.  Vertices
         with ``True`` receive overlay coloring; others fall back to *bg_map*.
-    minval, maxval : float or None, optional
+    fthresh, fmax : float or None, optional
         Threshold and saturation values for overlay scaling.
     invert : bool, optional, default False
         Invert color mapping.
@@ -371,7 +371,7 @@ def prepare_geometry(
     ctab_arr = annot_result[1] if annot_result is not None else None
     return prepare_geometry_from_arrays(
         vertices, faces, overlay_arr, annot_arr, ctab_arr,
-        bg_map_arr, roi_arr, minval, maxval, invert, scale, color_mode,
+        bg_map_arr, roi_arr, fthresh, fmax, invert, scale, color_mode,
     )
 
 

@@ -37,8 +37,8 @@ def plot3d(
     annot=None,
     bg_map=None,
     roi=None,
-    minval=None,
-    maxval=None,
+    fthresh=None,
+    fmax=None,
     invert=False,
     scale=1.85,
     color_mode=None,
@@ -75,7 +75,7 @@ def plot3d(
     roi : str, array-like, or None, optional
         Path to a FreeSurfer label file **or** a (N,) boolean array to
         restrict overlay coloring to a subset of vertices.
-    minval, maxval : float or None, optional
+    fthresh, fmax : float or None, optional
         Threshold and saturation values used for color mapping.
         If ``None``, sensible defaults are chosen automatically.
     invert : bool, optional
@@ -127,7 +127,7 @@ def plot3d(
     color_mode = color_mode or ColorSelection.BOTH
     meshdata, triangles, fmin, fmax, pos, neg = prepare_geometry(
         mesh, overlay, annot, bg_map, roi,
-        minval, maxval, invert, scale, color_mode
+        fthresh, fmax, invert, scale, color_mode
     )
 
     logger.info("Loaded mesh: %d vertices, %d faces", meshdata.shape[0], triangles.shape[0])
