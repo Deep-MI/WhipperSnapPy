@@ -8,9 +8,12 @@ wrapper that delegates to the resolver functions in
 :func:`prepare_geometry_from_arrays`.
 """
 
+import logging
 import warnings
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from ..utils.colormap import binary_color, heat_color, mask_sign, rescale_overlay
 from ..utils.types import ColorSelection
@@ -101,10 +104,16 @@ def _estimate_thresholds_from_array(mapdata, fthresh=None, fmax=None):
         Saturation value (upper bound of the color scale).
     """
     valabs = np.abs(mapdata)
+    n_nan = int(np.sum(np.isnan(valabs)))
+    if n_nan:
+        logger.warning("overlay contains %d NaN value(s); ignoring them for threshold estimation.", n_nan)
+    finite = valabs[~np.isnan(valabs)]
+    any_finite = finite.size > 0 and np.any(finite)
     if fmax is None:
-        fmax = float(np.max(valabs)) if np.any(valabs) else 0.0
+        fmax = float(np.max(finite)) if any_finite else 0.0
     if fthresh is None:
-        fthresh = float(max(0.0, np.min(valabs) if np.any(valabs) else 0.0))
+        fthresh = float(max(0.0, np.min(finite))) if any_finite else 0.0
+    logger.debug("threshold estimation: fthresh=%s  fmax=%s", fthresh, fmax)
     return fthresh, fmax
 
 
@@ -227,8 +236,8 @@ def prepare_geometry_from_arrays(
         sulcmap = 0.5 * np.ones(vertices.shape, dtype=np.float32)
 
     # Initialize defaults for overlay outputs
-    fmin = None
-    fmax = None
+    out_fmin = None
+    out_fmax = None
     pos = None
     neg = None
     colors = sulcmap  # use as default
@@ -244,7 +253,7 @@ def prepare_geometry_from_arrays(
         mapdata = overlay.copy().astype(np.float64)
         fthresh, fmax = _estimate_thresholds_from_array(mapdata, fthresh, fmax)
         mapdata = mask_sign(mapdata, color_mode)
-        mapdata, fmin, fmax, pos, neg = rescale_overlay(mapdata, fthresh, fmax)
+        mapdata, out_fmin, out_fmax, pos, neg = rescale_overlay(mapdata, fthresh, fmax)
         colors = heat_color(mapdata, invert)
         # Some mapdata values could be nan (below min threshold) — fall back to bg
         missing = np.isnan(mapdata)
@@ -277,7 +286,7 @@ def prepare_geometry_from_arrays(
             colors[outside, :] = sulcmap[outside, :]
 
     vertexdata = np.concatenate((vertices, vnormals, colors), axis=1)
-    return vertexdata, triangles, fmin, fmax, pos, neg
+    return vertexdata, triangles, out_fmin, out_fmax, pos, neg
 
 
 def prepare_geometry(
@@ -419,8 +428,6 @@ def prepare_and_validate_geometry(
     ValueError
         If the overlay contains no values appropriate for ``color_mode``.
     """
-    import logging
-    logger = logging.getLogger(__name__)
     meshdata, triangles, out_fthresh, out_fmax, pos, neg = prepare_geometry(
         mesh,
         overlay,
