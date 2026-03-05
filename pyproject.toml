@@ -157,7 +157,7 @@ select = [
 "__init__.py" = ["F401"]
 
 [tool.codespell]
-ignore-words-list = 'aNormal,wheight'
+ignore-words-list = 'aNormal,wheight,renderD'
 check-filenames = true
 check-hidden = true
 skip = './.git,./build,./.mypy_cache,./.pytest_cache'
