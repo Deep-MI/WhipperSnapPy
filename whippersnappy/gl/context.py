@@ -1,18 +1,20 @@
 """OpenGL context management and rendering pipeline.
 
-Owns the full lifecycle of an OpenGL context — creation (GLFW invisible
-window or OSMesa fallback on Linux), scene rendering, framebuffer capture,
-and teardown.
+Owns the full lifecycle of an OpenGL context — creation, scene rendering,
+framebuffer capture, and teardown.
 
-Headless rendering on Linux uses OSMesa (CPU software renderer) via
-:class:`~whippersnappy.gl.osmesa_context.OSMesaContext` when no display
-server or GPU is available.  No EGL or GPU driver is required.
+Context creation tries three paths in order (Linux; macOS/Windows use GLFW only):
 
-On Linux with no ``DISPLAY`` or ``WAYLAND_DISPLAY`` set,
-``PYOPENGL_PLATFORM=osmesa`` is set automatically before ``OpenGL.GL`` is
-imported.  The guard lives in :mod:`whippersnappy.gl._headless`, which is
-imported first both here and in every other GL submodule, so the variable
-is always set in time regardless of which submodule is imported first.
+1. **GLFW invisible window** — standard path when a display is available.
+2. **EGL pbuffer** — headless GPU rendering; no display required.
+   Tried when GLFW fails for any reason, including when ``DISPLAY`` is set
+   via ``ssh -Y`` but the forwarded X lacks GLX 3.3.  Requires
+   ``libEGL`` and an accessible ``/dev/dri/renderD*`` device node.
+3. **OSMesa** — CPU software renderer; no GPU required.
+   Used when neither GLFW nor EGL succeeds.
+
+The :mod:`whippersnappy.gl._headless` guard runs before ``OpenGL.GL`` is
+imported and sets ``PYOPENGL_PLATFORM`` appropriately (or defers to EGL).
 """
 # ruff: noqa: I001  — import order is intentional: _headless must precede OpenGL.GL
 
@@ -34,7 +36,7 @@ from PIL import Image  # noqa: E402
 logger = logging.getLogger(__name__)
 
 # Module-level offscreen context handle (None when GLFW is used instead).
-# May hold an OSMesaContext instance on headless environments.
+# May hold an EGLContext or OSMesaContext instance on headless environments.
 _offscreen_context: Any = None
 
 
@@ -134,13 +136,15 @@ def init_window(width, height, title="WhipperSnapPy", visible=True):
 def init_offscreen_context(width, height):
     """Create an invisible OpenGL context for off-screen rendering.
 
-    Always creates an invisible GLFW window — no title is shown.
-    Interactive GUI code calls :func:`init_window` directly with
-    ``visible=True``.
+    Tries three paths in order on Linux; macOS and Windows use GLFW only.
 
-    On Linux, if GLFW fails (no display server), falls back to OSMesa
-    software rendering.  On macOS and Windows, GLFW is the only supported
-    path — a ``RuntimeError`` is raised if it fails.
+    1. **GLFW invisible window** — standard path when a display is available.
+    2. **EGL pbuffer** — headless GPU rendering (Linux only).  Attempted
+       whenever GLFW fails, including when ``DISPLAY`` is set via ``ssh -Y``
+       but the forwarded X server lacks GLX 3.3.  Requires ``libEGL`` and
+       an accessible ``/dev/dri/renderD*`` device node.
+    3. **OSMesa** — CPU software renderer (Linux only).  Used when neither
+       GLFW nor EGL succeeds.
 
     Parameters
     ----------
@@ -152,15 +156,13 @@ def init_offscreen_context(width, height):
     Returns
     -------
     GLFWwindow or None
-        GLFW window handle when GLFW succeeded, ``None`` when OSMesa is used
-        (the context is already current via ``_offscreen_context.make_current()``).
+        GLFW window handle when GLFW succeeded, ``None`` when EGL or OSMesa
+        is used (the context is already current).
 
     Raises
     ------
     RuntimeError
-        If no usable OpenGL context can be created.  On Linux this means
-        both GLFW and OSMesa failed.  On macOS/Windows it means GLFW failed
-        (those platforms have no OSMesa fallback).
+        If no usable OpenGL context can be created.
     """
     global _offscreen_context
 
@@ -169,10 +171,7 @@ def init_offscreen_context(width, height):
     if window:
         return window
 
-    # --- Step 2: OSMesa software rendering (Linux headless only) ---
-    # Only reached on Linux when GLFW failed entirely (no display server).
-    # On macOS and Windows GLFW is the only supported path; raise a clear
-    # platform-specific error instead of a confusing libOSMesa hint.
+    # Steps 2 & 3 are Linux-only.
     if sys.platform != "linux":
         raise RuntimeError(
             "Could not create a GLFW OpenGL context. "
@@ -180,20 +179,38 @@ def init_offscreen_context(width, height):
             "headless rendering). "
             "On Windows ensure a GPU driver or Mesa opengl32.dll is available."
         )
-    # PYOPENGL_PLATFORM=osmesa was set at module import time when no display
-    # was detected, so PyOpenGL uses OSMesaGetProcAddress for all GL calls.
-    logger.info("No display detected — trying OSMesa software rendering (CPU).")
+
+    # --- Step 2: EGL headless GPU rendering ---
+    # Tried whenever GLFW fails: no display, or DISPLAY set but GLX unavailable
+    # (e.g. ssh -Y with software X forwarding that lacks GLX 3.3).
+    from ._headless import egl_device_is_available  # noqa: PLC0415
+    if egl_device_is_available():
+        logger.info("GLFW failed — trying EGL headless GPU rendering.")
+        try:
+            from .egl_context import EGLContext  # noqa: PLC0415
+            ctx = EGLContext(width, height)
+            ctx.make_current()
+            _offscreen_context = ctx
+            logger.info("Using EGL headless context (GPU, no display required).")
+            return None
+        except (ImportError, RuntimeError) as exc:
+            logger.warning("EGL failed (%s) — falling back to OSMesa.", exc)
+
+    # --- Step 3: OSMesa software rendering ---
+    logger.info("Trying OSMesa software rendering (CPU).")
     try:
         from .osmesa_context import OSMesaContext  # noqa: PLC0415
         ctx = OSMesaContext(width, height)
         ctx.make_current()
         _offscreen_context = ctx
-        logger.info("Using OSMesa headless context — no display server or GPU required.")
+        logger.info("Using OSMesa headless context (CPU, no display or GPU required).")
         return None
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError(
-            "Could not create any OpenGL context (tried GLFW invisible window "
-            f"and OSMesa). Last error: {exc}"
+            "Could not create any OpenGL context (tried GLFW, EGL, OSMesa). "
+            f"Last error: {exc}\n"
+            "Install OSMesa:  sudo apt-get install libosmesa6  (Debian/Ubuntu)\n"
+            "              or sudo dnf install mesa-libOSMesa   (RHEL/Fedora)"
         ) from exc
 
 
@@ -223,11 +240,11 @@ def terminate_context(window):
 def capture_window(window):
     """Read the current GL framebuffer and return it as a PIL Image (RGB).
 
-    Works for both GLFW windows and OSMesa headless contexts.  When OSMesa is
-    active (``window`` is ``None``) the pixels are read directly from the
-    OSMesa pixel buffer, which acts as the default framebuffer (FBO 0) — no
-    explicit FBO is created by :class:`~whippersnappy.gl.osmesa_context.OSMesaContext`;
-    in that case there is no HiDPI scaling to account for.
+    Works for GLFW windows and all headless contexts (EGL, OSMesa).  When an
+    offscreen context is active (``window`` is ``None``) pixels are read via
+    ``_offscreen_context.read_pixels()``: EGL reads from its FBO, OSMesa reads
+    from its pixel buffer (the default framebuffer).  In both cases there is no
+    HiDPI scaling to account for.
 
     Parameters
     ----------
@@ -242,7 +259,7 @@ def capture_window(window):
     """
     global _offscreen_context
 
-    # --- OSMesa path: read from the OSMesa pixel buffer (default framebuffer) ---
+    # --- Offscreen path (EGL or OSMesa): delegate to the context's read_pixels() ---
     if _offscreen_context is not None:
         return _offscreen_context.read_pixels()  # type: ignore[union-attr]
 

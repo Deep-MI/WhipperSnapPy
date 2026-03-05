@@ -50,7 +50,8 @@ jobs:
           7z e $archive -o"C:\mesa" "x64\*" -y
           echo "C:\mesa" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         # Rendering strategy per platform:
-        #   Ubuntu:  no display → GLFW fails → OSMesa headless (libosmesa6)
+        #   Ubuntu:  no display → GLFW fails → EGL skipped (no /dev/dri/renderD*)
+        #            → OSMesa headless (libosmesa6) used as final fallback
         #   macOS:   rendering tests SKIPPED — NSGL requires a real display
         #            connection even for invisible windows; CI runners have none
         #   Windows: Mesa opengl32.dll (MSVC build) on PATH → GLFW invisible
