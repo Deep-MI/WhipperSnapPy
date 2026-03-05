@@ -3,11 +3,14 @@
 This package contains the low-level OpenGL helpers used by the renderers:
 
 - :mod:`~whippersnappy.gl._headless` — headless platform detection; sets
-  ``PYOPENGL_PLATFORM`` on headless Linux *before* any ``OpenGL.GL`` import.
-  Imported first here and in every GL submodule so the guard takes effect even
-  when a submodule is imported directly.
+  ``PYOPENGL_PLATFORM`` to ``"egl"`` or ``"osmesa"`` on headless Linux
+  *before* any ``OpenGL.GL`` import.  Imported first here and in every GL
+  submodule so the guard takes effect even when a submodule is imported
+  directly.  PyOpenGL binds its platform backend on the first
+  ``import OpenGL.GL`` and cannot be changed afterwards, so this ordering
+  is critical.
 - :mod:`~whippersnappy.gl.context` — context lifecycle (create, capture, destroy).
-  On Linux tries GLFW → EGL (GPU) → OSMesa (CPU) in order.
+  On Linux tries GLFW → EGL (only when ``PYOPENGL_PLATFORM=egl``) → OSMesa.
 - :mod:`~whippersnappy.gl.egl_context` — EGL headless GPU context (Linux).
 - :mod:`~whippersnappy.gl.osmesa_context` — OSMesa headless CPU context (Linux).
 - :mod:`~whippersnappy.gl.pipeline` — one-time GPU upload: VAO, buffers, uniforms, shader setup.

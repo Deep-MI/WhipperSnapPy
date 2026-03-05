@@ -2,21 +2,23 @@
 
 This module MUST be imported before any ``import OpenGL.GL`` statement in the
 package.  On Linux with no display server it sets ``PYOPENGL_PLATFORM`` so
-that PyOpenGL resolves function pointers via the right backend.
+that PyOpenGL resolves function pointers via the correct backend before
+``OpenGL.GL`` is first imported.
 
 Priority chain when no display is detected (Linux only):
 
 1. **EGL + GPU device** — ``/dev/dri/renderD*`` readable and ``libEGL``
-   loadable.  ``PYOPENGL_PLATFORM`` is left **unset** here so that
-   :mod:`whippersnappy.gl.egl_context` can set it to ``"egl"`` before
-   ``OpenGL.GL`` is imported.
+   loadable.  Sets ``PYOPENGL_PLATFORM=egl`` immediately so that PyOpenGL
+   binds function pointers via EGL when ``OpenGL.GL`` is first imported.
 2. **OSMesa** — CPU software renderer.  Sets ``PYOPENGL_PLATFORM=osmesa``.
 3. **Neither** — raises ``RuntimeError`` with install instructions.
 
-When GLFW fails even though ``DISPLAY`` is set (e.g. ``ssh -Y`` with a
-forwarded X that lacks GLX 3.3), ``PYOPENGL_PLATFORM`` is already bound to
-whatever was set at import time.  :func:`init_offscreen_context` handles
-this by trying EGL as a second step after GLFW failure, before OSMesa.
+When ``DISPLAY`` is set (e.g. normal desktop or ``ssh -Y``), ``_headless``
+does not intervene: GLFW is tried first in :func:`init_offscreen_context`.
+If GLFW fails (e.g. GLX 3.3 unavailable on the forwarded display), EGL is
+attempted only when ``PYOPENGL_PLATFORM`` was already set to ``"egl"`` by
+this module at import time — i.e. only for the no-display + EGL-device case.
+In all other GLFW-failure scenarios, OSMesa is used as the final fallback.
 
 No OpenGL, GLFW, or other heavy imports are done here — only stdlib.
 """
@@ -78,11 +80,13 @@ if (
     and not os.environ.get("WAYLAND_DISPLAY")
 ):
     if egl_device_is_available():
-        # Defer: egl_context.py will set PYOPENGL_PLATFORM=egl before importing
-        # OpenGL.GL.  Do NOT set osmesa here or GL will bind to the wrong backend.
+        # Set PYOPENGL_PLATFORM=egl NOW, before OpenGL.GL is imported anywhere.
+        # PyOpenGL selects its platform backend on first import and cannot be
+        # changed afterwards; deferring to egl_context.py would mean OpenGL.GL
+        # is already bound to the wrong backend by the time EGL is tried.
+        os.environ["PYOPENGL_PLATFORM"] = "egl"
         logger.debug(
-            "No display, EGL + GPU device available — "
-            "deferring platform selection to EGL context creation."
+            "No display, EGL + GPU device available — PYOPENGL_PLATFORM=egl set."
         )
     elif _osmesa_is_available():
         os.environ["PYOPENGL_PLATFORM"] = "osmesa"
@@ -109,6 +113,6 @@ if (
 elif sys.platform == "linux":
     _display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     logger.debug(
-        "Display set (%s) — will try GLFW; EGL on failure if GPU device available.",
+        "Display set (%s) — will try GLFW first.",
         _display,
     )
