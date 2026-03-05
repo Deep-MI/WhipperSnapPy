@@ -228,14 +228,14 @@ def terminate_context(window):
     """Release the active OpenGL context regardless of how it was created.
 
     This is a drop-in replacement for ``glfw.terminate()`` that also
-    handles the OSMesa headless path.  Call it at the end of every rendering
-    function instead of calling ``glfw.terminate()`` directly.
+    handles EGL and OSMesa headless paths.  Call it at the end of every
+    rendering function instead of calling ``glfw.terminate()`` directly.
 
     Parameters
     ----------
     window : GLFWwindow or None
         The GLFW window handle returned by :func:`init_offscreen_context`,
-        or ``None`` when an OSMesa context is active.
+        or ``None`` when an EGL or OSMesa offscreen context is active.
     """
     global _offscreen_context
     if _offscreen_context is not None:
@@ -259,7 +259,8 @@ def capture_window(window):
     Parameters
     ----------
     window : GLFWwindow or None
-        GLFW window handle, or ``None`` when an OSMesa context is active.
+        GLFW window handle, or ``None`` when an EGL or OSMesa offscreen
+        context is active.
 
     Returns
     -------
