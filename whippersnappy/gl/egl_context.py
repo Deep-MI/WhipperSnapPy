@@ -33,11 +33,21 @@ if sys.platform == "darwin":
 # PYOPENGL_PLATFORM=egl should already be set by _headless.py before
 # OpenGL.GL was first imported in this process.  This guard is a safety net
 # for the case where egl_context is imported in isolation (e.g. in tests).
-if os.environ.get("PYOPENGL_PLATFORM") != "egl":
+_current_platform = os.environ.get("PYOPENGL_PLATFORM")
+if _current_platform is None:
     os.environ["PYOPENGL_PLATFORM"] = "egl"
+elif _current_platform != "egl":
+    raise RuntimeError(
+        f"PYOPENGL_PLATFORM is already set to {_current_platform!r}, "
+        "but whippersnappy.gl.egl_context requires 'egl'. "
+        "Importing egl_context with a different platform already bound would "
+        "cause silent GL function-pointer mismatches. "
+        "Unset PYOPENGL_PLATFORM or set it to 'egl' before importing any "
+        "OpenGL modules."
+    )
 
-import OpenGL.GL as gl
-from PIL import Image
+import OpenGL.GL as gl  # noqa: E402
+from PIL import Image  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
