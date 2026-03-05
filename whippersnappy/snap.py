@@ -453,10 +453,11 @@ def snap4(
                 logger.debug("bg_map=%s exists=%s", bg_map, os.path.exists(bg_map))
 
             try:
-                meshdata, triangles, fthresh, fmax, pos, neg = prepare_and_validate_geometry(
+                meshdata, triangles, out_fthresh, out_fmax, pos, neg = prepare_and_validate_geometry(
                     mesh, overlay, annot, bg_map, roi, fthresh, fmax, invert,
                     scale=scale, color_mode=color_mode
                 )
+                logger.debug("hemi=%s thresholds used: fthresh=%s fmax=%s", hemi, out_fthresh, out_fmax)
             except Exception as e:
                 logger.error("prepare_geometry failed for %s: %s", mesh, e)
                 raise
