@@ -13,11 +13,11 @@ import warnings
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
-
 from ..utils.colormap import binary_color, heat_color, mask_sign, rescale_overlay
 from ..utils.types import ColorSelection
 from .inputs import resolve_annot, resolve_bg_map, resolve_mesh, resolve_overlay, resolve_roi
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_mesh(v, scale=1.0):
