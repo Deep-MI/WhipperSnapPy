@@ -13,8 +13,22 @@ in :mod:`whippersnappy.gl.__init__` ensures the variable is always set in time,
 regardless of which submodule a caller imports first.
 
 No OpenGL, GLFW, or other heavy imports are done here — only stdlib.
+
+SSH sessions
+------------
+If you connect via SSH to a machine with a running X server and want GPU
+rendering rather than OSMesa, set ``DISPLAY`` before running::
+
+    export DISPLAY=:1   # or whichever display the X server is on
+    python my_script.py
+
+Without an explicit ``DISPLAY``, whippersnappy falls back to OSMesa (CPU
+software rendering) automatically so that scripts work without any setup on
+headless servers.  OSMesa requires ``libosmesa6`` (Debian/Ubuntu) or
+``mesa-libOSMesa`` (RHEL/Fedora) to be installed as a system package.
 """
 
+import ctypes
 import logging
 import os
 import sys
@@ -22,20 +36,15 @@ import sys
 logger = logging.getLogger(__name__)
 
 
-def _find_x_display():
-    """Return the first running X display found via /tmp/.X<n>-lock, or None."""
-    import glob
-    locks = sorted(glob.glob("/tmp/.X*-lock"))
-    for lock in locks:
-        # Lock filename is /tmp/.X<n>-lock  →  display is :<n>
-        name = os.path.basename(lock)  # .X1-lock
+def _osmesa_is_available():
+    """Return True if libOSMesa can be loaded via ctypes."""
+    for name in ("libOSMesa.so.8", "libOSMesa.so", "OSMesa"):
         try:
-            n = name[2:name.index("-lock")]
-            if n.isdigit():
-                return f":{n}"
-        except ValueError:
+            ctypes.CDLL(name)
+            return True
+        except OSError:
             continue
-    return None
+    return False
 
 
 if (
@@ -44,18 +53,24 @@ if (
     and not os.environ.get("DISPLAY")
     and not os.environ.get("WAYLAND_DISPLAY")
 ):
-    # Common in SSH sessions: the workstation has a running X server but the
-    # session didn't inherit DISPLAY.  Try to auto-detect it so that GLFW
-    # (GPU rendering) works without the user needing to export DISPLAY manually.
-    detected = _find_x_display()
-    if detected:
-        os.environ["DISPLAY"] = detected
-        logger.debug(
-            "No DISPLAY set; auto-detected X display %s from lock file. "
-            "Set DISPLAY explicitly to override.",
-            detected,
-        )
-    else:
-        # Truly headless — fall back to OSMesa CPU rendering.
+    if _osmesa_is_available():
         os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+        logger.debug("No display detected — using OSMesa software rendering (CPU).")
+    else:
+        raise RuntimeError(
+            "whippersnappy requires an OpenGL context but none could be found.\n"
+            "\n"
+            "No display server detected (DISPLAY / WAYLAND_DISPLAY are unset) "
+            "and the OSMesa software renderer is not installed.\n"
+            "\n"
+            "To fix this, choose one of:\n"
+            "  1. Install OSMesa (recommended for headless/SSH use):\n"
+            "       Debian/Ubuntu:  sudo apt-get install libosmesa6\n"
+            "       RHEL/Fedora:    sudo dnf install mesa-libOSMesa\n"
+            "  2. Set DISPLAY if a local X server is running:\n"
+            "       export DISPLAY=:1\n"
+        )
+else:
+    _display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY") or "n/a"
+    logger.debug("Display detected (%s) — using GLFW/GPU rendering.", _display)
 
