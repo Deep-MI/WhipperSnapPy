@@ -30,9 +30,9 @@ import sys
 if sys.platform == "darwin":
     raise ImportError("EGL is not available on macOS; use GLFW/CGL instead.")
 
-# Must be set before OpenGL.GL is imported anywhere in the process.
-# If already set (e.g. user set it, or GLFW succeeded), respect it.
-# We set it here because this module is only imported when EGL is needed.
+# PYOPENGL_PLATFORM=egl should already be set by _headless.py before
+# OpenGL.GL was first imported in this process.  This guard is a safety net
+# for the case where egl_context is imported in isolation (e.g. in tests).
 if os.environ.get("PYOPENGL_PLATFORM") != "egl":
     os.environ["PYOPENGL_PLATFORM"] = "egl"
 

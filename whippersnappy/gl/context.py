@@ -3,22 +3,26 @@
 Owns the full lifecycle of an OpenGL context — creation, scene rendering,
 framebuffer capture, and teardown.
 
-Context creation tries three paths in order (Linux; macOS/Windows use GLFW only):
+Context creation tries up to three paths (Linux; macOS/Windows use GLFW only):
 
 1. **GLFW invisible window** — standard path when a display is available.
-2. **EGL pbuffer** — headless GPU rendering; no display required.
-   Tried when GLFW fails for any reason, including when ``DISPLAY`` is set
-   via ``ssh -Y`` but the forwarded X lacks GLX 3.3.  Requires
-   ``libEGL`` and an accessible ``/dev/dri/renderD*`` device node.
-3. **OSMesa** — CPU software renderer; no GPU required.
+2. **EGL pbuffer** — headless GPU rendering (Linux, no display needed).
+   Only used when :mod:`~whippersnappy.gl._headless` set
+   ``PYOPENGL_PLATFORM=egl`` at import time (no display + accessible
+   ``/dev/dri/renderD*``).  PyOpenGL selects its platform backend on the
+   first ``import OpenGL.GL`` and cannot be changed afterwards — so EGL is
+   only safe when it was selected before any ``OpenGL.GL`` import.
+3. **OSMesa** — CPU software renderer (Linux only).
    Used when neither GLFW nor EGL succeeds.
 
 The :mod:`whippersnappy.gl._headless` guard runs before ``OpenGL.GL`` is
-imported and sets ``PYOPENGL_PLATFORM`` appropriately (or defers to EGL).
+imported and sets ``PYOPENGL_PLATFORM`` to ``"egl"`` or ``"osmesa"``
+as appropriate.
 """
 # ruff: noqa: I001  — import order is intentional: _headless must precede OpenGL.GL
 
 import logging
+import os
 import sys
 import warnings
 from typing import Any
@@ -136,15 +140,18 @@ def init_window(width, height, title="WhipperSnapPy", visible=True):
 def init_offscreen_context(width, height):
     """Create an invisible OpenGL context for off-screen rendering.
 
-    Tries three paths in order on Linux; macOS and Windows use GLFW only.
+    Tries up to three paths on Linux; macOS and Windows use GLFW only.
 
     1. **GLFW invisible window** — standard path when a display is available.
-    2. **EGL pbuffer** — headless GPU rendering (Linux only).  Attempted
-       whenever GLFW fails, including when ``DISPLAY`` is set via ``ssh -Y``
-       but the forwarded X server lacks GLX 3.3.  Requires ``libEGL`` and
-       an accessible ``/dev/dri/renderD*`` device node.
+    2. **EGL pbuffer** — headless GPU rendering (Linux only, no display needed).
+       Only attempted when :mod:`~whippersnappy.gl._headless` already set
+       ``PYOPENGL_PLATFORM=egl`` at import time (i.e. no display detected AND
+       ``/dev/dri/renderD*`` is accessible).  This guarantees ``OpenGL.GL``
+       was bound to the EGL backend before any GL call; attempting EGL after
+       ``OpenGL.GL`` has already been imported with a different backend would
+       silently break function resolution.
     3. **OSMesa** — CPU software renderer (Linux only).  Used when neither
-       GLFW nor EGL succeeds.
+       GLFW nor EGL succeeds, or when ``PYOPENGL_PLATFORM=osmesa`` was set.
 
     Parameters
     ----------
@@ -181,10 +188,13 @@ def init_offscreen_context(width, height):
         )
 
     # --- Step 2: EGL headless GPU rendering ---
-    # Tried whenever GLFW fails: no display, or DISPLAY set but GLX unavailable
-    # (e.g. ssh -Y with software X forwarding that lacks GLX 3.3).
-    from ._headless import egl_device_is_available  # noqa: PLC0415
-    if egl_device_is_available():
+    # Only safe when PYOPENGL_PLATFORM=egl was set by _headless.py before
+    # OpenGL.GL was imported — meaning the process has no display AND an EGL
+    # device was found at import time.  PyOpenGL binds its platform backend on
+    # first import and cannot be switched afterwards; importing egl_context.py
+    # here when PYOPENGL_PLATFORM is already something else (e.g. "osmesa" or
+    # unset/GLX) would cause silent function-pointer mismatches.
+    if os.environ.get("PYOPENGL_PLATFORM") == "egl":
         logger.info("GLFW failed — trying EGL headless GPU rendering.")
         try:
             from .egl_context import EGLContext  # noqa: PLC0415
