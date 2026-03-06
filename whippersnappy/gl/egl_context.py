@@ -22,6 +22,7 @@ Typical usage (internal, called from :func:`~whippersnappy.gl.context.init_offsc
     ctx.destroy()
 """
 
+import contextlib
 import ctypes
 import logging
 import os
@@ -66,6 +67,26 @@ _EGL_CONTEXT_MAJOR_VERSION = 0x3098
 _EGL_CONTEXT_MINOR_VERSION = 0x30FB
 _EGL_PLATFORM_DEVICE_EXT  = 0x313F
 
+
+@contextlib.contextmanager
+def _silence_stderr():
+    """Suppress C-level stderr for the duration of the block.
+
+    Mesa writes DRI/EGL warnings (e.g. "failed to open /dev/dri/renderD128:
+    Permission denied") directly to file descriptor 2, bypassing Python's
+    logging system.  We redirect fd 2 to ``/dev/null`` for calls that are
+    expected to fail (e.g. probing GPU devices without access) so users don't
+    see spurious warnings when the fallback path works fine.
+    """
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    saved = os.dup(2)
+    try:
+        os.dup2(devnull_fd, 2)
+        yield
+    finally:
+        os.dup2(saved, 2)
+        os.close(saved)
+        os.close(devnull_fd)
 
 class EGLContext:
     """A headless OpenGL 3.3 Core context backed by an EGL pbuffer + FBO.
@@ -228,12 +249,18 @@ class EGLContext:
         if def_dpy:
             candidates.append((def_dpy, "default display"))
 
-        # Try each candidate until one succeeds eglInitialize
+        # Try each candidate until one succeeds eglInitialize.
+        # Suppress C-level stderr during attempts that may produce Mesa DRI
+        # warnings ("failed to open /dev/dri/...", "failed to create dri2
+        # screen") — these are expected when a GPU device is found but not
+        # accessible (e.g. Singularity without --nv).
         display = None
         self._display_path = "unknown"
         for dpy, label in candidates:
             major, minor = ctypes.c_int(0), ctypes.c_int(0)
-            if libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor)):
+            with _silence_stderr():
+                ok = libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor))
+            if ok:
                 display = dpy
                 self._display_path = label
                 logger.debug("EGL: initialised via %s (EGL %d.%d).",
@@ -349,9 +376,10 @@ class EGLContext:
 
         results = []
         for dev in hw_devices + sw_devices:
-            dpy = eglGetPlatformDisplayEXT(
-                _EGL_PLATFORM_DEVICE_EXT, ctypes.c_void_p(dev), no_attribs
-            )
+            with _silence_stderr():
+                dpy = eglGetPlatformDisplayEXT(
+                    _EGL_PLATFORM_DEVICE_EXT, ctypes.c_void_p(dev), no_attribs
+                )
             if dpy:
                 results.append((dpy, dev in hw_devices))
         return results  # list of (display, is_hw)
