@@ -16,11 +16,11 @@ Priority chain on Linux when no usable display is detected:
 "No usable display" covers both:
 
 * ``DISPLAY`` / ``WAYLAND_DISPLAY`` are unset entirely.
-* ``DISPLAY`` is set but the X server is unreachable or refuses the
-  connection (e.g. ``ssh -X``/``ssh -Y`` to a machine whose X server
-  does not support GLX 3.3, or a stale/wrong ``DISPLAY`` value).  In
-  these cases GLFW will fail with a GLX error anyway, so we pre-empt it
-  by trying EGL/OSMesa instead.
+* ``DISPLAY`` is set but the X server is unreachable, refuses the
+  connection, or does not provide GLX >= 1.3 (e.g. ``ssh -X``/``ssh -Y``
+  to a server whose software-rendered GLX cannot support OpenGL 3.3 Core
+  Profile).  In these cases GLFW will fail with a GLX error anyway, so we
+  pre-empt it by trying EGL/OSMesa instead.
 
 When ``DISPLAY`` is set **and** the X server is reachable, this module
 does not intervene: GLFW is tried first in
@@ -50,23 +50,27 @@ def _osmesa_is_available():
 
 
 def _display_is_usable():
-    """Return True if the X11 display named by ``DISPLAY`` is actually reachable.
+    """Return True if ``DISPLAY`` points to an X server with usable GLX support.
 
-    Tries to open a connection to the X server via ``XOpenDisplay`` (from
-    ``libX11``) without importing any OpenGL library.  Returns ``False`` when:
+    A display is considered usable only when **all** of the following hold:
 
-    * ``DISPLAY`` is unset or empty.
-    * ``libX11`` cannot be loaded (headless system without X11 client libs).
-    * ``XOpenDisplay`` returns ``NULL`` (server unreachable, access denied,
-      or display string invalid).
+    1. ``DISPLAY`` is set and non-empty.
+    2. ``libX11`` is loadable and ``XOpenDisplay`` succeeds (server reachable).
+    3. ``libGL`` (or ``libGLX``) is loadable and ``glXQueryVersion`` reports
+       GLX >= 1.3.  GLX 1.3 is the minimum needed for modern context creation;
+       older or absent GLX means GLFW will fail with a GLX error regardless.
 
-    A ``True`` result means the X server accepted the connection; GLFW will
-    very likely be able to create a window (though GLX 3.3 availability is
-    not guaranteed — that is discovered later by GLFW itself).
+    Returns ``False`` in all other cases so that ``_headless.py`` falls through
+    to EGL or OSMesa instead of letting GLFW attempt and print GLX warnings.
+
+    Note: Wayland displays (``WAYLAND_DISPLAY``) are not probed here because
+    GLFW handles the Wayland path natively and does not go through GLX.
     """
     display_str = os.environ.get("DISPLAY")
     if not display_str:
         return False
+
+    # --- Step 1: open X connection ---
     for lib_name in ("libX11.so.6", "libX11.so"):
         try:
             libx11 = ctypes.CDLL(lib_name)
@@ -74,18 +78,55 @@ def _display_is_usable():
         except OSError:
             continue
     else:
-        # libX11 not installed — treat as unusable display.
-        return False
+        return False  # libX11 not installed
+
     try:
         libx11.XOpenDisplay.restype = ctypes.c_void_p
         libx11.XOpenDisplay.argtypes = [ctypes.c_char_p]
         dpy = libx11.XOpenDisplay(display_str.encode())
-        if dpy:
-            libx11.XCloseDisplay(dpy)
-            return True
-        return False
     except Exception:  # noqa: BLE001
         return False
+    if not dpy:
+        return False  # X server unreachable / access denied
+
+    # --- Step 2: check GLX version ---
+    glx_ok = False
+    for lib_name in ("libGL.so.1", "libGL.so", "libGLX.so.0", "libGLX.so"):
+        try:
+            libgl = ctypes.CDLL(lib_name)
+            break
+        except OSError:
+            continue
+    else:
+        libgl = None
+
+    if libgl is not None:
+        try:
+            major = ctypes.c_int(0)
+            minor = ctypes.c_int(0)
+            libgl.glXQueryVersion.restype = ctypes.c_int
+            libgl.glXQueryVersion.argtypes = [
+                ctypes.c_void_p,
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_int),
+            ]
+            ok = libgl.glXQueryVersion(dpy, ctypes.byref(major), ctypes.byref(minor))
+            if ok and (major.value, minor.value) >= (1, 3):
+                glx_ok = True
+            else:
+                logger.debug(
+                    "GLX version %d.%d on %s is too old or unavailable (need >= 1.3).",
+                    major.value, minor.value, display_str,
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+    try:
+        libx11.XCloseDisplay(dpy)
+    except Exception:  # noqa: BLE001
+        pass
+
+    return glx_ok
 
 
 def egl_device_is_available():
