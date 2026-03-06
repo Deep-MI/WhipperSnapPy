@@ -1,5 +1,10 @@
 FROM python:3.11-slim
 
+# Suppress Mesa's shader-cache warning ("Failed to create //.cache …") that
+# appears when running as a non-standard user inside Docker where $HOME is
+# unset or points to a non-writable directory.
+ENV MESA_SHADER_CACHE_DISABLE=1
+
 # libosmesa6  — OSMesa CPU software renderer (default headless path, no GPU needed)
 # libegl1      — EGL dispatch library; enables GPU rendering when /dev/dri/renderD*
 #                is passed via --device (e.g. docker run --device /dev/dri/renderD128)
