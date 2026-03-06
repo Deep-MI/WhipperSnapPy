@@ -33,18 +33,15 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering on **Linux** uses a three-path priority chain:
-1. **EGL** (GPU, preferred) — used whenever a GPU render device
-   (`/dev/dri/renderD*`) is present and `libEGL` is installed (`libegl1` on
-   Debian/Ubuntu).  Works with or without a display server, including plain
-   SSH sessions and `ssh -X`/`ssh -Y` forwards where GLX is unavailable.
-   No `DISPLAY`, `xvfb`, or OSMesa required.
-2. **OSMesa** (CPU software renderer) — used when no EGL device is found;
+Off-screen (headless) rendering on **Linux** uses a two-path priority chain:
+1. **EGL** (preferred) — used whenever `libEGL` is installed (`libegl1` on
+   Debian/Ubuntu).  EGL handles both GPU rendering (when a GPU is present)
+   and CPU software rendering via Mesa's llvmpipe — no `/dev/dri` device or
+   display server required.  Works in Docker without `--device`, in
+   Singularity, and over plain SSH (with or without `-X`/`-Y`).
+2. **OSMesa** (CPU fallback) — used only when `libEGL` is not installed;
    requires `sudo apt-get install libosmesa6` (Debian/Ubuntu) or
    `sudo dnf install mesa-libOSMesa` (RHEL/Fedora).
-3. **GLFW invisible window** — fallback on Linux when neither EGL nor OSMesa
-   is available and a display is set; also the primary path on macOS and
-   Windows.
 
 On **Windows**, GLFW creates an invisible window; a GPU driver is sufficient.
 On **macOS**, a real display connection is required (NSGL does not support

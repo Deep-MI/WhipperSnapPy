@@ -1,10 +1,11 @@
 # Docker Guide
 
-The Docker image provides a fully headless rendering environment.  It
-automatically uses **EGL** (GPU rendering) when a render device is passed in,
-or falls back to **OSMesa** (CPU software renderer) otherwise — no display
-server or `xvfb` required in either case.  Both `libegl1` and `libosmesa6`
-are pre-installed in the image.
+The Docker image provides a fully headless rendering environment using
+**EGL** — no display server, `xvfb`, or `--device` flag required.  EGL uses
+Mesa's llvmpipe CPU renderer by default, and automatically switches to GPU
+rendering when a GPU device is passed via `--device`.  `libegl1` is
+pre-installed; `libosmesa6` is also included as a fallback for systems where
+EGL is unavailable.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -189,22 +190,14 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Default rendering** uses **EGL** (GPU) when `/dev/dri/renderD*` is
-  accessible, or **OSMesa** (CPU software renderer, `libosmesa6`) otherwise.
-  Both `libegl1` and `libosmesa6` are pre-installed in the image — no extra
-  setup is needed.
-- **GPU rendering via EGL** requires passing the render device **and** the
-  render group into the container.  On the host, `systemd-logind` grants the
-  logged-in user direct access to `/dev/dri/renderD*` via a POSIX ACL
-  (visible as the `+` in `ls -l`), so no group membership is needed natively.
-  Inside Docker there is no login session, so only traditional DAC permissions
-  apply — the process must belong to the `render` group to open the device.
-  The `--user $(id -u):$(id -g)` flag passes only the primary group; add
-  `--group-add` for the render group separately:
+- **Default rendering** uses **EGL** with Mesa's llvmpipe CPU renderer — no
+  GPU or `/dev/dri/` device is needed.  `libegl1` is pre-installed in the
+  image; no extra flags required.
+- **GPU rendering** is selected automatically by EGL when you pass the render
+  device into the container (optional — only needed for hardware acceleration):
   ```bash
   docker run --rm --init \
     --device /dev/dri/renderD128 \
-    --group-add render \
     --user $(id -u):$(id -g) \
     -v /path/to/subject:/subject \
     -v /path/to/output:/output \
@@ -212,9 +205,5 @@ parent directory to retrieve them on the host.
     -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
     -sd /subject -o /output/snap4.png
   ```
-  The image pre-creates a `render` group with GID 103 (Debian/Ubuntu default).
-  If your host uses a different GID, replace `--group-add render` with
-  `--group-add $(getent group render | cut -d: -f3)`.
-- Without `--device`, WhipperSnapPy falls back to **OSMesa** (CPU) automatically.
-  No GPU or `/dev/dri/` device needed for CPU rendering.
+
 

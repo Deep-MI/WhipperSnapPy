@@ -20,12 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-# Create a 'render' group (GID 103, matching Debian/Ubuntu default) so that
-# GPU EGL rendering works when the host render device is passed in via
-#   docker run --device /dev/dri/renderD128 --group-add render ...
-# If the host render group has a different GID use --group-add <GID> instead.
-RUN groupadd -g 103 render 2>/dev/null || true
-
 RUN pip install --upgrade pip
 
 COPY . /WhipperSnapPy

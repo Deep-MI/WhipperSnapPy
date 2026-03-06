@@ -143,16 +143,17 @@ def init_offscreen_context(width, height):
     Tries up to three paths on Linux; macOS and Windows use GLFW only.
 
     1. **GLFW invisible window** — used when ``PYOPENGL_PLATFORM`` is not
-       ``"egl"`` (i.e. macOS, Windows, or Linux without EGL).  Skipped on
-       Linux when EGL was selected at import time to avoid spurious GLX
-       warnings from a forwarded or software-rendered display.
-    2. **EGL pbuffer** — headless GPU rendering (Linux only).  Attempted when
-       :mod:`~whippersnappy.gl._headless` set ``PYOPENGL_PLATFORM=egl`` at
-       import time, which happens whenever an EGL-capable GPU device is
-       present (``/dev/dri/renderD*`` + ``libEGL``), regardless of whether
-       ``DISPLAY`` is set.
-    3. **OSMesa** — CPU software renderer (Linux only).  Used when neither
-       GLFW nor EGL succeeds, or when ``PYOPENGL_PLATFORM=osmesa`` was set.
+       ``"egl"`` (i.e. a display is available and EGL was not pre-selected).
+       Skipped on Linux when EGL was selected at import time to avoid spurious
+       GLX warnings.
+    2. **EGL** — used when ``PYOPENGL_PLATFORM=egl`` was set by
+       :mod:`~whippersnappy.gl._headless` at import time (no display detected
+       and ``libEGL`` is installed).  EGL handles both GPU and CPU (llvmpipe)
+       rendering without needing ``/dev/dri`` access — works in Docker without
+       ``--device``.
+    3. **OSMesa** — CPU software renderer (Linux only).  Used when EGL is not
+       installed (``PYOPENGL_PLATFORM=osmesa``) or when EGL context creation
+       fails.
 
     Parameters
     ----------
@@ -191,18 +192,18 @@ def init_offscreen_context(width, height):
             "On Windows ensure a GPU driver or Mesa opengl32.dll is available."
         )
 
-    # --- Step 2: EGL headless GPU rendering ---
-    # PYOPENGL_PLATFORM=egl was set by _headless.py at import time whenever
-    # an EGL-capable device was found (regardless of DISPLAY).  PyOpenGL is
-    # already bound to EGL, so this is safe to call directly.
+    # --- Step 2: EGL headless rendering ---
+    # PYOPENGL_PLATFORM=egl was set by _headless.py before OpenGL.GL was
+    # imported (no display detected + libEGL available).  PyOpenGL is already
+    # bound to EGL; GLFW was intentionally skipped above.
     if os.environ.get("PYOPENGL_PLATFORM") == "egl":
-        logger.info("GLFW failed — trying EGL headless GPU rendering.")
+        logger.debug("Using EGL headless context.")
         try:
             from .egl_context import EGLContext  # noqa: PLC0415
             ctx = EGLContext(width, height)
             ctx.make_current()
             _offscreen_context = ctx
-            logger.info("Using EGL headless context (GPU, no display required).")
+            logger.info("Using EGL headless context (no display required).")
             return None
         except (ImportError, RuntimeError) as exc:
             logger.warning("EGL failed (%s) — falling back to OSMesa.", exc)
