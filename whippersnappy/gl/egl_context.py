@@ -175,28 +175,51 @@ class EGLContext:
         client_exts = libegl.eglQueryString(None, _EGL_EXTENSIONS) or b""
         logger.debug("EGL client extensions: %s", client_exts.decode())
 
-        has_device_enum = b"EGL_EXT_device_enumeration" in client_exts
         has_platform_base = b"EGL_EXT_platform_base" in client_exts
+        has_device_enum   = b"EGL_EXT_device_enumeration" in client_exts
+        has_surfaceless   = b"EGL_MESA_platform_surfaceless" in client_exts
 
-        display = None
-        if has_device_enum and has_platform_base:
-            eglQueryDevicesEXT = self._get_ext_fn(
-                "eglQueryDevicesEXT",
-                ctypes.c_bool,
-                [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
-            )
+        eglGetPlatformDisplayEXT = None
+        if has_platform_base:
             eglGetPlatformDisplayEXT = self._get_ext_fn(
                 "eglGetPlatformDisplayEXT",
                 ctypes.c_void_p,
+                [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
+            )
+
+        _EGL_NONE = 0x3038
+        no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
+        display = None
+
+        # --- Path 1: EGL_MESA_platform_surfaceless ---
+        # Truly headless: no display server, no GPU needed (llvmpipe).
+        # The reliable path inside Docker without --device on Mesa stacks.
+        _EGL_PLATFORM_SURFACELESS = 0x31DD
+        if eglGetPlatformDisplayEXT and has_surfaceless and display is None:
+            candidate = eglGetPlatformDisplayEXT(
+                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
+            )
+            if candidate:
+                logger.debug("EGL: trying surfaceless platform display.")
+                display = candidate
+
+        # --- Path 2: EGL_EXT_device_enumeration ---
+        # Enumerate GPU devices directly — works headlessly when GPU present.
+        if has_device_enum and eglGetPlatformDisplayEXT and display is None:
+            eglQueryDevicesEXT = self._get_ext_fn(
+                "eglQueryDevicesEXT",
+                ctypes.c_bool,
                 [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
             )
             display = self._open_device_display(
                 eglQueryDevicesEXT, eglGetPlatformDisplayEXT
             )
 
+        # --- Path 3: EGL_DEFAULT_DISPLAY ---
+        # Works only when a display server (X11/Wayland) is reachable.
         if display is None:
-            logger.debug("Falling back to eglGetDisplay(EGL_DEFAULT_DISPLAY)")
-            libegl.eglGetDisplay.restype = ctypes.c_void_p
+            logger.debug("EGL: trying EGL_DEFAULT_DISPLAY.")
+            libegl.eglGetDisplay.restype  = ctypes.c_void_p
             libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
             display = libegl.eglGetDisplay(ctypes.c_void_p(0))
 

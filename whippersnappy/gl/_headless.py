@@ -48,18 +48,19 @@ def _egl_is_available():
 
 
 def _egl_context_works():
-    """Probe EGL via ctypes to confirm a context can actually be created.
+    """Probe EGL via ctypes to confirm a context can actually be created headlessly.
 
-    Calls ``eglGetDisplay(EGL_DEFAULT_DISPLAY)`` + ``eglInitialize`` only —
-    no ``OpenGL.GL`` import, no ``PYOPENGL_PLATFORM`` change.  Returns
-    ``True`` only when EGL is loadable **and** a display can be initialised.
-    This means both the GPU path (real device) and the CPU path (llvmpipe)
-    are confirmed before we commit to ``PYOPENGL_PLATFORM=egl``.
+    Tries display-independent EGL paths in order:
 
-    If this returns ``False``, callers should fall back to OSMesa so that
-    ``OpenGL.GL`` is imported with the correct backend on its first import —
-    mixing EGL-bound function pointers with an OSMesa context causes silent
-    failures.
+    1. ``EGL_MESA_platform_surfaceless`` — Mesa-specific, works with no display
+       server and no GPU (llvmpipe).  The reliable headless path on Mesa stacks.
+    2. ``EGL_EXT_device_enumeration`` — enumerate GPU devices directly; works
+       without a display server when a GPU is present.
+    3. ``eglGetDisplay(EGL_DEFAULT_DISPLAY)`` — last resort; only succeeds when
+       a display server is reachable (i.e. ``DISPLAY`` is set).
+
+    No ``OpenGL.GL`` import and no ``PYOPENGL_PLATFORM`` change are made.
+    Returns ``True`` only when EGL can actually initialise a display.
     """
     for lib_name in ("libEGL.so.1", "libEGL.so"):
         try:
@@ -68,13 +69,18 @@ def _egl_context_works():
         except OSError:
             continue
     else:
+        logger.debug("EGL probe: libEGL not loadable.")
         return False
 
     try:
-        libegl.eglGetDisplay.restype  = ctypes.c_void_p
-        libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
-        libegl.eglInitialize.restype  = ctypes.c_bool
-        libegl.eglInitialize.argtypes = [
+        libegl.eglGetProcAddress.restype  = ctypes.c_void_p
+        libegl.eglGetProcAddress.argtypes = [ctypes.c_char_p]
+        libegl.eglQueryString.restype     = ctypes.c_char_p
+        libegl.eglQueryString.argtypes    = [ctypes.c_void_p, ctypes.c_int]
+        libegl.eglGetDisplay.restype      = ctypes.c_void_p
+        libegl.eglGetDisplay.argtypes     = [ctypes.c_void_p]
+        libegl.eglInitialize.restype      = ctypes.c_bool
+        libegl.eglInitialize.argtypes     = [
             ctypes.c_void_p,
             ctypes.POINTER(ctypes.c_int),
             ctypes.POINTER(ctypes.c_int),
@@ -82,20 +88,84 @@ def _egl_context_works():
         libegl.eglTerminate.restype  = ctypes.c_bool
         libegl.eglTerminate.argtypes = [ctypes.c_void_p]
 
-        dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))  # EGL_DEFAULT_DISPLAY
-        if not dpy:
-            logger.debug("EGL probe: eglGetDisplay returned NULL.")
-            return False
-        major, minor = ctypes.c_int(0), ctypes.c_int(0)
-        ok = libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor))
-        libegl.eglTerminate(dpy)
-        if ok:
-            logger.debug("EGL probe: eglInitialize succeeded (EGL %d.%d).",
-                         major.value, minor.value)
+        _EGL_EXTENSIONS      = 0x3055
+        _EGL_NONE            = 0x3038
+        _EGL_PLATFORM_DEVICE = 0x313F
+
+        def _try_init(dpy):
+            if not dpy:
+                return False
+            major, minor = ctypes.c_int(0), ctypes.c_int(0)
+            ok = libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor))
+            libegl.eglTerminate(dpy)
+            if ok:
+                logger.debug("EGL probe: eglInitialize OK (EGL %d.%d).",
+                             major.value, minor.value)
+            return bool(ok)
+
+        client_exts = libegl.eglQueryString(None, _EGL_EXTENSIONS) or b""
+        logger.debug("EGL client extensions: %s", client_exts.decode())
+
+        _GetPlatformDisplayEXT = None
+        if b"EGL_EXT_platform_base" in client_exts:
+            addr = libegl.eglGetProcAddress(b"eglGetPlatformDisplayEXT")
+            if addr:
+                _GetPlatformDisplayEXT = ctypes.CFUNCTYPE(
+                    ctypes.c_void_p,
+                    ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int),
+                )(addr)
+
+        no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
+
+        # --- Path 1: EGL_MESA_platform_surfaceless ---
+        # Truly headless: no display server, no GPU needed (llvmpipe).
+        # Present on Mesa stacks (EGL_MESA_platform_surfaceless extension).
+        _EGL_PLATFORM_SURFACELESS = 0x31DD
+        if _GetPlatformDisplayEXT and b"EGL_MESA_platform_surfaceless" in client_exts:
+            dpy = _GetPlatformDisplayEXT(
+                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
+            )
+            if _try_init(dpy):
+                logger.debug("EGL probe: surfaceless platform succeeded.")
+                return True
+
+        # --- Path 2: EGL_EXT_device_enumeration ---
+        # Enumerate GPU devices directly — works headlessly when GPU present.
+        if (_GetPlatformDisplayEXT
+                and b"EGL_EXT_device_enumeration" in client_exts):
+            addr = libegl.eglGetProcAddress(b"eglQueryDevicesEXT")
+            if addr:
+                _QueryDevices = ctypes.CFUNCTYPE(
+                    ctypes.c_bool,
+                    ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int),
+                )(addr)
+                n = ctypes.c_int(0)
+                if _QueryDevices(0, None, ctypes.byref(n)) and n.value > 0:
+                    devices = (ctypes.c_void_p * n.value)()
+                    _QueryDevices(n.value, devices, ctypes.byref(n))
+                    for dev in devices:
+                        dpy = _GetPlatformDisplayEXT(
+                            _EGL_PLATFORM_DEVICE,
+                            ctypes.c_void_p(dev),
+                            no_attribs,
+                        )
+                        if _try_init(dpy):
+                            logger.debug("EGL probe: device enumeration succeeded.")
+                            return True
+
+        # --- Path 3: EGL_DEFAULT_DISPLAY ---
+        # Works only when a display server is reachable (DISPLAY set).
+        # Last resort — will fail headlessly on X11-linked Mesa builds.
+        dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))
+        if _try_init(dpy):
+            logger.debug("EGL probe: EGL_DEFAULT_DISPLAY succeeded.")
             return True
-        logger.debug("EGL probe: eglInitialize failed.")
+
+        logger.info("EGL probe: no EGL display could be initialised — will use OSMesa.")
         return False
-    except Exception:  # noqa: BLE001
+
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("EGL probe: unexpected error (%s) — will use OSMesa.", exc)
         return False
 
 
@@ -122,10 +192,10 @@ if sys.platform == "linux" and "PYOPENGL_PLATFORM" not in os.environ:
         # binds its function pointers on first import and cannot be re-bound.
         if _egl_context_works():
             os.environ["PYOPENGL_PLATFORM"] = "egl"
-            logger.debug("No display; EGL probe succeeded — PYOPENGL_PLATFORM=egl set.")
+            logger.info("No display detected; EGL available — using EGL headless rendering.")
         elif _osmesa_is_available():
             os.environ["PYOPENGL_PLATFORM"] = "osmesa"
-            logger.debug("No display; EGL unavailable — PYOPENGL_PLATFORM=osmesa set.")
+            logger.info("No display detected; EGL unavailable — using OSMesa CPU rendering.")
         else:
             raise RuntimeError(
                 "whippersnappy requires an OpenGL context but none could be found.\n"

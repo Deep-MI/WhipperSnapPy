@@ -1,11 +1,10 @@
 # Docker Guide
 
 The Docker image provides a fully headless rendering environment using
-**EGL** — no display server, `xvfb`, or `--device` flag required.  EGL uses
-Mesa's llvmpipe CPU renderer by default, and automatically switches to GPU
-rendering when a GPU device is passed via `--device`.  `libegl1` is
-pre-installed; `libosmesa6` is also included as a fallback for systems where
-EGL is unavailable.
+**EGL** — no display server or `xvfb` required.  Without `--device`, EGL
+renders via Mesa's llvmpipe (CPU); with `--device /dev/dri/renderD128` it
+uses the GPU.  `libosmesa6` is also included as a last-resort fallback for
+the rare case where EGL itself cannot initialise.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -190,9 +189,14 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Default rendering** uses **EGL** with Mesa's llvmpipe CPU renderer — no
-  GPU or `/dev/dri/` device is needed.  `libegl1` is pre-installed in the
-  image; no extra flags required.
+- **Default rendering** uses **EGL**.  Without `--device`, EGL uses Mesa's
+  software rasterizer (llvmpipe) for CPU rendering — no GPU required.  With
+  `--device /dev/dri/renderD128`, EGL uses the GPU automatically.  `libegl1`
+  is pre-installed in the image; no extra flags required.
+- **OSMesa** is included (`libosmesa6`) as a last-resort fallback only for
+  the rare case where EGL itself fails to initialise (e.g. a stripped-down
+  base image without Mesa's EGL backend).  Under normal circumstances EGL
+  handles both the GPU and CPU rendering paths.
 - **GPU rendering** is selected automatically by EGL when you pass the render
   device into the container (optional — only needed for hardware acceleration):
   ```bash
