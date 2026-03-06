@@ -33,10 +33,18 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering on **Linux** is supported natively via
-OSMesa — no `xvfb` or GPU required.  On **Windows**, GLFW creates an
-invisible window; a GPU driver is sufficient — no display needed.  On
-**macOS**, a real display connection is required (NSGL does not support
+Off-screen (headless) rendering on **Linux** uses a three-path fallback:
+1. **GLFW invisible window** — used when a display is available (`DISPLAY` set).
+2. **EGL** (GPU, no display needed) — used when no display is detected and a
+   GPU render device (`/dev/dri/renderD*`) is accessible with `libEGL` installed
+   (`libegl1` on Debian/Ubuntu).  This is the recommended path for SSH servers
+   with a GPU — no `DISPLAY`, `xvfb`, or OSMesa required.
+3. **OSMesa** (CPU software renderer) — final fallback; requires
+   `sudo apt-get install libosmesa6` (Debian/Ubuntu) or
+   `sudo dnf install mesa-libOSMesa` (RHEL/Fedora).
+
+On **Windows**, GLFW creates an invisible window; a GPU driver is sufficient.
+On **macOS**, a real display connection is required (NSGL does not support
 headless rendering).
 See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.
 
@@ -209,8 +217,9 @@ See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
 
 ## Docker
 
-The Docker image provides a fully headless OSMesa rendering environment — no
-display server, `xvfb`, or GPU required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.
+The Docker image provides a fully headless rendering environment using
+OSMesa (CPU software renderer) — no display server, `xvfb`, or GPU required.
+See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.
 
 ## API Documentation
 
