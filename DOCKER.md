@@ -1,14 +1,13 @@
-# Docker Guide
+# Docker / Singularity Guide
 
 The Docker image provides a fully headless rendering environment using
 **EGL** with Mesa's llvmpipe CPU software renderer — no GPU, display server,
-or `xvfb` required.  AMD/Intel GPU rendering is available via
-`--device /dev/dri/renderD128`.  NVIDIA GPU OpenGL rendering in Docker
-requires an `nvidia/opengl`-based image and is not supported in this image;
-CPU rendering is the intended headless path and is fast enough for all
-snapshot and video tasks.
+or `xvfb` required.  This is fast enough for all snapshot and video tasks.
 `libosmesa6` is also included as a last-resort fallback if EGL cannot
 initialise.
+
+For **Singularity/Apptainer**, passing `--nv` enables GPU rendering via EGL
+automatically — no other configuration needed.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -185,6 +184,37 @@ parent directory to retrieve them on the host.
 
 ---
 
+## Singularity / Apptainer
+
+The same image can be used with Singularity or Apptainer.
+
+**CPU rendering** (default — no GPU needed):
+```bash
+singularity exec \
+  -B /path/to/subject:/subject \
+  -B /path/to/output:/output \
+  whippersnappy.sif \
+  whippersnap4 \
+    -lh /subject/surf/lh.thickness \
+    -rh /subject/surf/rh.thickness \
+    -sd /subject -o /output/snap4.png
+```
+
+**GPU rendering** — pass `--nv` (NVIDIA) or `--rocm` (AMD); EGL selects
+the GPU automatically:
+```bash
+singularity exec --nv \
+  -B /path/to/subject:/subject \
+  -B /path/to/output:/output \
+  whippersnappy.sif \
+  whippersnap4 \
+    -lh /subject/surf/lh.thickness \
+    -rh /subject/surf/rh.thickness \
+    -sd /subject -o /output/snap4.png
+```
+
+---
+
 ## Notes
 
 - The `--init` flag is recommended so that signals (e.g. `Ctrl-C`) are handled
@@ -193,51 +223,18 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Default rendering** uses **EGL with CPU software rendering** (Mesa
-  llvmpipe) — no GPU or display server required.  The log will show:
+- **Docker rendering** uses **EGL with CPU software rendering** (Mesa llvmpipe)
+  — no GPU or display server required.  The log will show:
   ```
   EGL context active — CPU software rendering (llvmpipe (...), ...)
   ```
-  This is sufficient for all snapshot and video rendering tasks.
-
-- **GPU rendering** requires OpenGL access to the GPU, not just CUDA.
-  The log will show:
+- **Singularity GPU rendering** with `--nv` uses EGL with the NVIDIA GPU
+  driver injected by Singularity.  The log will show:
   ```
   EGL context active — GPU rendering (...)
   ```
-
-  *NVIDIA:* `--gpus all` only provides CUDA compute access, **not**
-  OpenGL/EGL rendering.  For NVIDIA GPU OpenGL in Docker you need an
-  image based on `nvidia/opengl` or `nvidia/cuda:*-opengl`.  The standard
-  `whippersnappy` image does not include the NVIDIA OpenGL drivers and
-  therefore always uses CPU rendering regardless of `--gpus all`.
-  GPU rendering with NVIDIA in Docker is not officially supported in this
-  image — CPU rendering via llvmpipe is the intended headless path.
-
-  *AMD / Intel* (DRI render device).  The device is owned by the host's
-  `render` group; pass the group ID into the container so EGL can open it:
-  ```bash
-  docker run --rm --init \
-    --device /dev/dri/renderD128 \
-    --group-add $(getent group render | cut -d: -f3) \
-    --user $(id -u):$(id -g) \
-    -v /path/to/subject:/subject \
-    -v /path/to/output:/output \
-    whippersnappy \
-    -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
-    -sd /subject -o /output/snap4.png
-  ```
-  If the GPU device cannot be opened, EGL automatically falls back to
-  CPU software rendering (llvmpipe) — no crash, no OSMesa required.
-
-- **Singularity/Apptainer:** CPU rendering works without any flags.  For GPU
-  rendering pass `--nv` (NVIDIA) or `--rocm` (AMD):
-  ```bash
-  singularity exec --nv whippersnappy.sif \
-    whippersnap4 -lh lh.thickness -rh rh.thickness -sd fsaverage -o snap4.png
-  ```
 - **OSMesa** (`libosmesa6`) is included as a last-resort CPU fallback for the
-  rare case where EGL itself fails to initialise.  Under normal circumstances
-  EGL handles both GPU and CPU rendering and OSMesa is not used.
+  rare case where EGL itself fails to initialise.
+
 
 

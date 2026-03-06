@@ -198,7 +198,9 @@ class EGLContext:
         # all within EGL, avoiding the broken EGL→OSMesa mixed-platform issue.
         candidates = []  # list of (dpy, label)
 
-        # --- Candidate 1: EGL_EXT_device_enumeration (GPU preferred) ---
+        # --- Candidate 1: EGL_EXT_device_enumeration ---
+        # Hardware GPU devices tried first, software devices last.
+        # GPU is selected automatically when accessible natively.
         if has_device_enum and eglGetPlatformDisplayEXT:
             eglQueryDevicesEXT = self._get_ext_fn(
                 "eglQueryDevicesEXT",
@@ -239,9 +241,8 @@ class EGLContext:
                 break
             else:
                 if "GPU" in label:
-                    logger.info(
-                        "EGL: GPU device found but could not be initialised "
-                        "(DRI2/kernel driver not accessible inside container) "
+                    logger.debug(
+                        "EGL: GPU device found but eglInitialize failed "
                         "— falling back to CPU software rendering."
                     )
                 else:
@@ -379,10 +380,7 @@ class EGLContext:
         is_cpu = any(s in renderer.lower() for s in _sw)
         if is_cpu:
             logger.info(
-                "EGL context active — CPU software rendering (%s, %s). "
-                "For AMD/Intel GPU rendering in Docker pass "
-                "--device /dev/dri/renderD128; "
-                "for Singularity pass --nv (NVIDIA) or --rocm (AMD).",
+                "EGL context active — CPU software rendering (%s, %s).",
                 renderer, vendor,
             )
         else:

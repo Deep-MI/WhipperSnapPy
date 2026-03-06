@@ -8,19 +8,17 @@ PyOpenGL resolves function pointers via the correct backend before
 Priority chain on Linux when no display is detected
 (``DISPLAY`` / ``WAYLAND_DISPLAY`` unset):
 
-1. **EGL** — tried first when ``libEGL`` is installed.  A lightweight ctypes
-   probe (``eglGetDisplay`` + ``eglInitialize``) confirms EGL can actually
-   initialise before ``PYOPENGL_PLATFORM=egl`` is set.  This covers both GPU
-   rendering (real device) and CPU software rendering (Mesa llvmpipe) —
-   works in Docker without ``--device``.
-2. **OSMesa** — fallback when EGL is not installed or the probe fails (e.g.
-   no GPU and no llvmpipe).  Sets ``PYOPENGL_PLATFORM=osmesa``.
+1. **EGL** — tried first.  A lightweight ctypes probe confirms EGL can
+   actually initialise a display before ``PYOPENGL_PLATFORM=egl`` is set.
+   When a GPU is accessible (native install) EGL uses it; otherwise EGL falls
+   back to Mesa's llvmpipe CPU software renderer.  Works in Docker and
+   Singularity without any special flags.
+2. **OSMesa** — fallback when EGL cannot initialise at all (e.g. ``libegl1``
+   not installed).  Sets ``PYOPENGL_PLATFORM=osmesa``.
 3. **Neither** — raises ``RuntimeError`` with install instructions.
 
 When ``DISPLAY`` is set the module does not intervene; GLFW is tried first
-in :func:`~whippersnappy.gl.context.init_offscreen_context`.  If GLFW then
-fails (e.g. broken ``ssh -X`` forward), the same EGL/OSMesa chain is
-attempted there.
+in :func:`~whippersnappy.gl.context.init_offscreen_context`.
 
 ``PYOPENGL_PLATFORM`` is not consulted by GLFW, so setting it here does not
 affect the interactive GUI (``whippersnap``).
@@ -52,12 +50,9 @@ def _egl_context_works():
 
     Tries display-independent EGL paths in order:
 
-    1. ``EGL_EXT_device_enumeration`` — enumerate GPU devices directly; works
-       headlessly without a display server.  With ``--gpus all`` (NVIDIA) or
-       ``--device`` (AMD/Intel) the GPU device appears here and is preferred.
+    1. ``EGL_EXT_device_enumeration`` — enumerate GPU/software devices.
     2. ``EGL_MESA_platform_surfaceless`` — Mesa CPU software rendering
-       (llvmpipe); no GPU or display server needed.  Used when no GPU device
-       is found (e.g. Docker without ``--gpus``/``--device``).
+       (llvmpipe); no GPU or display server needed.
     3. ``eglGetDisplay(EGL_DEFAULT_DISPLAY)`` — last resort; only succeeds
        when a display server (X11/Wayland) is reachable.
 
@@ -120,8 +115,7 @@ def _egl_context_works():
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
 
         # --- Path 1: EGL_EXT_device_enumeration ---
-        # GPU devices — preferred. With --gpus all (NVIDIA) or --device
-        # (AMD/Intel) the GPU appears here before surfaceless/llvmpipe.
+        # Try GPU and software devices; prefer GPU when available natively.
         if (_GetPlatformDisplayEXT
                 and b"EGL_EXT_device_enumeration" in client_exts):
             addr = libegl.eglGetProcAddress(b"eglQueryDevicesEXT")

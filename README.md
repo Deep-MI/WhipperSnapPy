@@ -33,29 +33,23 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering on **Linux** uses EGL:
-- **CPU software rendering** (default, no GPU needed) — EGL uses Mesa's
-  llvmpipe automatically when no GPU is available.  Works in Docker without
-  any extra flags, in Singularity without `--nv`, and over plain SSH.
-- **GPU rendering** — for AMD/Intel in Docker pass
-  `--device /dev/dri/renderD128`; in Singularity pass `--nv` (NVIDIA) or
-  `--rocm` (AMD).  Note: NVIDIA `--gpus all` in Docker only provides CUDA
-  compute access, not EGL/OpenGL rendering; NVIDIA GPU OpenGL in Docker
-  requires an `nvidia/opengl`-based image.
-
-The log always reports which is active:
+Off-screen (headless) rendering on **Linux** uses **EGL** with Mesa's llvmpipe
+CPU software renderer — no GPU or display server required.  The log reports:
 ```
 EGL context active — CPU software rendering (llvmpipe (...), ...)
+```
+When a GPU is accessible (native install or Singularity with ``--nv``),
+EGL selects it automatically:
+```
 EGL context active — GPU rendering (...)
 ```
-
-OSMesa (`libosmesa6`) is a last-resort CPU fallback used only when EGL fails
-to initialise entirely.
+OSMesa (`libosmesa6`) is a last-resort CPU fallback used only when EGL
+itself cannot initialise (e.g. `libegl1` not installed).
 
 On **Windows**, GLFW creates an invisible window; a GPU driver is sufficient.
 On **macOS**, a real display connection is required (NSGL does not support
 headless rendering).
-See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.
+See the <a href="DOCKER.md">Docker/Singularity guide</a> for container usage.
 
 ## Command-Line Usage
 
