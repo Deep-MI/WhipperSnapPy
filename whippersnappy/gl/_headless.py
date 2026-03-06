@@ -17,10 +17,12 @@ Priority chain on Linux when no usable display is detected:
 
 * ``DISPLAY`` / ``WAYLAND_DISPLAY`` are unset entirely.
 * ``DISPLAY`` is set but the X server is unreachable, refuses the
-  connection, or does not provide GLX >= 1.3 (e.g. ``ssh -X``/``ssh -Y``
-  to a server whose software-rendered GLX cannot support OpenGL 3.3 Core
-  Profile).  In these cases GLFW will fail with a GLX error anyway, so we
-  pre-empt it by trying EGL/OSMesa instead.
+  connection, or does not advertise the ``GLX_ARB_create_context_profile``
+  extension that GLFW requires to create an OpenGL 3.3 Core Profile context
+  (e.g. ``ssh -X``/``ssh -Y`` to a server with only old software-rendered
+  GLX).  In these cases GLFW fails with
+  ``GLX_ARB_create_context_profile is unavailable``, so we pre-empt it by
+  trying EGL/OSMesa instead.
 
 When ``DISPLAY`` is set **and** the X server is reachable, this module
 does not intervene: GLFW is tried first in
@@ -56,9 +58,12 @@ def _display_is_usable():
 
     1. ``DISPLAY`` is set and non-empty.
     2. ``libX11`` is loadable and ``XOpenDisplay`` succeeds (server reachable).
-    3. ``libGL`` (or ``libGLX``) is loadable and ``glXQueryVersion`` reports
-       GLX >= 1.3.  GLX 1.3 is the minimum needed for modern context creation;
-       older or absent GLX means GLFW will fail with a GLX error regardless.
+    3. ``libGL`` (or ``libGLX``) exposes ``glXQueryExtensionsString`` and the
+       returned string contains ``GLX_ARB_create_context_profile``.  This
+       extension is what GLFW requires to create an OpenGL 3.3 Core Profile
+       context.  A forwarded ``ssh -X``/``ssh -Y`` display typically provides
+       old software-rendered GLX that lacks this extension, causing GLFW to
+       fail with ``GLX_ARB_create_context_profile is unavailable``.
 
     Returns ``False`` in all other cases so that ``_headless.py`` falls through
     to EGL or OSMesa instead of letting GLFW attempt and print GLX warnings.
@@ -89,7 +94,9 @@ def _display_is_usable():
     if not dpy:
         return False  # X server unreachable / access denied
 
-    # --- Step 2: check GLX version ---
+    # --- Step 2: check for GLX_ARB_create_context_profile extension ---
+    # This is the extension GLFW needs to request an OpenGL 3.3 Core Profile.
+    # It is absent on old/software-rendered forwarded displays.
     glx_ok = False
     for lib_name in ("libGL.so.1", "libGL.so", "libGLX.so.0", "libGLX.so"):
         try:
@@ -102,22 +109,22 @@ def _display_is_usable():
 
     if libgl is not None:
         try:
-            major = ctypes.c_int(0)
-            minor = ctypes.c_int(0)
-            libgl.glXQueryVersion.restype = ctypes.c_int
-            libgl.glXQueryVersion.argtypes = [
-                ctypes.c_void_p,
-                ctypes.POINTER(ctypes.c_int),
-                ctypes.POINTER(ctypes.c_int),
+            libgl.glXQueryExtensionsString.restype = ctypes.c_char_p
+            libgl.glXQueryExtensionsString.argtypes = [
+                ctypes.c_void_p,  # display
+                ctypes.c_int,     # screen
             ]
-            ok = libgl.glXQueryVersion(dpy, ctypes.byref(major), ctypes.byref(minor))
-            if ok and (major.value, minor.value) >= (1, 3):
-                glx_ok = True
-            else:
-                logger.debug(
-                    "GLX version %d.%d on %s is too old or unavailable (need >= 1.3).",
-                    major.value, minor.value, display_str,
-                )
+            ext_bytes = libgl.glXQueryExtensionsString(dpy, 0)
+            if ext_bytes:
+                exts = ext_bytes.decode("ascii", errors="replace")
+                if "GLX_ARB_create_context_profile" in exts:
+                    glx_ok = True
+                else:
+                    logger.debug(
+                        "GLX_ARB_create_context_profile absent on %s "
+                        "(GLFW would fail); treating display as unusable.",
+                        display_str,
+                    )
         except Exception:  # noqa: BLE001
             pass
 
