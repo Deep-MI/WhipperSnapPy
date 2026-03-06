@@ -44,12 +44,20 @@ def _osmesa_is_available():
 
 
 def egl_device_is_available():
-    """Return True if libEGL is loadable AND a DRI render node is accessible.
+    """Return True if libEGL is loadable AND a DRI render node is present.
 
-    Checking for ``/dev/dri/renderD*`` existence and readability guards
-    against Singularity/Docker containers that have EGL libraries installed
-    but no device nodes bound in — in those cases EGL context creation would
-    fail and we should fall back to OSMesa instead.
+    We check that at least one ``/dev/dri/renderD*`` node exists and that
+    ``libEGL`` can be loaded.  We intentionally do **not** gate on
+    ``os.access(node, os.R_OK)`` here because that POSIX check does not
+    honour supplementary group memberships on all kernels (e.g. when the
+    process inherits group ``render`` via newgrp or a login session) and
+    does not account for POSIX ACL entries (the ``+`` suffix in ``ls -l``
+    output).  If the node exists and EGL is installed we optimistically try
+    EGL and let the context-creation call fail gracefully if the device truly
+    turns out to be inaccessible.
+
+    We still skip EGL if *no* device node exists at all — that is the
+    reliable Singularity/Docker signal where no device is bound in.
 
     This function is called both here (at import time) and from
     :func:`~whippersnappy.gl.context.init_offscreen_context` (at context
@@ -59,17 +67,16 @@ def egl_device_is_available():
     if not render_nodes:
         logger.debug("EGL: no /dev/dri/renderD* device nodes found — skipping EGL.")
         return False
-    if not any(os.access(n, os.R_OK) for n in render_nodes):
-        logger.debug("EGL: /dev/dri/renderD* exists but not readable — skipping EGL.")
-        return False
     for name in ("libEGL.so.1", "libEGL.so"):
         try:
             ctypes.CDLL(name)
-            logger.debug("EGL: libEGL found and render node accessible.")
+            logger.debug(
+                "EGL: libEGL found and %d render node(s) present.", len(render_nodes)
+            )
             return True
         except OSError:
             continue
-    logger.debug("EGL: libEGL not found.")
+    logger.debug("EGL: /dev/dri/renderD* found but libEGL not loadable.")
     return False
 
 
@@ -98,15 +105,18 @@ if (
             "whippersnappy requires an OpenGL context but none could be found.\n"
             "\n"
             "No display server detected (DISPLAY / WAYLAND_DISPLAY are unset),\n"
-            "no accessible GPU render device (/dev/dri/renderD*), and OSMesa\n"
-            "is not installed.\n"
+            "no GPU render device found (/dev/dri/renderD* absent or libEGL missing),\n"
+            "and OSMesa is not installed.\n"
             "\n"
             "To fix this, choose one of:\n"
             "  1. Install OSMesa (recommended for headless/SSH use):\n"
             "       Debian/Ubuntu:  sudo apt-get install libosmesa6\n"
             "       RHEL/Fedora:    sudo dnf install mesa-libOSMesa\n"
-            "  2. Use EGL GPU rendering by ensuring /dev/dri/renderD* is accessible\n"
-            "     and libEGL is installed (libegl1 on Debian/Ubuntu).\n"
+            "  2. Use EGL GPU rendering — ensure /dev/dri/renderD* exists and\n"
+            "     libEGL is installed (libegl1 on Debian/Ubuntu).  If the device\n"
+            "     exists but you still see this error, add your user to the\n"
+            "     'render' group:  sudo usermod -aG render $USER\n"
+            "     (then log out and back in).\n"
             "  3. Set DISPLAY if a local X server is running:\n"
             "       export DISPLAY=:1\n"
         )
