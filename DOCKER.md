@@ -1,10 +1,12 @@
 # Docker Guide
 
 The Docker image provides a fully headless rendering environment using
-**EGL** — no display server or `xvfb` required.  By default EGL renders via
-Mesa's llvmpipe (CPU software rendering), which requires no GPU.  GPU
-rendering is enabled automatically when a GPU is passed into the container
-via `--gpus all` (NVIDIA) or `--device /dev/dri/renderD128` (AMD/Intel).
+**EGL** with Mesa's llvmpipe CPU software renderer — no GPU, display server,
+or `xvfb` required.  AMD/Intel GPU rendering is available via
+`--device /dev/dri/renderD128`.  NVIDIA GPU OpenGL rendering in Docker
+requires an `nvidia/opengl`-based image and is not supported in this image;
+CPU rendering is the intended headless path and is fast enough for all
+snapshot and video tasks.
 `libosmesa6` is also included as a last-resort fallback if EGL cannot
 initialise.
 
@@ -196,31 +198,23 @@ parent directory to retrieve them on the host.
   ```
   EGL context active — CPU software rendering (llvmpipe (...), ...)
   ```
-- **GPU rendering** is optional and selected automatically by EGL when a GPU
-  is accessible.  The log will show:
+  This is sufficient for all snapshot and video rendering tasks.
+
+- **GPU rendering** requires OpenGL access to the GPU, not just CUDA.
+  The log will show:
   ```
   EGL context active — GPU rendering (...)
   ```
-  To enable GPU rendering pass the GPU into the container:
 
-  *NVIDIA (requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)
-  installed on the **host**):*
-  ```bash
-  docker run --rm --init \
-    --gpus all \
-    --user $(id -u):$(id -g) \
-    -v /path/to/subject:/subject \
-    -v /path/to/output:/output \
-    whippersnappy \
-    -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
-    -sd /subject -o /output/snap4.png
-  ```
-  The NVIDIA Container Runtime injects the GPU EGL ICD (`10_nvidia.json`)
-  into the container at runtime.  If the log still shows CPU rendering after
-  passing `--gpus all`, the NVIDIA Container Toolkit is likely not installed
-  or configured on the host (`nvidia-ctk --version` to check).
+  *NVIDIA:* `--gpus all` only provides CUDA compute access, **not**
+  OpenGL/EGL rendering.  For NVIDIA GPU OpenGL in Docker you need an
+  image based on `nvidia/opengl` or `nvidia/cuda:*-opengl`.  The standard
+  `whippersnappy` image does not include the NVIDIA OpenGL drivers and
+  therefore always uses CPU rendering regardless of `--gpus all`.
+  GPU rendering with NVIDIA in Docker is not officially supported in this
+  image — CPU rendering via llvmpipe is the intended headless path.
 
-  *AMD / Intel (pass the DRI render device directly):*
+  *AMD / Intel* (DRI render device — works out of the box):
   ```bash
   docker run --rm --init \
     --device /dev/dri/renderD128 \

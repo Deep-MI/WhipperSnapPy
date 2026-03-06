@@ -37,9 +37,11 @@ Off-screen (headless) rendering on **Linux** uses EGL:
 - **CPU software rendering** (default, no GPU needed) — EGL uses Mesa's
   llvmpipe automatically when no GPU is available.  Works in Docker without
   any extra flags, in Singularity without `--nv`, and over plain SSH.
-- **GPU rendering** — enabled automatically when a GPU is accessible.  In
-  Docker pass `--gpus all` (NVIDIA) or `--device /dev/dri/renderD128`
-  (AMD/Intel).  In Singularity pass `--nv` (NVIDIA) or `--rocm` (AMD).
+- **GPU rendering** — for AMD/Intel in Docker pass
+  `--device /dev/dri/renderD128`; in Singularity pass `--nv` (NVIDIA) or
+  `--rocm` (AMD).  Note: NVIDIA `--gpus all` in Docker only provides CUDA
+  compute access, not EGL/OpenGL rendering; NVIDIA GPU OpenGL in Docker
+  requires an `nvidia/opengl`-based image.
 
 The log always reports which is active:
 ```
@@ -48,7 +50,7 @@ EGL context active — GPU rendering (...)
 ```
 
 OSMesa (`libosmesa6`) is a last-resort CPU fallback used only when EGL fails
-to initialise entirely (e.g. `libegl1` not installed).
+to initialise entirely.
 
 On **Windows**, GLFW creates an invisible window; a GPU driver is sufficient.
 On **macOS**, a real display connection is required (NSGL does not support

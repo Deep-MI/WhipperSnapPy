@@ -19,11 +19,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-# Create the GLVND EGL vendor directory so the NVIDIA Container Runtime can
-# inject its EGL ICD (10_nvidia.json) when --gpus all is passed.
-# Without this directory the NVIDIA EGL ICD is silently not registered and
-# EGL falls back to Mesa llvmpipe even with a GPU available.
-RUN mkdir -p /usr/share/glvnd/egl_vendor.d
 
 RUN pip install --upgrade pip
 
