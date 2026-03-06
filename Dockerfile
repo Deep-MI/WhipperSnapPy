@@ -1,10 +1,13 @@
 FROM python:3.11-slim
 
-# libosmesa6  — OSMesa software renderer for headless OpenGL (no GPU/display needed)
-# libgl1       — base OpenGL shared library required by PyOpenGL
+# libosmesa6  — OSMesa CPU software renderer (default headless path, no GPU needed)
+# libegl1      — EGL dispatch library; enables GPU rendering when /dev/dri/renderD*
+#                is passed via --device (e.g. docker run --device /dev/dri/renderD128)
+# libgl1       — base OpenGL dispatch library required by PyOpenGL
 # libglib2.0-0, libfontconfig1, libdbus-1-3 — runtime deps for Pillow / font rendering
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libosmesa6 \
+    libegl1 \
     libgl1 \
     libglib2.0-0 \
     libfontconfig1 \
