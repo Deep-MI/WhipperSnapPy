@@ -190,14 +190,13 @@ class EGLContext:
         _EGL_NONE = 0x3038
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
 
-        # Build an ordered list of (display_handle, path_name) candidates.
+        # Build an ordered list of (display_handle, path_label) candidates.
         # We try each in order, calling eglInitialize on each; the first that
         # succeeds becomes the active display.  This means a GPU device that
-        # returns a display handle but fails eglInitialize (e.g. permission
-        # denied on /dev/dri) is skipped and we fall through to surfaceless
-        # (llvmpipe CPU) — all within EGL, avoiding the broken EGL→OSMesa
-        # mixed-platform problem.
-        candidates = []  # list of (dpy, path_name)
+        # fails eglInitialize (e.g. DRI2 screen not available inside Docker)
+        # is skipped and we fall through to surfaceless (llvmpipe CPU) —
+        # all within EGL, avoiding the broken EGL→OSMesa mixed-platform issue.
+        candidates = []  # list of (dpy, label)
 
         # --- Candidate 1: EGL_EXT_device_enumeration (GPU preferred) ---
         if has_device_enum and eglGetPlatformDisplayEXT:
@@ -206,11 +205,10 @@ class EGLContext:
                 ctypes.c_bool,
                 [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
             )
-            gpu_dpy = self._open_device_display(
-                eglQueryDevicesEXT, eglGetPlatformDisplayEXT
-            )
-            if gpu_dpy is not None:
-                candidates.append((gpu_dpy, "device"))
+            for dpy, is_hw in (self._open_device_display(
+                    eglQueryDevicesEXT, eglGetPlatformDisplayEXT) or []):
+                label = "GPU device" if is_hw else "software device"
+                candidates.append((dpy, label))
 
         # --- Candidate 2: EGL_MESA_platform_surfaceless (CPU/llvmpipe) ---
         _EGL_PLATFORM_SURFACELESS = 0x31DD
@@ -226,22 +224,28 @@ class EGLContext:
         libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
         def_dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))
         if def_dpy:
-            candidates.append((def_dpy, "default"))
+            candidates.append((def_dpy, "default display"))
 
         # Try each candidate until one succeeds eglInitialize
         display = None
         self._display_path = "unknown"
-        for dpy, path_name in candidates:
+        for dpy, label in candidates:
             major, minor = ctypes.c_int(0), ctypes.c_int(0)
             if libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor)):
                 display = dpy
-                self._display_path = path_name
-                logger.debug("EGL: initialised via %s display (EGL %d.%d).",
-                             path_name, major.value, minor.value)
+                self._display_path = label
+                logger.debug("EGL: initialised via %s (EGL %d.%d).",
+                             label, major.value, minor.value)
                 break
             else:
-                logger.debug("EGL: %s display failed eglInitialize — trying next.",
-                             path_name)
+                if "GPU" in label:
+                    logger.info(
+                        "EGL: GPU device found but could not be initialised "
+                        "(DRI2/kernel driver not accessible inside container) "
+                        "— falling back to CPU software rendering."
+                    )
+                else:
+                    logger.debug("EGL: %s failed eglInitialize — trying next.", label)
 
         if not display:
             raise RuntimeError(
@@ -294,13 +298,15 @@ class EGLContext:
 
 
     def _open_device_display(self, eglQueryDevicesEXT, eglGetPlatformDisplayEXT):
-        """Enumerate EGL devices and return the first usable GPU display pointer.
+        """Enumerate EGL devices and return display candidates ordered GPU-first.
 
-        Prefers hardware GPU devices over software (llvmpipe/Mesa) devices.
-        Hardware devices are identified by the absence of ``EGL_MESA_device_software``
-        in their extension string — this correctly handles both AMD/Intel (which
-        have a DRM path) and NVIDIA (which do not expose a DRM path but are still
-        real GPU devices).
+        Returns a list of ``(display_handle, is_hw)`` tuples — hardware GPU
+        devices first, software devices last.  The caller (``_init_egl``) tries
+        each by calling ``eglInitialize``; the first that succeeds is used.
+
+        Hardware vs software is determined by ``EGL_MESA_device_software`` in
+        the device extension string — this correctly handles NVIDIA (no DRM
+        path, but not a software device) and AMD/Intel (has a DRM path).
         """
         n = ctypes.c_int(0)
         if not eglQueryDevicesEXT(0, None, ctypes.byref(n)) or n.value == 0:
@@ -329,22 +335,25 @@ class EGLContext:
                 drm_path = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_DRM_DEVICE_FILE_EXT)
                 dev_exts = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_EXTENSIONS_STR) or b""
                 is_sw = b"EGL_MESA_device_software" in dev_exts
-                logger.info("EGL device: drm_path=%s sw=%s exts=%s",
-                            drm_path, is_sw, dev_exts.decode() if dev_exts else "")
+                logger.debug("EGL device: drm_path=%s sw=%s exts=%s",
+                             drm_path, is_sw, dev_exts.decode() if dev_exts else "")
             if is_sw:
                 sw_devices.append(dev)
             else:
                 hw_devices.append(dev)
 
-        for i, dev in enumerate(hw_devices + sw_devices):
+        if hw_devices:
+            logger.debug("EGL: %d hardware device(s), %d software device(s).",
+                         len(hw_devices), len(sw_devices))
+
+        results = []
+        for dev in hw_devices + sw_devices:
             dpy = eglGetPlatformDisplayEXT(
                 _EGL_PLATFORM_DEVICE_EXT, ctypes.c_void_p(dev), no_attribs
             )
             if dpy:
-                kind = "hardware GPU" if i < len(hw_devices) else "software"
-                logger.debug("EGL: using %s device %d", kind, i)
-                return dpy
-        return None
+                results.append((dpy, dev in hw_devices))
+        return results  # list of (display, is_hw)
 
 
     def make_current(self):
