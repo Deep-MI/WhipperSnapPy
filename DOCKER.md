@@ -203,7 +203,8 @@ parent directory to retrieve them on the host.
   ```
   To enable GPU rendering pass the GPU into the container:
 
-  *NVIDIA (requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)):*
+  *NVIDIA (requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)
+  installed on the **host**):*
   ```bash
   docker run --rm --init \
     --gpus all \
@@ -214,6 +215,10 @@ parent directory to retrieve them on the host.
     -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
     -sd /subject -o /output/snap4.png
   ```
+  The NVIDIA Container Runtime injects the GPU EGL ICD (`10_nvidia.json`)
+  into the container at runtime.  If the log still shows CPU rendering after
+  passing `--gpus all`, the NVIDIA Container Toolkit is likely not installed
+  or configured on the host (`nvidia-ctk --version` to check).
 
   *AMD / Intel (pass the DRI render device directly):*
   ```bash

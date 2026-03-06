@@ -329,7 +329,11 @@ class EGLContext:
         if is_cpu:
             logger.info(
                 "EGL context active — CPU software rendering (%s, %s). "
-                "Pass --gpus all (Docker) or --nv (Singularity) to use GPU.",
+                "For GPU rendering: Docker: pass --gpus all (NVIDIA) or "
+                "--device /dev/dri/renderD128 (AMD/Intel); "
+                "Singularity: pass --nv (NVIDIA) or --rocm (AMD). "
+                "NVIDIA: also requires the NVIDIA Container Toolkit on the host "
+                "(check with: nvidia-ctk --version).",
                 renderer, vendor,
             )
         else:
