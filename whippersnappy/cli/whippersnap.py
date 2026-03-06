@@ -720,22 +720,21 @@ def run():
     # ------------------------------------------------------------------
     if QApplication is None:
         print(
-            "ERROR: Interactive mode requires PyQt6. "
+            "Error: Interactive mode requires PyQt6. "
             "Install with: pip install 'whippersnappy[gui]'",
             file=sys.stderr,
         )
-        raise RuntimeError(
-            "Interactive mode requires PyQt6. "
-            "Install with: pip install 'whippersnappy[gui]'"
-        )
+        sys.exit(1)
 
     try:
         from ..gui import ConfigWindow  # noqa: PLC0415
     except ModuleNotFoundError as e:
-        raise RuntimeError(
-            "Interactive mode requires PyQt6. "
-            "Install with: pip install 'whippersnappy[gui]'"
-        ) from e
+        print(
+            f"Error: Interactive mode requires PyQt6 ({e}). "
+            "Install with: pip install 'whippersnappy[gui]'",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     current_fthresh_ = args.fthresh
     current_fmax_    = args.fmax
@@ -756,18 +755,22 @@ def run():
 
     # show_window creates the GLFW window, sets up a QTimer render loop,
     # then calls app.exec() — returns when either window is closed.
-    show_window(
-        mesh=mesh_path,
-        overlay=overlay,
-        annot=args.annot,
-        bg_map=bg_map,
-        roi=roi,
-        invert=args.invert,
-        specular=args.specular,
-        view=view,
-        app=app,
-        config_window=config_window,
-    )
+    try:
+        show_window(
+            mesh=mesh_path,
+            overlay=overlay,
+            annot=args.annot,
+            bg_map=bg_map,
+            roi=roi,
+            invert=args.invert,
+            specular=args.specular,
+            view=view,
+            app=app,
+            config_window=config_window,
+        )
+    except (RuntimeError, FileNotFoundError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

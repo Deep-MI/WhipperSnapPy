@@ -16,12 +16,12 @@ For the interactive GUI use ``whippersnap``.
 import argparse
 import logging
 import os
+import sys
 import tempfile
 
 import numpy as np
 
 if __name__ == "__main__" and __package__ is None:
-    import sys
     os.execv(sys.executable, [sys.executable, "-m", "whippersnappy.cli.whippersnap4"] + sys.argv[1:])
 
 from .. import snap4
@@ -210,8 +210,11 @@ def run():
         logger.info(
             "Snapshot saved to %s (%dx%d)", args.output_path, img.width, img.height
         )
-    except (RuntimeError, FileNotFoundError, ValueError) as e:
+    except ValueError as e:
         parser.error(str(e))
+    except (RuntimeError, FileNotFoundError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

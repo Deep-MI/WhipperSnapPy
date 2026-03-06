@@ -207,7 +207,7 @@ def init_offscreen_context(width, height):
             logger.warning("EGL failed (%s) — falling back to OSMesa.", exc)
 
     # --- Step 3: OSMesa software rendering ---
-    logger.info("Trying OSMesa software rendering (CPU).")
+    logger.debug("Trying OSMesa software rendering (CPU).")
     try:
         from .osmesa_context import OSMesaContext  # noqa: PLC0415
         ctx = OSMesaContext(width, height)
@@ -217,10 +217,8 @@ def init_offscreen_context(width, height):
         return None
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError(
-            "Could not create any OpenGL context (tried GLFW, EGL, OSMesa). "
-            f"Last error: {exc}\n"
-            "Install OSMesa:  sudo apt-get install libosmesa6  (Debian/Ubuntu)\n"
-            "              or sudo dnf install mesa-libOSMesa   (RHEL/Fedora)"
+            "Could not create any OpenGL context (tried GLFW invisible window and OSMesa). "
+            f"Last error: {exc}"
         ) from exc
 
 
