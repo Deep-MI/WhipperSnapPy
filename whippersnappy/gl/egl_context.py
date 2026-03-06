@@ -337,12 +337,15 @@ class EGLContext:
         path, but not a software device) and AMD/Intel (has a DRM path).
         """
         n = ctypes.c_int(0)
-        if not eglQueryDevicesEXT(0, None, ctypes.byref(n)) or n.value == 0:
+        with _silence_stderr():
+            found = eglQueryDevicesEXT(0, None, ctypes.byref(n))
+        if not found or n.value == 0:
             logger.debug("EGL: eglQueryDevicesEXT found no devices.")
             return None
         logger.info("EGL: %d device(s) found via enumeration.", n.value)
         devices = (ctypes.c_void_p * n.value)()
-        eglQueryDevicesEXT(n.value, devices, ctypes.byref(n))
+        with _silence_stderr():
+            eglQueryDevicesEXT(n.value, devices, ctypes.byref(n))
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
 
         _EGL_DRM_DEVICE_FILE_EXT = 0x3233  # for logging only
