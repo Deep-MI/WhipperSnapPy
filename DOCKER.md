@@ -1,10 +1,12 @@
 # Docker Guide
 
 The Docker image provides a fully headless rendering environment using
-**EGL** — no display server or `xvfb` required.  Without `--device`, EGL
-renders via Mesa's llvmpipe (CPU); with `--device /dev/dri/renderD128` it
-uses the GPU.  `libosmesa6` is also included as a last-resort fallback for
-the rare case where EGL itself cannot initialise.
+**EGL** — no display server or `xvfb` required.  By default EGL renders via
+Mesa's llvmpipe (CPU software rendering), which requires no GPU.  GPU
+rendering is enabled automatically when a GPU is passed into the container
+via `--gpus all` (NVIDIA) or `--device /dev/dri/renderD128` (AMD/Intel).
+`libosmesa6` is also included as a last-resort fallback if EGL cannot
+initialise.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -189,16 +191,31 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Default rendering** uses **EGL**.  Without `--device`, EGL uses Mesa's
-  software rasterizer (llvmpipe) for CPU rendering — no GPU required.  With
-  `--device /dev/dri/renderD128`, EGL uses the GPU automatically.  `libegl1`
-  is pre-installed in the image; no extra flags required.
-- **OSMesa** is included (`libosmesa6`) as a last-resort fallback only for
-  the rare case where EGL itself fails to initialise (e.g. a stripped-down
-  base image without Mesa's EGL backend).  Under normal circumstances EGL
-  handles both the GPU and CPU rendering paths.
-- **GPU rendering** is selected automatically by EGL when you pass the render
-  device into the container (optional — only needed for hardware acceleration):
+- **Default rendering** uses **EGL with CPU software rendering** (Mesa
+  llvmpipe) — no GPU or display server required.  The log will show:
+  ```
+  EGL context active — CPU software rendering (llvmpipe (...), ...)
+  ```
+- **GPU rendering** is optional and selected automatically by EGL when a GPU
+  is accessible.  The log will show:
+  ```
+  EGL context active — GPU rendering (...)
+  ```
+  To enable GPU rendering pass the GPU into the container:
+
+  *NVIDIA (requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/)):*
+  ```bash
+  docker run --rm --init \
+    --gpus all \
+    --user $(id -u):$(id -g) \
+    -v /path/to/subject:/subject \
+    -v /path/to/output:/output \
+    whippersnappy \
+    -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
+    -sd /subject -o /output/snap4.png
+  ```
+
+  *AMD / Intel (pass the DRI render device directly):*
   ```bash
   docker run --rm --init \
     --device /dev/dri/renderD128 \
@@ -209,5 +226,15 @@ parent directory to retrieve them on the host.
     -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
     -sd /subject -o /output/snap4.png
   ```
+
+- **Singularity/Apptainer:** CPU rendering works without any flags.  For GPU
+  rendering pass `--nv` (NVIDIA) or `--rocm` (AMD):
+  ```bash
+  singularity exec --nv whippersnappy.sif \
+    whippersnap4 -lh lh.thickness -rh rh.thickness -sd fsaverage -o snap4.png
+  ```
+- **OSMesa** (`libosmesa6`) is included as a last-resort CPU fallback for the
+  rare case where EGL itself fails to initialise.  Under normal circumstances
+  EGL handles both GPU and CPU rendering and OSMesa is not used.
 
 

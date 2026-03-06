@@ -190,6 +190,7 @@ class EGLContext:
         _EGL_NONE = 0x3038
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
         display = None
+        self._display_path = "unknown"  # track for GPU/CPU log message
 
         # --- Path 1: EGL_MESA_platform_surfaceless ---
         # Truly headless: no display server, no GPU needed (llvmpipe).
@@ -202,6 +203,7 @@ class EGLContext:
             if candidate:
                 logger.debug("EGL: trying surfaceless platform display.")
                 display = candidate
+                self._display_path = "surfaceless"
 
         # --- Path 2: EGL_EXT_device_enumeration ---
         # Enumerate GPU devices directly — works headlessly when GPU present.
@@ -214,6 +216,8 @@ class EGLContext:
             display = self._open_device_display(
                 eglQueryDevicesEXT, eglGetPlatformDisplayEXT
             )
+            if display is not None:
+                self._display_path = "device"
 
         # --- Path 3: EGL_DEFAULT_DISPLAY ---
         # Works only when a display server (X11/Wayland) is reachable.
@@ -222,6 +226,8 @@ class EGLContext:
             libegl.eglGetDisplay.restype  = ctypes.c_void_p
             libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
             display = libegl.eglGetDisplay(ctypes.c_void_p(0))
+            if display:
+                self._display_path = "default"
 
         if not display:
             raise RuntimeError(
@@ -275,7 +281,8 @@ class EGLContext:
                 "eglCreateContext for OpenGL 3.3 Core failed. "
                 "Try: MESA_GL_VERSION_OVERRIDE=3.3 MESA_GLSL_VERSION_OVERRIDE=330"
             )
-        logger.info("EGL context created (%dx%d)", self.width, self.height)
+        logger.debug("EGL context created (%dx%d) via %s display.",
+                     self.width, self.height, self._display_path)
 
 
     def _open_device_display(self, eglQueryDevicesEXT, eglGetPlatformDisplayEXT):
@@ -313,6 +320,23 @@ class EGLContext:
         # PyOpenGL's contextdata module only recognizes contexts it has "seen"
         # via at least one GL call; glGetError() is the cheapest trigger.
         gl.glGetError()
+
+        # Report GPU vs CPU rendering based on the GL renderer string.
+        renderer = (gl.glGetString(gl.GL_RENDERER) or b"").decode("utf-8", errors="replace")
+        vendor   = (gl.glGetString(gl.GL_VENDOR)   or b"").decode("utf-8", errors="replace")
+        _sw = ("llvmpipe", "softpipe", "swrast", "software")
+        is_cpu = any(s in renderer.lower() for s in _sw)
+        if is_cpu:
+            logger.info(
+                "EGL context active — CPU software rendering (%s, %s). "
+                "Pass --gpus all (Docker) or --nv (Singularity) to use GPU.",
+                renderer, vendor,
+            )
+        else:
+            logger.info(
+                "EGL context active — GPU rendering (%s, %s).",
+                renderer, vendor,
+            )
 
         # Build FBO so rendering is directed off-screen
         self.fbo = gl.glGenFramebuffers(1)
