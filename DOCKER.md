@@ -214,10 +214,12 @@ parent directory to retrieve them on the host.
   GPU rendering with NVIDIA in Docker is not officially supported in this
   image — CPU rendering via llvmpipe is the intended headless path.
 
-  *AMD / Intel* (DRI render device — works out of the box):
+  *AMD / Intel* (DRI render device).  The device is owned by the host's
+  `render` group; pass the group ID into the container so EGL can open it:
   ```bash
   docker run --rm --init \
     --device /dev/dri/renderD128 \
+    --group-add $(getent group render | cut -d: -f3) \
     --user $(id -u):$(id -g) \
     -v /path/to/subject:/subject \
     -v /path/to/output:/output \
@@ -225,6 +227,8 @@ parent directory to retrieve them on the host.
     -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
     -sd /subject -o /output/snap4.png
   ```
+  If the GPU device cannot be opened, EGL automatically falls back to
+  CPU software rendering (llvmpipe) — no crash, no OSMesa required.
 
 - **Singularity/Apptainer:** CPU rendering works without any flags.  For GPU
   rendering pass `--nv` (NVIDIA) or `--rocm` (AMD):

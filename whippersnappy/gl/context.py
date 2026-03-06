@@ -194,22 +194,24 @@ def init_offscreen_context(width, height):
 
     # --- Step 2: EGL headless rendering ---
     # PYOPENGL_PLATFORM=egl was set by _headless.py before OpenGL.GL was
-    # imported (no display detected + libEGL available).  PyOpenGL is already
-    # bound to EGL; GLFW was intentionally skipped above.
+    # imported (no display detected + EGL probe succeeded).  PyOpenGL is
+    # already bound to EGL; GLFW was intentionally skipped above.
+    # EGLContext._init_egl tries GPU device → surfaceless (llvmpipe) →
+    # default display in order, so it handles CPU fallback internally.
+    # We must NOT fall back to OSMesa here: PYOPENGL_PLATFORM is already
+    # "egl" and OpenGL.GL function pointers are bound to EGL — using an
+    # OSMesa context with EGL pointers causes silent GL failures.
     if os.environ.get("PYOPENGL_PLATFORM") == "egl":
-        logger.debug("Using EGL headless context.")
-        try:
-            from .egl_context import EGLContext  # noqa: PLC0415
-            ctx = EGLContext(width, height)
-            ctx.make_current()
-            _offscreen_context = ctx
-            logger.info("Using EGL headless context (no display required).")
-            return None
-        except (ImportError, RuntimeError) as exc:
-            logger.warning("EGL failed (%s) — falling back to OSMesa.", exc)
+        from .egl_context import EGLContext  # noqa: PLC0415
+        ctx = EGLContext(width, height)
+        ctx.make_current()
+        _offscreen_context = ctx
+        logger.info("Using EGL headless context (no display required).")
+        return None
 
     # --- Step 3: OSMesa software rendering ---
-    logger.debug("Trying OSMesa software rendering (CPU).")
+    # Only reached when PYOPENGL_PLATFORM=osmesa was set at import time
+    # (i.e. EGL probe failed entirely — libEGL not installed or unusable).
     try:
         from .osmesa_context import OSMesaContext  # noqa: PLC0415
         ctx = OSMesaContext(width, height)

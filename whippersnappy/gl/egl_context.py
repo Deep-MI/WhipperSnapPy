@@ -189,47 +189,59 @@ class EGLContext:
 
         _EGL_NONE = 0x3038
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
-        display = None
-        self._display_path = "unknown"  # track for GPU/CPU log message
 
-        # --- Path 1: EGL_EXT_device_enumeration ---
-        # Enumerate GPU devices directly — preferred when a GPU is present.
-        # Works headlessly without a display server. With --gpus all (NVIDIA)
-        # or --device (AMD/Intel) the GPU device appears here.
-        if has_device_enum and eglGetPlatformDisplayEXT and display is None:
+        # Build an ordered list of (display_handle, path_name) candidates.
+        # We try each in order, calling eglInitialize on each; the first that
+        # succeeds becomes the active display.  This means a GPU device that
+        # returns a display handle but fails eglInitialize (e.g. permission
+        # denied on /dev/dri) is skipped and we fall through to surfaceless
+        # (llvmpipe CPU) — all within EGL, avoiding the broken EGL→OSMesa
+        # mixed-platform problem.
+        candidates = []  # list of (dpy, path_name)
+
+        # --- Candidate 1: EGL_EXT_device_enumeration (GPU preferred) ---
+        if has_device_enum and eglGetPlatformDisplayEXT:
             eglQueryDevicesEXT = self._get_ext_fn(
                 "eglQueryDevicesEXT",
                 ctypes.c_bool,
                 [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
             )
-            display = self._open_device_display(
+            gpu_dpy = self._open_device_display(
                 eglQueryDevicesEXT, eglGetPlatformDisplayEXT
             )
-            if display is not None:
-                self._display_path = "device"
+            if gpu_dpy is not None:
+                candidates.append((gpu_dpy, "device"))
 
-        # --- Path 2: EGL_MESA_platform_surfaceless ---
-        # CPU software rendering (llvmpipe) — no GPU needed.
-        # Used when no GPU device was found (e.g. Docker without --gpus/--device).
+        # --- Candidate 2: EGL_MESA_platform_surfaceless (CPU/llvmpipe) ---
         _EGL_PLATFORM_SURFACELESS = 0x31DD
-        if eglGetPlatformDisplayEXT and has_surfaceless and display is None:
-            candidate = eglGetPlatformDisplayEXT(
+        if eglGetPlatformDisplayEXT and has_surfaceless:
+            sl_dpy = eglGetPlatformDisplayEXT(
                 _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
             )
-            if candidate:
-                logger.debug("EGL: trying surfaceless platform display (CPU/llvmpipe).")
-                display = candidate
-                self._display_path = "surfaceless"
+            if sl_dpy:
+                candidates.append((sl_dpy, "surfaceless"))
 
-        # --- Path 3: EGL_DEFAULT_DISPLAY ---
-        # Works only when a display server (X11/Wayland) is reachable.
-        if display is None:
-            logger.debug("EGL: trying EGL_DEFAULT_DISPLAY.")
-            libegl.eglGetDisplay.restype  = ctypes.c_void_p
-            libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
-            display = libegl.eglGetDisplay(ctypes.c_void_p(0))
-            if display:
-                self._display_path = "default"
+        # --- Candidate 3: EGL_DEFAULT_DISPLAY (needs X11/Wayland) ---
+        libegl.eglGetDisplay.restype  = ctypes.c_void_p
+        libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
+        def_dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))
+        if def_dpy:
+            candidates.append((def_dpy, "default"))
+
+        # Try each candidate until one succeeds eglInitialize
+        display = None
+        self._display_path = "unknown"
+        for dpy, path_name in candidates:
+            major, minor = ctypes.c_int(0), ctypes.c_int(0)
+            if libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor)):
+                display = dpy
+                self._display_path = path_name
+                logger.debug("EGL: initialised via %s display (EGL %d.%d).",
+                             path_name, major.value, minor.value)
+                break
+            else:
+                logger.debug("EGL: %s display failed eglInitialize — trying next.",
+                             path_name)
 
         if not display:
             raise RuntimeError(
@@ -238,12 +250,6 @@ class EGLContext:
             )
         self._display = display
 
-        major, minor = ctypes.c_int(0), ctypes.c_int(0)
-        if not libegl.eglInitialize(
-                self._display, ctypes.byref(major), ctypes.byref(minor)
-        ):
-            raise RuntimeError("eglInitialize failed.")
-        logger.debug("EGL %d.%d", major.value, minor.value)
 
         if not libegl.eglBindAPI(_EGL_OPENGL_API):
             raise RuntimeError("eglBindAPI(OpenGL) failed.")
