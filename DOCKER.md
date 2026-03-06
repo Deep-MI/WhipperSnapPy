@@ -193,17 +193,28 @@ parent directory to retrieve them on the host.
   accessible, or **OSMesa** (CPU software renderer, `libosmesa6`) otherwise.
   Both `libegl1` and `libosmesa6` are pre-installed in the image — no extra
   setup is needed.
-- **GPU rendering via EGL** is selected automatically when you pass the render
-  device into the container:
+- **GPU rendering via EGL** requires passing the render device **and** the
+  render group into the container.  On the host, `systemd-logind` grants the
+  logged-in user direct access to `/dev/dri/renderD*` via a POSIX ACL
+  (visible as the `+` in `ls -l`), so no group membership is needed natively.
+  Inside Docker there is no login session, so only traditional DAC permissions
+  apply — the process must belong to the `render` group to open the device.
+  The `--user $(id -u):$(id -g)` flag passes only the primary group; add
+  `--group-add` for the render group separately:
   ```bash
   docker run --rm --init \
     --device /dev/dri/renderD128 \
+    --group-add render \
+    --user $(id -u):$(id -g) \
     -v /path/to/subject:/subject \
     -v /path/to/output:/output \
     whippersnappy \
     -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
     -sd /subject -o /output/snap4.png
   ```
+  The image pre-creates a `render` group with GID 103 (Debian/Ubuntu default).
+  If your host uses a different GID, replace `--group-add render` with
+  `--group-add $(getent group render | cut -d: -f3)`.
 - Without `--device`, WhipperSnapPy falls back to **OSMesa** (CPU) automatically.
   No GPU or `/dev/dri/` device needed for CPU rendering.
 

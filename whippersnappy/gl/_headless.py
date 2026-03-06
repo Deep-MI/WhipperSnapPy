@@ -43,17 +43,16 @@ def _osmesa_is_available():
 
 
 def egl_device_is_available():
-    """Return True if libEGL is loadable AND a DRI render node is present.
+    """Return True if libEGL is loadable AND a DRI render node can be opened.
 
-    We check that at least one ``/dev/dri/renderD*`` node exists and that
-    ``libEGL`` can be loaded.  We intentionally do **not** gate on
-    ``os.access(node, os.R_OK)`` here because that POSIX check does not
-    honour supplementary group memberships on all kernels (e.g. when the
-    process inherits group ``render`` via newgrp or a login session) and
-    does not account for POSIX ACL entries (the ``+`` suffix in ``ls -l``
-    output).  If the node exists and EGL is installed we optimistically try
-    EGL and let the context-creation call fail gracefully if the device truly
-    turns out to be inaccessible.
+    Unlike a simple existence check, this function actually tries to
+    ``open()`` each ``/dev/dri/renderD*`` node so that a permission error
+    (e.g. inside Docker when ``--group-add render`` is missing) is caught
+    here — before ``PYOPENGL_PLATFORM=egl`` is set and ``OpenGL.GL`` is
+    bound to EGL function pointers.  If EGL were allowed to fail *after*
+    PyOpenGL has already bound to EGL, any OSMesa fallback in the same
+    process would use EGL function pointers for OSMesa calls, causing
+    cryptic GL errors (e.g. ``Validation failure``).
 
     We still skip EGL if *no* device node exists at all — that is the
     reliable Singularity/Docker signal where no device is bound in.
@@ -66,16 +65,36 @@ def egl_device_is_available():
     if not render_nodes:
         logger.debug("EGL: no /dev/dri/renderD* device nodes found — skipping EGL.")
         return False
+
+    # Try to open at least one node to verify actual access permission.
+    # os.access() is unreliable for supplementary groups and POSIX ACLs,
+    # but open() uses the real kernel permission check.
+    accessible = []
+    for node in render_nodes:
+        try:
+            fd = os.open(node, os.O_RDWR | os.O_NONBLOCK)
+            os.close(fd)
+            accessible.append(node)
+        except OSError:
+            continue
+    if not accessible:
+        logger.debug(
+            "EGL: /dev/dri/renderD* node(s) exist but none could be opened "
+            "(permission denied?) — skipping EGL to avoid broken fallback."
+        )
+        return False
+
     for name in ("libEGL.so.1", "libEGL.so"):
         try:
             ctypes.CDLL(name)
             logger.debug(
-                "EGL: libEGL found and %d render node(s) present.", len(render_nodes)
+                "EGL: libEGL found and %d accessible render node(s) — EGL available.",
+                len(accessible),
             )
             return True
         except OSError:
             continue
-    logger.debug("EGL: /dev/dri/renderD* found but libEGL not loadable.")
+    logger.debug("EGL: render node accessible but libEGL not loadable.")
     return False
 
 
@@ -102,18 +121,19 @@ if sys.platform == "linux" and "PYOPENGL_PLATFORM" not in os.environ:
                 "whippersnappy requires an OpenGL context but none could be found.\n"
                 "\n"
                 "No display server detected (DISPLAY/WAYLAND_DISPLAY unset),\n"
-                "no GPU render device found (/dev/dri/renderD* absent or libEGL\n"
-                "missing), and OSMesa is not installed.\n"
+                "no accessible GPU render device (no /dev/dri/renderD* node could be\n"
+                "opened — device absent or permission denied), and OSMesa is not\n"
+                "installed.\n"
                 "\n"
                 "To fix this, choose one of:\n"
                 "  1. Install OSMesa (recommended for headless/SSH use):\n"
                 "       Debian/Ubuntu:  sudo apt-get install libosmesa6\n"
                 "       RHEL/Fedora:    sudo dnf install mesa-libOSMesa\n"
-                "  2. Use EGL GPU rendering — ensure /dev/dri/renderD* exists and\n"
-                "     libEGL is installed (libegl1 on Debian/Ubuntu).  If the device\n"
-                "     exists but you still see this error, add your user to the\n"
-                "     'render' group:  sudo usermod -aG render $USER\n"
-                "     (then log out and back in).\n"
+                "  2. Use EGL GPU rendering — ensure /dev/dri/renderD* is accessible:\n"
+                "       • Add your user to the render group:\n"
+                "           sudo usermod -aG render $USER  (then log out and back in)\n"
+                "       • Inside Docker: add --group-add render (or --group-add <GID>)\n"
+                "         and --device /dev/dri/renderD128 to your docker run command.\n"
                 "  3. Set DISPLAY if a local X server is running:\n"
                 "       export DISPLAY=:0\n"
             )
