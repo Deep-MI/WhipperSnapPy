@@ -143,7 +143,7 @@ def init_offscreen_context(width, height):
     Tries up to three paths on Linux; macOS and Windows use GLFW only.
 
     1. **GLFW invisible window** — used when ``PYOPENGL_PLATFORM`` is not
-       ``"egl"`` (i.e. a display is available and EGL was not pre-selected).
+       ``"egl"`` (i.e. a display is available and EGL was not preselected).
        Skipped on Linux when EGL was selected at import time to avoid spurious
        GLX warnings.
     2. **EGL** — used when ``PYOPENGL_PLATFORM=egl`` was set by
