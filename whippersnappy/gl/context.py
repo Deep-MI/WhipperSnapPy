@@ -142,15 +142,15 @@ def init_offscreen_context(width, height):
 
     Tries up to three paths on Linux; macOS and Windows use GLFW only.
 
-    1. **GLFW invisible window** — standard path when a usable display is
-       available.
+    1. **GLFW invisible window** — used when ``PYOPENGL_PLATFORM`` is not
+       ``"egl"`` (i.e. macOS, Windows, or Linux without EGL).  Skipped on
+       Linux when EGL was selected at import time to avoid spurious GLX
+       warnings from a forwarded or software-rendered display.
     2. **EGL pbuffer** — headless GPU rendering (Linux only).  Attempted when
        :mod:`~whippersnappy.gl._headless` set ``PYOPENGL_PLATFORM=egl`` at
-       import time.  This happens when either no display is present, or when
-       ``DISPLAY`` is set but the X server was unreachable (e.g. a stale
-       ``ssh -X`` forward that cannot provide GLX 3.3).  Pre-setting
-       ``PYOPENGL_PLATFORM`` before ``OpenGL.GL`` is first imported ensures
-       PyOpenGL binds EGL function pointers correctly.
+       import time, which happens whenever an EGL-capable GPU device is
+       present (``/dev/dri/renderD*`` + ``libEGL``), regardless of whether
+       ``DISPLAY`` is set.
     3. **OSMesa** — CPU software renderer (Linux only).  Used when neither
        GLFW nor EGL succeeds, or when ``PYOPENGL_PLATFORM=osmesa`` was set.
 
@@ -175,9 +175,12 @@ def init_offscreen_context(width, height):
     global _offscreen_context
 
     # --- Step 1: GLFW invisible window ---
-    window = init_window(width, height, visible=False)
-    if window:
-        return window
+    # Skip when PYOPENGL_PLATFORM=egl — OpenGL.GL is already bound to EGL,
+    # so a GLFW/GLX attempt would print GLX warnings and fail anyway.
+    if os.environ.get("PYOPENGL_PLATFORM") != "egl":
+        window = init_window(width, height, visible=False)
+        if window:
+            return window
 
     # Steps 2 & 3 are Linux-only.
     if sys.platform != "linux":
@@ -189,12 +192,9 @@ def init_offscreen_context(width, height):
         )
 
     # --- Step 2: EGL headless GPU rendering ---
-    # Only safe when PYOPENGL_PLATFORM=egl was set by _headless.py before
-    # OpenGL.GL was imported.  _headless.py sets this when either no display
-    # is present at all, or when DISPLAY is set but the X server was
-    # unreachable (e.g. a stale/unusable ssh -X forward).  In both cases
-    # PyOpenGL is already bound to EGL; attempting EGL when OpenGL.GL was
-    # imported with GLX would cause silent function-pointer mismatches.
+    # PYOPENGL_PLATFORM=egl was set by _headless.py at import time whenever
+    # an EGL-capable device was found (regardless of DISPLAY).  PyOpenGL is
+    # already bound to EGL, so this is safe to call directly.
     if os.environ.get("PYOPENGL_PLATFORM") == "egl":
         logger.info("GLFW failed — trying EGL headless GPU rendering.")
         try:

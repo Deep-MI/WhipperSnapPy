@@ -1,32 +1,23 @@
 """Headless OpenGL platform detection.
 
 This module MUST be imported before any ``import OpenGL.GL`` statement in the
-package.  On Linux with no display server it sets ``PYOPENGL_PLATFORM`` so
-that PyOpenGL resolves function pointers via the correct backend before
-``OpenGL.GL`` is first imported.
+package.  On Linux it sets ``PYOPENGL_PLATFORM`` so that PyOpenGL resolves
+function pointers via the correct backend before ``OpenGL.GL`` is first
+imported.
 
-Priority chain on Linux when no usable display is detected:
+Priority chain on Linux (applied unconditionally — ``DISPLAY`` is irrelevant
+for offscreen rendering):
 
 1. **EGL + GPU device** — ``/dev/dri/renderD*`` present and ``libEGL``
-   loadable.  Sets ``PYOPENGL_PLATFORM=egl`` immediately so that PyOpenGL
-   binds function pointers via EGL when ``OpenGL.GL`` is first imported.
+   loadable.  Sets ``PYOPENGL_PLATFORM=egl``.  Works with or without a
+   display server, including headless servers, Docker/Singularity, and
+   ``ssh`` sessions (with or without ``-X``/``-Y``).
 2. **OSMesa** — CPU software renderer.  Sets ``PYOPENGL_PLATFORM=osmesa``.
 3. **Neither** — raises ``RuntimeError`` with install instructions.
 
-"No usable display" covers both:
-
-* ``DISPLAY`` / ``WAYLAND_DISPLAY`` are unset entirely.
-* ``DISPLAY`` is set but the X server is unreachable, refuses the
-  connection, or does not advertise the ``GLX_ARB_create_context_profile``
-  extension that GLFW requires to create an OpenGL 3.3 Core Profile context
-  (e.g. ``ssh -X``/``ssh -Y`` to a server with only old software-rendered
-  GLX).  In these cases GLFW fails with
-  ``GLX_ARB_create_context_profile is unavailable``, so we pre-empt it by
-  trying EGL/OSMesa instead.
-
-When ``DISPLAY`` is set **and** the X server is reachable, this module
-does not intervene: GLFW is tried first in
-:func:`~whippersnappy.gl.context.init_offscreen_context`.
+``PYOPENGL_PLATFORM`` is not consulted by GLFW, so setting it here does not
+affect the interactive GUI (``whippersnap``), which creates its own visible
+GLFW window independently.
 
 No OpenGL, GLFW, or other heavy imports are done here — only stdlib.
 """
@@ -49,91 +40,6 @@ def _osmesa_is_available():
         except OSError:
             continue
     return False
-
-
-def _display_is_usable():
-    """Return True if ``DISPLAY`` points to an X server with usable GLX support.
-
-    A display is considered usable only when **all** of the following hold:
-
-    1. ``DISPLAY`` is set and non-empty.
-    2. ``libX11`` is loadable and ``XOpenDisplay`` succeeds (server reachable).
-    3. ``libGL`` (or ``libGLX``) exposes ``glXQueryExtensionsString`` and the
-       returned string contains ``GLX_ARB_create_context_profile``.  This
-       extension is what GLFW requires to create an OpenGL 3.3 Core Profile
-       context.  A forwarded ``ssh -X``/``ssh -Y`` display typically provides
-       old software-rendered GLX that lacks this extension, causing GLFW to
-       fail with ``GLX_ARB_create_context_profile is unavailable``.
-
-    Returns ``False`` in all other cases so that ``_headless.py`` falls through
-    to EGL or OSMesa instead of letting GLFW attempt and print GLX warnings.
-
-    Note: Wayland displays (``WAYLAND_DISPLAY``) are not probed here because
-    GLFW handles the Wayland path natively and does not go through GLX.
-    """
-    display_str = os.environ.get("DISPLAY")
-    if not display_str:
-        return False
-
-    # --- Step 1: open X connection ---
-    for lib_name in ("libX11.so.6", "libX11.so"):
-        try:
-            libx11 = ctypes.CDLL(lib_name)
-            break
-        except OSError:
-            continue
-    else:
-        return False  # libX11 not installed
-
-    try:
-        libx11.XOpenDisplay.restype = ctypes.c_void_p
-        libx11.XOpenDisplay.argtypes = [ctypes.c_char_p]
-        dpy = libx11.XOpenDisplay(display_str.encode())
-    except Exception:  # noqa: BLE001
-        return False
-    if not dpy:
-        return False  # X server unreachable / access denied
-
-    # --- Step 2: check for GLX_ARB_create_context_profile extension ---
-    # This is the extension GLFW needs to request an OpenGL 3.3 Core Profile.
-    # It is absent on old/software-rendered forwarded displays.
-    glx_ok = False
-    for lib_name in ("libGL.so.1", "libGL.so", "libGLX.so.0", "libGLX.so"):
-        try:
-            libgl = ctypes.CDLL(lib_name)
-            break
-        except OSError:
-            continue
-    else:
-        libgl = None
-
-    if libgl is not None:
-        try:
-            libgl.glXQueryExtensionsString.restype = ctypes.c_char_p
-            libgl.glXQueryExtensionsString.argtypes = [
-                ctypes.c_void_p,  # display
-                ctypes.c_int,     # screen
-            ]
-            ext_bytes = libgl.glXQueryExtensionsString(dpy, 0)
-            if ext_bytes:
-                exts = ext_bytes.decode("ascii", errors="replace")
-                if "GLX_ARB_create_context_profile" in exts:
-                    glx_ok = True
-                else:
-                    logger.debug(
-                        "GLX_ARB_create_context_profile absent on %s "
-                        "(GLFW would fail); treating display as unusable.",
-                        display_str,
-                    )
-        except Exception:  # noqa: BLE001
-            pass
-
-    try:
-        libx11.XCloseDisplay(dpy)
-    except Exception:  # noqa: BLE001
-        pass
-
-    return glx_ok
 
 
 def egl_device_is_available():
@@ -174,42 +80,30 @@ def egl_device_is_available():
 
 
 if sys.platform == "linux" and "PYOPENGL_PLATFORM" not in os.environ:
-    _has_display = (
-        bool(os.environ.get("DISPLAY")) or bool(os.environ.get("WAYLAND_DISPLAY"))
-    )
-
-    if _has_display and _display_is_usable():
-        # Reachable X/Wayland server — let GLFW try first; don't intervene.
-        _display = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
-        logger.debug("Display set and reachable (%s) — will try GLFW first.", _display)
+    if egl_device_is_available():
+        # Prefer EGL for all offscreen rendering on Linux — regardless of
+        # whether DISPLAY is set.  GLFW does not use PYOPENGL_PLATFORM, so
+        # the interactive GUI is unaffected.  Setting this here, before any
+        # import of OpenGL.GL, ensures PyOpenGL binds EGL function pointers.
+        os.environ["PYOPENGL_PLATFORM"] = "egl"
+        logger.debug("EGL device available — PYOPENGL_PLATFORM=egl set.")
+    elif _osmesa_is_available():
+        os.environ["PYOPENGL_PLATFORM"] = "osmesa"
+        logger.debug("No EGL device — PYOPENGL_PLATFORM=osmesa set (CPU rendering).")
     else:
-        # No display, or display is set but unreachable (e.g. bad ssh -X forward).
-        # Must choose a headless backend NOW before OpenGL.GL is imported.
-        if _has_display:
-            logger.debug(
-                "DISPLAY is set (%s) but X server is unreachable — "
-                "skipping GLFW/GLX and trying headless backends.",
-                os.environ.get("DISPLAY"),
-            )
-        if egl_device_is_available():
-            os.environ["PYOPENGL_PLATFORM"] = "egl"
-            logger.debug(
-                "No usable display; EGL + GPU device available — "
-                "PYOPENGL_PLATFORM=egl set."
-            )
-        elif _osmesa_is_available():
-            os.environ["PYOPENGL_PLATFORM"] = "osmesa"
-            logger.debug(
-                "No usable display; no EGL device — "
-                "PYOPENGL_PLATFORM=osmesa set (CPU rendering)."
-            )
-        else:
+        _has_display = (
+            bool(os.environ.get("DISPLAY")) or bool(os.environ.get("WAYLAND_DISPLAY"))
+        )
+        if not _has_display:
+            # No display and no headless backend — raise immediately with
+            # instructions.  When DISPLAY is set we stay silent and let GLFW
+            # try; if it fails too, context.py will raise a clearer error.
             raise RuntimeError(
                 "whippersnappy requires an OpenGL context but none could be found.\n"
                 "\n"
-                "No usable display detected (DISPLAY/WAYLAND_DISPLAY unset or X server\n"
-                "unreachable), no GPU render device found (/dev/dri/renderD* absent or\n"
-                "libEGL missing), and OSMesa is not installed.\n"
+                "No display server detected (DISPLAY/WAYLAND_DISPLAY unset),\n"
+                "no GPU render device found (/dev/dri/renderD* absent or libEGL\n"
+                "missing), and OSMesa is not installed.\n"
                 "\n"
                 "To fix this, choose one of:\n"
                 "  1. Install OSMesa (recommended for headless/SSH use):\n"
@@ -220,6 +114,6 @@ if sys.platform == "linux" and "PYOPENGL_PLATFORM" not in os.environ:
                 "     exists but you still see this error, add your user to the\n"
                 "     'render' group:  sudo usermod -aG render $USER\n"
                 "     (then log out and back in).\n"
-                "  3. If you used ssh -X/-Y, try without X forwarding:\n"
-                "       unset DISPLAY\n"
+                "  3. Set DISPLAY if a local X server is running:\n"
+                "       export DISPLAY=:0\n"
             )
