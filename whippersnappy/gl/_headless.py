@@ -52,12 +52,14 @@ def _egl_context_works():
 
     Tries display-independent EGL paths in order:
 
-    1. ``EGL_MESA_platform_surfaceless`` — Mesa-specific, works with no display
-       server and no GPU (llvmpipe).  The reliable headless path on Mesa stacks.
-    2. ``EGL_EXT_device_enumeration`` — enumerate GPU devices directly; works
-       without a display server when a GPU is present.
-    3. ``eglGetDisplay(EGL_DEFAULT_DISPLAY)`` — last resort; only succeeds when
-       a display server is reachable (i.e. ``DISPLAY`` is set).
+    1. ``EGL_EXT_device_enumeration`` — enumerate GPU devices directly; works
+       headlessly without a display server.  With ``--gpus all`` (NVIDIA) or
+       ``--device`` (AMD/Intel) the GPU device appears here and is preferred.
+    2. ``EGL_MESA_platform_surfaceless`` — Mesa CPU software rendering
+       (llvmpipe); no GPU or display server needed.  Used when no GPU device
+       is found (e.g. Docker without ``--gpus``/``--device``).
+    3. ``eglGetDisplay(EGL_DEFAULT_DISPLAY)`` — last resort; only succeeds
+       when a display server (X11/Wayland) is reachable.
 
     No ``OpenGL.GL`` import and no ``PYOPENGL_PLATFORM`` change are made.
     Returns ``True`` only when EGL can actually initialise a display.
@@ -117,20 +119,9 @@ def _egl_context_works():
 
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
 
-        # --- Path 1: EGL_MESA_platform_surfaceless ---
-        # Truly headless: no display server, no GPU needed (llvmpipe).
-        # Present on Mesa stacks (EGL_MESA_platform_surfaceless extension).
-        _EGL_PLATFORM_SURFACELESS = 0x31DD
-        if _GetPlatformDisplayEXT and b"EGL_MESA_platform_surfaceless" in client_exts:
-            dpy = _GetPlatformDisplayEXT(
-                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
-            )
-            if _try_init(dpy):
-                logger.debug("EGL probe: surfaceless platform succeeded.")
-                return True
-
-        # --- Path 2: EGL_EXT_device_enumeration ---
-        # Enumerate GPU devices directly — works headlessly when GPU present.
+        # --- Path 1: EGL_EXT_device_enumeration ---
+        # GPU devices — preferred. With --gpus all (NVIDIA) or --device
+        # (AMD/Intel) the GPU appears here before surfaceless/llvmpipe.
         if (_GetPlatformDisplayEXT
                 and b"EGL_EXT_device_enumeration" in client_exts):
             addr = libegl.eglGetProcAddress(b"eglQueryDevicesEXT")
@@ -150,12 +141,22 @@ def _egl_context_works():
                             no_attribs,
                         )
                         if _try_init(dpy):
-                            logger.debug("EGL probe: device enumeration succeeded.")
+                            logger.debug("EGL probe: device enumeration succeeded (GPU).")
                             return True
+
+        # --- Path 2: EGL_MESA_platform_surfaceless ---
+        # CPU software rendering (llvmpipe) — no GPU needed.
+        _EGL_PLATFORM_SURFACELESS = 0x31DD
+        if _GetPlatformDisplayEXT and b"EGL_MESA_platform_surfaceless" in client_exts:
+            dpy = _GetPlatformDisplayEXT(
+                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
+            )
+            if _try_init(dpy):
+                logger.debug("EGL probe: surfaceless platform succeeded (CPU/llvmpipe).")
+                return True
 
         # --- Path 3: EGL_DEFAULT_DISPLAY ---
         # Works only when a display server is reachable (DISPLAY set).
-        # Last resort — will fail headlessly on X11-linked Mesa builds.
         dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))
         if _try_init(dpy):
             logger.debug("EGL probe: EGL_DEFAULT_DISPLAY succeeded.")

@@ -192,21 +192,10 @@ class EGLContext:
         display = None
         self._display_path = "unknown"  # track for GPU/CPU log message
 
-        # --- Path 1: EGL_MESA_platform_surfaceless ---
-        # Truly headless: no display server, no GPU needed (llvmpipe).
-        # The reliable path inside Docker without --device on Mesa stacks.
-        _EGL_PLATFORM_SURFACELESS = 0x31DD
-        if eglGetPlatformDisplayEXT and has_surfaceless and display is None:
-            candidate = eglGetPlatformDisplayEXT(
-                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
-            )
-            if candidate:
-                logger.debug("EGL: trying surfaceless platform display.")
-                display = candidate
-                self._display_path = "surfaceless"
-
-        # --- Path 2: EGL_EXT_device_enumeration ---
-        # Enumerate GPU devices directly — works headlessly when GPU present.
+        # --- Path 1: EGL_EXT_device_enumeration ---
+        # Enumerate GPU devices directly — preferred when a GPU is present.
+        # Works headlessly without a display server. With --gpus all (NVIDIA)
+        # or --device (AMD/Intel) the GPU device appears here.
         if has_device_enum and eglGetPlatformDisplayEXT and display is None:
             eglQueryDevicesEXT = self._get_ext_fn(
                 "eglQueryDevicesEXT",
@@ -218,6 +207,19 @@ class EGLContext:
             )
             if display is not None:
                 self._display_path = "device"
+
+        # --- Path 2: EGL_MESA_platform_surfaceless ---
+        # CPU software rendering (llvmpipe) — no GPU needed.
+        # Used when no GPU device was found (e.g. Docker without --gpus/--device).
+        _EGL_PLATFORM_SURFACELESS = 0x31DD
+        if eglGetPlatformDisplayEXT and has_surfaceless and display is None:
+            candidate = eglGetPlatformDisplayEXT(
+                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
+            )
+            if candidate:
+                logger.debug("EGL: trying surfaceless platform display (CPU/llvmpipe).")
+                display = candidate
+                self._display_path = "surfaceless"
 
         # --- Path 3: EGL_DEFAULT_DISPLAY ---
         # Works only when a display server (X11/Wayland) is reachable.
@@ -286,21 +288,56 @@ class EGLContext:
 
 
     def _open_device_display(self, eglQueryDevicesEXT, eglGetPlatformDisplayEXT):
-        """Enumerate EGL devices and return first usable display pointer."""
+        """Enumerate EGL devices and return the first usable GPU display pointer.
+
+        Prefers hardware GPU devices over software (llvmpipe) devices by
+        checking ``EGL_DRM_DEVICE_FILE_EXT`` — hardware devices have a DRM
+        path, software devices do not.  Falls back to any working device if
+        no hardware device is found.
+        """
         n = ctypes.c_int(0)
         if not eglQueryDevicesEXT(0, None, ctypes.byref(n)) or n.value == 0:
-            logger.warning("eglQueryDevicesEXT: no devices.")
+            logger.debug("EGL: eglQueryDevicesEXT found no devices.")
             return None
         logger.debug("EGL: %d device(s) found", n.value)
         devices = (ctypes.c_void_p * n.value)()
         eglQueryDevicesEXT(n.value, devices, ctypes.byref(n))
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
-        for i, dev in enumerate(devices):
+
+        # Try to load eglQueryDeviceStringEXT to identify hardware vs software
+        _EGL_DRM_DEVICE_FILE_EXT = 0x3233
+        try:
+            addr = self._libegl.eglGetProcAddress(b"eglQueryDeviceStringEXT")
+            if addr:
+                _QueryDeviceString = ctypes.CFUNCTYPE(
+                    ctypes.c_char_p, ctypes.c_void_p, ctypes.c_int
+                )(addr)
+            else:
+                _QueryDeviceString = None
+        except Exception:  # noqa: BLE001
+            _QueryDeviceString = None
+
+        # Two passes: first try hardware GPU devices, then fall back to any device
+        hw_devices = []
+        sw_devices = []
+        for dev in devices:
+            is_hw = False
+            if _QueryDeviceString:
+                drm_path = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_DRM_DEVICE_FILE_EXT)
+                is_hw = bool(drm_path)
+                logger.debug("EGL device drm_path=%s hw=%s", drm_path, is_hw)
+            if is_hw:
+                hw_devices.append(dev)
+            else:
+                sw_devices.append(dev)
+
+        for i, dev in enumerate(hw_devices + sw_devices):
             dpy = eglGetPlatformDisplayEXT(
                 _EGL_PLATFORM_DEVICE_EXT, ctypes.c_void_p(dev), no_attribs
             )
             if dpy:
-                logger.debug("EGL: using device %d", i)
+                kind = "hardware GPU" if i < len(hw_devices) else "software"
+                logger.debug("EGL: using %s device %d", kind, i)
                 return dpy
         return None
 
