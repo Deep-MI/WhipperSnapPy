@@ -33,15 +33,18 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering on **Linux** uses a three-path fallback:
-1. **GLFW invisible window** — used when a display is available (`DISPLAY` set).
-2. **EGL** (GPU, no display needed) — used when no display is detected and a
-   GPU render device (`/dev/dri/renderD*`) is accessible with `libEGL` installed
-   (`libegl1` on Debian/Ubuntu).  This is the recommended path for SSH servers
-   with a GPU — no `DISPLAY`, `xvfb`, or OSMesa required.
-3. **OSMesa** (CPU software renderer) — final fallback; requires
-   `sudo apt-get install libosmesa6` (Debian/Ubuntu) or
+Off-screen (headless) rendering on **Linux** uses a three-path priority chain:
+1. **EGL** (GPU, preferred) — used whenever a GPU render device
+   (`/dev/dri/renderD*`) is present and `libEGL` is installed (`libegl1` on
+   Debian/Ubuntu).  Works with or without a display server, including plain
+   SSH sessions and `ssh -X`/`ssh -Y` forwards where GLX is unavailable.
+   No `DISPLAY`, `xvfb`, or OSMesa required.
+2. **OSMesa** (CPU software renderer) — used when no EGL device is found;
+   requires `sudo apt-get install libosmesa6` (Debian/Ubuntu) or
    `sudo dnf install mesa-libOSMesa` (RHEL/Fedora).
+3. **GLFW invisible window** — fallback on Linux when neither EGL nor OSMesa
+   is available and a display is set; also the primary path on macOS and
+   Windows.
 
 On **Windows**, GLFW creates an invisible window; a GPU driver is sufficient.
 On **macOS**, a real display connection is required (NSGL does not support

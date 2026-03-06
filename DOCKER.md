@@ -1,10 +1,10 @@
 # Docker Guide
 
-The Docker image provides a fully headless rendering environment.  By default
-it uses [OSMesa](https://docs.mesa3d.org/osmesa.html) (Mesa's CPU software
-renderer) — no display server, `xvfb`, or GPU required.  If a GPU render
-device is available, pass `--device /dev/dri/renderD128` to enable EGL GPU
-rendering instead; `libegl1` is already included in the image.
+The Docker image provides a fully headless rendering environment.  It
+automatically uses **EGL** (GPU rendering) when a render device is passed in,
+or falls back to **OSMesa** (CPU software renderer) otherwise — no display
+server or `xvfb` required in either case.  Both `libegl1` and `libosmesa6`
+are pre-installed in the image.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -189,11 +189,12 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Default rendering** uses **OSMesa** (Mesa's CPU software renderer, provided
-  by the `libosmesa6` system package). No GPU or `/dev/dri/` device needed.
-- **GPU rendering via EGL** works out of the box — `libegl1` is included in the
-  image.  Pass the render device into the container and WhipperSnapPy will
-  automatically prefer EGL over OSMesa when `/dev/dri/renderD*` is accessible:
+- **Default rendering** uses **EGL** (GPU) when `/dev/dri/renderD*` is
+  accessible, or **OSMesa** (CPU software renderer, `libosmesa6`) otherwise.
+  Both `libegl1` and `libosmesa6` are pre-installed in the image — no extra
+  setup is needed.
+- **GPU rendering via EGL** is selected automatically when you pass the render
+  device into the container:
   ```bash
   docker run --rm --init \
     --device /dev/dri/renderD128 \
@@ -203,4 +204,6 @@ parent directory to retrieve them on the host.
     -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
     -sd /subject -o /output/snap4.png
   ```
+- Without `--device`, WhipperSnapPy falls back to **OSMesa** (CPU) automatically.
+  No GPU or `/dev/dri/` device needed for CPU rendering.
 
