@@ -275,7 +275,6 @@ def snap1(
             draw_caption(image, caption, font, orientation, x=cx, y=cy)
 
         if outpath:
-            logger.info("Saving snapshot to %s", outpath)
             image.save(outpath)
         return image
     finally:
@@ -516,7 +515,6 @@ def snap4(
 
         # If outpath is specified, save to disk
         if outpath:
-            logger.info("Saving snapshot to %s", outpath)
             image.save(outpath)
 
         return image
