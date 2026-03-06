@@ -6,18 +6,18 @@ framebuffer capture, and teardown.
 Context creation tries up to three paths (Linux; macOS/Windows use GLFW only):
 
 1. **GLFW invisible window** — standard path when a display is available.
-2. **EGL pbuffer** — headless GPU rendering (Linux, no display needed).
-   Only used when :mod:`~whippersnappy.gl._headless` set
-   ``PYOPENGL_PLATFORM=egl`` at import time (no display + accessible
-   ``/dev/dri/renderD*``).  PyOpenGL selects its platform backend on the
-   first ``import OpenGL.GL`` and cannot be changed afterwards — so EGL is
-   only safe when it was selected before any ``OpenGL.GL`` import.
+2. **EGL pbuffer** — headless rendering (Linux, no display needed).
+   Used when :mod:`~whippersnappy.gl._headless` set
+   ``PYOPENGL_PLATFORM=egl`` at import time.  ``EGLContext`` handles GPU
+   and CPU (llvmpipe) fallback internally.
 3. **OSMesa** — CPU software renderer (Linux only).
-   Used when neither GLFW nor EGL succeeds.
+   Used only when ``PYOPENGL_PLATFORM=osmesa`` was set at import time
+   (i.e. EGL probe failed — ``libEGL`` not installed).
 
-The :mod:`whippersnappy.gl._headless` guard runs before ``OpenGL.GL`` is
-imported and sets ``PYOPENGL_PLATFORM`` to ``"egl"`` or ``"osmesa"``
-as appropriate.
+Each backend is selected before ``OpenGL.GL`` is first imported.
+PyOpenGL binds its function pointers on first import and cannot be re-bound,
+so mixing backends causes silent GL failures.  The guard in each branch
+ensures only the preselected backend is used.
 """
 # ruff: noqa: I001  — import order is intentional: _headless must precede OpenGL.GL
 
@@ -144,16 +144,18 @@ def init_offscreen_context(width, height):
 
     1. **GLFW invisible window** — used when ``PYOPENGL_PLATFORM`` is not
        ``"egl"`` (i.e. a display is available and EGL was not preselected).
-       Skipped on Linux when EGL was selected at import time to avoid spurious
-       GLX warnings.
+       Skipped on Linux when EGL was selected at import time.
     2. **EGL** — used when ``PYOPENGL_PLATFORM=egl`` was set by
-       :mod:`~whippersnappy.gl._headless` at import time (no display detected
-       and ``libEGL`` is installed).  EGL handles both GPU and CPU (llvmpipe)
-       rendering without needing ``/dev/dri`` access — works in Docker without
-       ``--device``.
-    3. **OSMesa** — CPU software renderer (Linux only).  Used when EGL is not
-       installed (``PYOPENGL_PLATFORM=osmesa``) or when EGL context creation
-       fails.
+       :mod:`~whippersnappy.gl._headless` at import time.  ``EGLContext``
+       tries GPU device → surfaceless (llvmpipe) → default display in order,
+       so it handles CPU fallback internally within EGL.
+    3. **OSMesa** — used only when ``PYOPENGL_PLATFORM=osmesa`` was set at
+       import time (EGL probe failed entirely — ``libEGL`` not installed).
+
+    Each backend is only used when it was preselected before ``OpenGL.GL``
+    was imported.  PyOpenGL binds its function pointers on first import and
+    cannot be re-bound — mixing backends (e.g. GLX-bound pointers with an
+    OSMesa context) causes silent GL failures.
 
     Parameters
     ----------
@@ -212,18 +214,34 @@ def init_offscreen_context(width, height):
     # --- Step 3: OSMesa software rendering ---
     # Only reached when PYOPENGL_PLATFORM=osmesa was set at import time
     # (i.e. EGL probe failed entirely — libEGL not installed or unusable).
-    try:
-        from .osmesa_context import OSMesaContext  # noqa: PLC0415
-        ctx = OSMesaContext(width, height)
-        ctx.make_current()
-        _offscreen_context = ctx
-        logger.info("Using OSMesa headless context (CPU, no display or GPU required).")
-        return None
-    except (ImportError, RuntimeError) as exc:
-        raise RuntimeError(
-            "Could not create any OpenGL context (tried GLFW invisible window and OSMesa). "
-            f"Last error: {exc}"
-        ) from exc
+    # Guard is required: if OpenGL.GL was bound to GLX (a display was set but
+    # GLFW failed) and we created an OSMesa context here, GL function pointers
+    # would be GLX-bound while the context is OSMesa — causing silent failures.
+    if os.environ.get("PYOPENGL_PLATFORM") == "osmesa":
+        try:
+            from .osmesa_context import OSMesaContext  # noqa: PLC0415
+            ctx = OSMesaContext(width, height)
+            ctx.make_current()
+            _offscreen_context = ctx
+            logger.info("Using OSMesa headless context (CPU, no display or GPU required).")
+            return None
+        except (ImportError, RuntimeError) as exc:
+            raise RuntimeError(
+                "Could not create any OpenGL context (tried GLFW and OSMesa). "
+                f"Last error: {exc}"
+            ) from exc
+
+    raise RuntimeError(
+        "Could not create a GLFW OpenGL context and no headless backend was "
+        "preselected.  This can happen when DISPLAY is set but the display is "
+        "not usable (e.g. a broken ssh -X forward) and no EGL or OSMesa "
+        "library was found at import time.  To fix this, install a headless "
+        "rendering backend:\n"
+        "  - EGL (recommended): sudo apt-get install libegl1\n"
+        "  - OSMesa (fallback):  sudo apt-get install libosmesa6\n"
+        "With either library installed, WhipperSnapPy will select the headless "
+        "backend automatically on the next run."
+    )
 
 
 def terminate_context(window):

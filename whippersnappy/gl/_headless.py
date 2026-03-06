@@ -211,10 +211,8 @@ if sys.platform == "linux" and "PYOPENGL_PLATFORM" not in os.environ:
     )
     if not _has_display:
         # No display — choose headless backend before OpenGL.GL is imported.
-        # Use _egl_context_works() not just _egl_is_available(): libEGL may be
-        # installed but still fail (no GPU, no llvmpipe, bad driver).  We must
-        # know the outcome before setting PYOPENGL_PLATFORM because OpenGL.GL
-        # binds its function pointers on first import and cannot be re-bound.
+        # OpenGL.GL binds its function pointers on first import and cannot be
+        # re-bound, so PYOPENGL_PLATFORM must be set correctly here.
         if _egl_context_works():
             os.environ["PYOPENGL_PLATFORM"] = "egl"
             logger.info("No display detected; EGL available — using EGL headless rendering.")
