@@ -142,14 +142,15 @@ def init_offscreen_context(width, height):
 
     Tries up to three paths on Linux; macOS and Windows use GLFW only.
 
-    1. **GLFW invisible window** — standard path when a display is available.
-    2. **EGL pbuffer** — headless GPU rendering (Linux only, no display needed).
-       Only attempted when :mod:`~whippersnappy.gl._headless` already set
-       ``PYOPENGL_PLATFORM=egl`` at import time (i.e. no display detected AND
-       ``/dev/dri/renderD*`` is accessible).  This guarantees ``OpenGL.GL``
-       was bound to the EGL backend before any GL call; attempting EGL after
-       ``OpenGL.GL`` has already been imported with a different backend would
-       silently break function resolution.
+    1. **GLFW invisible window** — standard path when a usable display is
+       available.
+    2. **EGL pbuffer** — headless GPU rendering (Linux only).  Attempted when
+       :mod:`~whippersnappy.gl._headless` set ``PYOPENGL_PLATFORM=egl`` at
+       import time.  This happens when either no display is present, or when
+       ``DISPLAY`` is set but the X server was unreachable (e.g. a stale
+       ``ssh -X`` forward that cannot provide GLX 3.3).  Pre-setting
+       ``PYOPENGL_PLATFORM`` before ``OpenGL.GL`` is first imported ensures
+       PyOpenGL binds EGL function pointers correctly.
     3. **OSMesa** — CPU software renderer (Linux only).  Used when neither
        GLFW nor EGL succeeds, or when ``PYOPENGL_PLATFORM=osmesa`` was set.
 
@@ -189,11 +190,11 @@ def init_offscreen_context(width, height):
 
     # --- Step 2: EGL headless GPU rendering ---
     # Only safe when PYOPENGL_PLATFORM=egl was set by _headless.py before
-    # OpenGL.GL was imported — meaning the process has no display AND an EGL
-    # device was found at import time.  PyOpenGL binds its platform backend on
-    # first import and cannot be switched afterwards; importing egl_context.py
-    # here when PYOPENGL_PLATFORM is already something else (e.g. "osmesa" or
-    # unset/GLX) would cause silent function-pointer mismatches.
+    # OpenGL.GL was imported.  _headless.py sets this when either no display
+    # is present at all, or when DISPLAY is set but the X server was
+    # unreachable (e.g. a stale/unusable ssh -X forward).  In both cases
+    # PyOpenGL is already bound to EGL; attempting EGL when OpenGL.GL was
+    # imported with GLX would cause silent function-pointer mismatches.
     if os.environ.get("PYOPENGL_PLATFORM") == "egl":
         logger.info("GLFW failed — trying EGL headless GPU rendering.")
         try:
