@@ -268,10 +268,19 @@ triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[notebook]&#39;</span>
 </pre></div>
 </div>
-<p>Off-screen (headless) rendering on <strong>Linux</strong> is supported natively via
-OSMesa — no <code class="docutils literal notranslate"><span class="pre">xvfb</span></code> or GPU required.  On <strong>Windows</strong>, GLFW creates an
-invisible window; a GPU driver is sufficient — no display needed.  On
-<strong>macOS</strong>, a real display connection is required (NSGL does not support
+<p>Off-screen (headless) rendering on <strong>Linux</strong> uses a three-path fallback:</p>
+<ol class="arabic simple">
+<li><p><strong>GLFW invisible window</strong> — used when a display is available (<code class="docutils literal notranslate"><span class="pre">DISPLAY</span></code> set).</p></li>
+<li><p><strong>EGL</strong> (GPU, no display needed) — used when no display is detected and a
+GPU render device (<code class="docutils literal notranslate"><span class="pre">/dev/dri/renderD*</span></code>) is accessible with <code class="docutils literal notranslate"><span class="pre">libEGL</span></code> installed
+(<code class="docutils literal notranslate"><span class="pre">libegl1</span></code> on Debian/Ubuntu).  This is the recommended path for SSH servers
+with a GPU — no <code class="docutils literal notranslate"><span class="pre">DISPLAY</span></code>, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or OSMesa required.</p></li>
+<li><p><strong>OSMesa</strong> (CPU software renderer) — final fallback; requires
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">libosmesa6</span></code> (Debian/Ubuntu) or
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">dnf</span> <span class="pre">install</span> <span class="pre">mesa-libOSMesa</span></code> (RHEL/Fedora).</p></li>
+</ol>
+<p>On <strong>Windows</strong>, GLFW creates an invisible window; a GPU driver is sufficient.
+On <strong>macOS</strong>, a real display connection is required (NSGL does not support
 headless rendering).
 See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.</p>
 </section>
@@ -469,8 +478,9 @@ GIfTI functional/label (<code class="docutils literal notranslate"><span class="
 </section>
 <section id="docker">
 <h2>Docker<a class="headerlink" href="#docker" title="Link to this heading">¶</a></h2>
-<p>The Docker image provides a fully headless OSMesa rendering environment — no
-display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU required. See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
+<p>The Docker image provides a fully headless rendering environment using
+OSMesa (CPU software renderer) — no display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU required.
+See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
 </section>
 <section id="api-documentation">
 <h2>API Documentation<a class="headerlink" href="#api-documentation" title="Link to this heading">¶</a></h2>

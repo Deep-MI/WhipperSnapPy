@@ -244,10 +244,11 @@
         <article role="main" id="furo-main-content">
           <section id="docker-guide">
 <h1>Docker Guide<a class="headerlink" href="#docker-guide" title="Link to this heading">¶</a></h1>
-<p>The Docker image provides a fully headless rendering environment using
-<a class="reference external" href="https://docs.mesa3d.org/osmesa.html">OSMesa</a> (Mesa’s off-screen software
-renderer). No display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU is required — rendering runs
-entirely in software on the CPU.</p>
+<p>The Docker image provides a fully headless rendering environment.  By default
+it uses <a class="reference external" href="https://docs.mesa3d.org/osmesa.html">OSMesa</a> (Mesa’s CPU software
+renderer) — no display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU required.  If a GPU render
+device is available, pass <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">/dev/dri/renderD128</span></code> to enable EGL GPU
+rendering instead; <code class="docutils literal notranslate"><span class="pre">libegl1</span></code> is already included in the image.</p>
 <p>The default entry point is <code class="docutils literal notranslate"><span class="pre">whippersnap4</span></code> (four-view batch rendering).
 <code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code> (single-view snapshot and rotation video) can be invoked by
 overriding the entry point.</p>
@@ -430,16 +431,28 @@ parent directory to retrieve them on the host.</p>
 <hr class="docutils" />
 <section id="notes">
 <h2>Notes<a class="headerlink" href="#notes" title="Link to this heading">¶</a></h2>
-<ul class="simple">
+<ul>
 <li><p>The <code class="docutils literal notranslate"><span class="pre">--init</span></code> flag is recommended so that signals (e.g. <code class="docutils literal notranslate"><span class="pre">Ctrl-C</span></code>) are handled
 correctly inside the container.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">--user</span> <span class="pre">$(id</span> <span class="pre">-u):$(id</span> <span class="pre">-g)</span></code> ensures output files are owned by your host user,
 not root.</p></li>
 <li><p>The interactive GUI (<code class="docutils literal notranslate"><span class="pre">whippersnap</span></code>) is <strong>not</strong> available in the Docker image —
 it requires a display server and PyQt6, which are not installed.</p></li>
-<li><p>Headless rendering uses <strong>OSMesa</strong> (Mesa’s CPU software renderer, provided by
-the <code class="docutils literal notranslate"><span class="pre">libosmesa6</span></code> system package). No GPU, no <code class="docutils literal notranslate"><span class="pre">/dev/dri/</span></code> device, and no
-<code class="docutils literal notranslate"><span class="pre">--privileged</span></code> flag are needed.</p></li>
+<li><p><strong>Default rendering</strong> uses <strong>OSMesa</strong> (Mesa’s CPU software renderer, provided
+by the <code class="docutils literal notranslate"><span class="pre">libosmesa6</span></code> system package). No GPU or <code class="docutils literal notranslate"><span class="pre">/dev/dri/</span></code> device needed.</p></li>
+<li><p><strong>GPU rendering via EGL</strong> works out of the box — <code class="docutils literal notranslate"><span class="pre">libegl1</span></code> is included in the
+image.  Pass the render device into the container and WhipperSnapPy will
+automatically prefer EGL over OSMesa when <code class="docutils literal notranslate"><span class="pre">/dev/dri/renderD*</span></code> is accessible:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--device<span class="w"> </span>/dev/dri/renderD128<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/path/to/subject:/subject<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/path/to/output:/output<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnappy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-lh<span class="w"> </span>/subject/surf/lh.thickness<span class="w"> </span>-rh<span class="w"> </span>/subject/surf/rh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-sd<span class="w"> </span>/subject<span class="w"> </span>-o<span class="w"> </span>/output/snap4.png
+</pre></div>
+</div>
+</li>
 </ul>
 </section>
 </section>
