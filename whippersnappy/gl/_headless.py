@@ -132,6 +132,7 @@ def _egl_context_works():
                 )(addr)
                 n = ctypes.c_int(0)
                 if _QueryDevices(0, None, ctypes.byref(n)) and n.value > 0:
+                    logger.info("EGL probe: %d EGL device(s) found via enumeration.", n.value)
                     devices = (ctypes.c_void_p * n.value)()
                     _QueryDevices(n.value, devices, ctypes.byref(n))
                     for dev in devices:
@@ -143,6 +144,8 @@ def _egl_context_works():
                         if _try_init(dpy):
                             logger.debug("EGL probe: device enumeration succeeded (GPU).")
                             return True
+                else:
+                    logger.info("EGL probe: device enumeration found 0 devices.")
 
         # --- Path 2: EGL_MESA_platform_surfaceless ---
         # CPU software rendering (llvmpipe) — no GPU needed.

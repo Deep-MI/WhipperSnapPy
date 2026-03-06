@@ -290,46 +290,45 @@ class EGLContext:
     def _open_device_display(self, eglQueryDevicesEXT, eglGetPlatformDisplayEXT):
         """Enumerate EGL devices and return the first usable GPU display pointer.
 
-        Prefers hardware GPU devices over software (llvmpipe) devices by
-        checking ``EGL_DRM_DEVICE_FILE_EXT`` — hardware devices have a DRM
-        path, software devices do not.  Falls back to any working device if
-        no hardware device is found.
+        Prefers hardware GPU devices over software (llvmpipe/Mesa) devices.
+        Hardware devices are identified by the absence of ``EGL_MESA_device_software``
+        in their extension string — this correctly handles both AMD/Intel (which
+        have a DRM path) and NVIDIA (which do not expose a DRM path but are still
+        real GPU devices).
         """
         n = ctypes.c_int(0)
         if not eglQueryDevicesEXT(0, None, ctypes.byref(n)) or n.value == 0:
             logger.debug("EGL: eglQueryDevicesEXT found no devices.")
             return None
-        logger.debug("EGL: %d device(s) found", n.value)
+        logger.info("EGL: %d device(s) found via enumeration.", n.value)
         devices = (ctypes.c_void_p * n.value)()
         eglQueryDevicesEXT(n.value, devices, ctypes.byref(n))
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
 
-        # Try to load eglQueryDeviceStringEXT to identify hardware vs software
-        _EGL_DRM_DEVICE_FILE_EXT = 0x3233
+        _EGL_DRM_DEVICE_FILE_EXT = 0x3233  # for logging only
+        _EGL_EXTENSIONS_STR = 0x3055
         try:
-            addr = self._libegl.eglGetProcAddress(b"eglQueryDeviceStringEXT")
-            if addr:
-                _QueryDeviceString = ctypes.CFUNCTYPE(
-                    ctypes.c_char_p, ctypes.c_void_p, ctypes.c_int
-                )(addr)
-            else:
-                _QueryDeviceString = None
+            addr2 = self._libegl.eglGetProcAddress(b"eglQueryDeviceStringEXT")
+            _QueryDeviceString = ctypes.CFUNCTYPE(
+                ctypes.c_char_p, ctypes.c_void_p, ctypes.c_int
+            )(addr2) if addr2 else None
         except Exception:  # noqa: BLE001
             _QueryDeviceString = None
 
-        # Two passes: first try hardware GPU devices, then fall back to any device
         hw_devices = []
         sw_devices = []
         for dev in devices:
-            is_hw = False
+            is_sw = False
             if _QueryDeviceString:
                 drm_path = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_DRM_DEVICE_FILE_EXT)
-                is_hw = bool(drm_path)
-                logger.debug("EGL device drm_path=%s hw=%s", drm_path, is_hw)
-            if is_hw:
-                hw_devices.append(dev)
-            else:
+                dev_exts = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_EXTENSIONS_STR) or b""
+                is_sw = b"EGL_MESA_device_software" in dev_exts
+                logger.info("EGL device: drm_path=%s sw=%s exts=%s",
+                            drm_path, is_sw, dev_exts.decode() if dev_exts else "")
+            if is_sw:
                 sw_devices.append(dev)
+            else:
+                hw_devices.append(dev)
 
         for i, dev in enumerate(hw_devices + sw_devices):
             dpy = eglGetPlatformDisplayEXT(
