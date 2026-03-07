@@ -3,8 +3,6 @@
 The Docker image provides a fully headless rendering environment using
 **EGL** with Mesa's llvmpipe CPU software renderer — no GPU, display server,
 or `xvfb` required.  This is fast enough for all snapshot and video tasks.
-`libosmesa6` is also included as a last-resort fallback if EGL cannot
-initialise.
 
 For **Singularity/Apptainer**, passing `--nv` enables GPU rendering via EGL
 automatically — no other configuration needed.
@@ -233,8 +231,7 @@ singularity exec --nv \
   ```
   EGL context active — GPU rendering (...)
   ```
-- **OSMesa** (`libosmesa6`) is included as a last-resort CPU fallback for the
-  rare case where EGL itself fails to initialise.
+
 
 
 
