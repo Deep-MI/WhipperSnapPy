@@ -186,11 +186,11 @@ def _egl_context_works():
             logger.debug("EGL probe: EGL_DEFAULT_DISPLAY succeeded.")
             return True
 
-        logger.info("EGL probe: no EGL display could be initialised — will use OSMesa.")
+        logger.info("EGL probe: no EGL display could be initialised.")
         return False
 
     except Exception as exc:  # noqa: BLE001
-        logger.debug("EGL probe: unexpected error (%s) — will use OSMesa.", exc)
+        logger.debug("EGL probe: unexpected error (%s).", exc)
         return False
 
 
@@ -227,7 +227,7 @@ if sys.platform == "linux" and "PYOPENGL_PLATFORM" not in os.environ:
                 "EGL initialisation failed, and OSMesa is not installed.\n"
                 "\n"
                 "To fix this, choose one of:\n"
-                "  1. Install EGL (recommended, if GPU is installed):\n"
+                "  1. Install EGL (recommended, for GPU or CPU rendering):\n"
                 "       Debian/Ubuntu:  sudo apt-get install libegl1\n"
                 "       RHEL/Fedora:    sudo dnf install mesa-libEGL\n"
                 "  2. Install OSMesa (CPU-only alternative):\n"

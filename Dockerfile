@@ -5,7 +5,7 @@ FROM python:3.11-slim
 # unset or points to a non-writable directory.
 ENV MESA_SHADER_CACHE_DISABLE=1
 
-# In order to find Nividia GPUs (--gpus all)
+# In order to find NVIDIA GPUs (--gpus all)
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 
