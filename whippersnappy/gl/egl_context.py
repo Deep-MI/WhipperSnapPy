@@ -22,6 +22,7 @@ Typical usage (internal, called from :func:`~whippersnappy.gl.context.init_offsc
     ctx.destroy()
 """
 
+import contextlib
 import ctypes
 import logging
 import os
@@ -66,6 +67,26 @@ _EGL_CONTEXT_MAJOR_VERSION = 0x3098
 _EGL_CONTEXT_MINOR_VERSION = 0x30FB
 _EGL_PLATFORM_DEVICE_EXT  = 0x313F
 
+
+@contextlib.contextmanager
+def _silence_stderr():
+    """Suppress C-level stderr for the duration of the block.
+
+    Mesa writes DRI/EGL warnings (e.g. "failed to open /dev/dri/renderD128:
+    Permission denied") directly to file descriptor 2, bypassing Python's
+    logging system.  We redirect fd 2 to ``/dev/null`` for calls that are
+    expected to fail (e.g. probing GPU devices without access) so users don't
+    see spurious warnings when the fallback path works fine.
+    """
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    saved = os.dup(2)
+    try:
+        os.dup2(devnull_fd, 2)
+        yield
+    finally:
+        os.dup2(saved, 2)
+        os.close(saved)
+        os.close(devnull_fd)
 
 class EGLContext:
     """A headless OpenGL 3.3 Core context backed by an EGL pbuffer + FBO.
@@ -175,30 +196,84 @@ class EGLContext:
         client_exts = libegl.eglQueryString(None, _EGL_EXTENSIONS) or b""
         logger.debug("EGL client extensions: %s", client_exts.decode())
 
-        has_device_enum = b"EGL_EXT_device_enumeration" in client_exts
         has_platform_base = b"EGL_EXT_platform_base" in client_exts
+        has_device_enum   = b"EGL_EXT_device_enumeration" in client_exts
+        has_surfaceless   = b"EGL_MESA_platform_surfaceless" in client_exts
 
-        display = None
-        if has_device_enum and has_platform_base:
-            eglQueryDevicesEXT = self._get_ext_fn(
-                "eglQueryDevicesEXT",
-                ctypes.c_bool,
-                [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
-            )
+        eglGetPlatformDisplayEXT = None
+        if has_platform_base:
             eglGetPlatformDisplayEXT = self._get_ext_fn(
                 "eglGetPlatformDisplayEXT",
                 ctypes.c_void_p,
                 [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
             )
-            display = self._open_device_display(
-                eglQueryDevicesEXT, eglGetPlatformDisplayEXT
-            )
 
-        if display is None:
-            logger.debug("Falling back to eglGetDisplay(EGL_DEFAULT_DISPLAY)")
-            libegl.eglGetDisplay.restype = ctypes.c_void_p
-            libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
-            display = libegl.eglGetDisplay(ctypes.c_void_p(0))
+        _EGL_NONE = 0x3038
+        no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
+
+        # Build an ordered list of (display_handle, path_label) candidates.
+        # We try each in order, calling eglInitialize on each; the first that
+        # succeeds becomes the active display.  This means a GPU device that
+        # fails eglInitialize (e.g. DRI2 screen not available inside Docker)
+        # is skipped and we fall through to surfaceless (llvmpipe CPU) —
+        # all within EGL, avoiding the broken EGL→OSMesa mixed-platform issue.
+        candidates = []  # list of (dpy, label)
+
+        # --- Candidate 1: EGL_EXT_device_enumeration ---
+        # Hardware GPU devices tried first, software devices last.
+        # GPU is selected automatically when accessible natively.
+        if has_device_enum and eglGetPlatformDisplayEXT:
+            eglQueryDevicesEXT = self._get_ext_fn(
+                "eglQueryDevicesEXT",
+                ctypes.c_bool,
+                [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
+            )
+            for dpy, is_hw in (self._open_device_display(
+                    eglQueryDevicesEXT, eglGetPlatformDisplayEXT) or []):
+                label = "GPU device" if is_hw else "software device"
+                candidates.append((dpy, label))
+
+        # --- Candidate 2: EGL_MESA_platform_surfaceless (CPU/llvmpipe) ---
+        _EGL_PLATFORM_SURFACELESS = 0x31DD
+        if eglGetPlatformDisplayEXT and has_surfaceless:
+            sl_dpy = eglGetPlatformDisplayEXT(
+                _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
+            )
+            if sl_dpy:
+                candidates.append((sl_dpy, "surfaceless"))
+
+        # --- Candidate 3: EGL_DEFAULT_DISPLAY (needs X11/Wayland) ---
+        libegl.eglGetDisplay.restype  = ctypes.c_void_p
+        libegl.eglGetDisplay.argtypes = [ctypes.c_void_p]
+        def_dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))
+        if def_dpy:
+            candidates.append((def_dpy, "default display"))
+
+        # Try each candidate until one succeeds eglInitialize.
+        # Suppress C-level stderr during attempts that may produce Mesa DRI
+        # warnings ("failed to open /dev/dri/...", "failed to create dri2
+        # screen") — these are expected when a GPU device is found but not
+        # accessible (e.g. Singularity without --nv).
+        display = None
+        self._display_path = "unknown"
+        for dpy, label in candidates:
+            major, minor = ctypes.c_int(0), ctypes.c_int(0)
+            with _silence_stderr():
+                ok = libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor))
+            if ok:
+                display = dpy
+                self._display_path = label
+                logger.debug("EGL: initialised via %s (EGL %d.%d).",
+                             label, major.value, minor.value)
+                break
+            else:
+                if "GPU" in label:
+                    logger.debug(
+                        "EGL: GPU device found but eglInitialize failed "
+                        "— falling back to CPU software rendering."
+                    )
+                else:
+                    logger.debug("EGL: %s failed eglInitialize — trying next.", label)
 
         if not display:
             raise RuntimeError(
@@ -207,12 +282,6 @@ class EGLContext:
             )
         self._display = display
 
-        major, minor = ctypes.c_int(0), ctypes.c_int(0)
-        if not libegl.eglInitialize(
-                self._display, ctypes.byref(major), ctypes.byref(minor)
-        ):
-            raise RuntimeError("eglInitialize failed.")
-        logger.debug("EGL %d.%d", major.value, minor.value)
 
         if not libegl.eglBindAPI(_EGL_OPENGL_API):
             raise RuntimeError("eglBindAPI(OpenGL) failed.")
@@ -252,27 +321,71 @@ class EGLContext:
                 "eglCreateContext for OpenGL 3.3 Core failed. "
                 "Try: MESA_GL_VERSION_OVERRIDE=3.3 MESA_GLSL_VERSION_OVERRIDE=330"
             )
-        logger.info("EGL context created (%dx%d)", self.width, self.height)
+        logger.debug("EGL context created (%dx%d) via %s display.",
+                     self.width, self.height, self._display_path)
 
 
     def _open_device_display(self, eglQueryDevicesEXT, eglGetPlatformDisplayEXT):
-        """Enumerate EGL devices and return first usable display pointer."""
+        """Enumerate EGL devices and return display candidates ordered GPU-first.
+
+        Returns a list of ``(display_handle, is_hw)`` tuples — hardware GPU
+        devices first, software devices last.  The caller (``_init_egl``) tries
+        each by calling ``eglInitialize``; the first that succeeds is used.
+
+        Hardware vs software is determined by ``EGL_MESA_device_software`` in
+        the device extension string — this correctly handles NVIDIA (no DRM
+        path, but not a software device) and AMD/Intel (has a DRM path).
+        """
         n = ctypes.c_int(0)
-        if not eglQueryDevicesEXT(0, None, ctypes.byref(n)) or n.value == 0:
-            logger.warning("eglQueryDevicesEXT: no devices.")
+        with _silence_stderr():
+            found = eglQueryDevicesEXT(0, None, ctypes.byref(n))
+        if not found or n.value == 0:
+            logger.debug("EGL: eglQueryDevicesEXT found no devices.")
             return None
-        logger.debug("EGL: %d device(s) found", n.value)
+        logger.info("EGL: %d device(s) found via enumeration.", n.value)
         devices = (ctypes.c_void_p * n.value)()
-        eglQueryDevicesEXT(n.value, devices, ctypes.byref(n))
+        with _silence_stderr():
+            eglQueryDevicesEXT(n.value, devices, ctypes.byref(n))
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
-        for i, dev in enumerate(devices):
-            dpy = eglGetPlatformDisplayEXT(
-                _EGL_PLATFORM_DEVICE_EXT, ctypes.c_void_p(dev), no_attribs
-            )
+
+        _EGL_DRM_DEVICE_FILE_EXT = 0x3233  # for logging only
+        _EGL_EXTENSIONS_STR = 0x3055
+        try:
+            addr2 = self._libegl.eglGetProcAddress(b"eglQueryDeviceStringEXT")
+            _QueryDeviceString = ctypes.CFUNCTYPE(
+                ctypes.c_char_p, ctypes.c_void_p, ctypes.c_int
+            )(addr2) if addr2 else None
+        except Exception:  # noqa: BLE001
+            _QueryDeviceString = None
+
+        hw_devices = []
+        sw_devices = []
+        for dev in devices:
+            is_sw = False
+            if _QueryDeviceString:
+                drm_path = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_DRM_DEVICE_FILE_EXT)
+                dev_exts = _QueryDeviceString(ctypes.c_void_p(dev), _EGL_EXTENSIONS_STR) or b""
+                is_sw = b"EGL_MESA_device_software" in dev_exts
+                logger.debug("EGL device: drm_path=%s sw=%s exts=%s",
+                             drm_path, is_sw, dev_exts.decode() if dev_exts else "")
+            if is_sw:
+                sw_devices.append(dev)
+            else:
+                hw_devices.append(dev)
+
+        if hw_devices:
+            logger.debug("EGL: %d hardware device(s), %d software device(s).",
+                         len(hw_devices), len(sw_devices))
+
+        results = []
+        for dev in hw_devices + sw_devices:
+            with _silence_stderr():
+                dpy = eglGetPlatformDisplayEXT(
+                    _EGL_PLATFORM_DEVICE_EXT, ctypes.c_void_p(dev), no_attribs
+                )
             if dpy:
-                logger.debug("EGL: using device %d", i)
-                return dpy
-        return None
+                results.append((dpy, dev in hw_devices))
+        return results  # list of (display, is_hw)
 
 
     def make_current(self):
@@ -290,6 +403,22 @@ class EGLContext:
         # PyOpenGL's contextdata module only recognizes contexts it has "seen"
         # via at least one GL call; glGetError() is the cheapest trigger.
         gl.glGetError()
+
+        # Report GPU vs CPU rendering based on the GL renderer string.
+        renderer = (gl.glGetString(gl.GL_RENDERER) or b"").decode("utf-8", errors="replace")
+        vendor   = (gl.glGetString(gl.GL_VENDOR)   or b"").decode("utf-8", errors="replace")
+        _sw = ("llvmpipe", "softpipe", "swrast", "software")
+        is_cpu = any(s in renderer.lower() for s in _sw)
+        if is_cpu:
+            logger.info(
+                "EGL context active — CPU software rendering (%s, %s).",
+                renderer, vendor,
+            )
+        else:
+            logger.info(
+                "EGL context active — GPU rendering (%s, %s).",
+                renderer, vendor,
+            )
 
         # Build FBO so rendering is directed off-screen
         self.fbo = gl.glGenFramebuffers(1)

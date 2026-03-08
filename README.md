@@ -33,20 +33,23 @@ For interactive 3D in Jupyter notebooks:
 pip install 'whippersnappy[notebook]'
 ```
 
-Off-screen (headless) rendering on **Linux** uses a three-path fallback:
-1. **GLFW invisible window** — used when a display is available (`DISPLAY` set).
-2. **EGL** (GPU, no display needed) — used when no display is detected and a
-   GPU render device (`/dev/dri/renderD*`) is accessible with `libEGL` installed
-   (`libegl1` on Debian/Ubuntu).  This is the recommended path for SSH servers
-   with a GPU — no `DISPLAY`, `xvfb`, or OSMesa required.
-3. **OSMesa** (CPU software renderer) — final fallback; requires
-   `sudo apt-get install libosmesa6` (Debian/Ubuntu) or
-   `sudo dnf install mesa-libOSMesa` (RHEL/Fedora).
+Off-screen (headless) rendering on **Linux** uses **EGL** with Mesa's llvmpipe
+CPU software renderer — no GPU or display server required.  The log reports:
+```
+EGL context active — CPU software rendering (llvmpipe (...), ...)
+```
+When a GPU is accessible (native install, Docker with `--gpus all`, or
+Singularity with `--nv`), EGL selects it automatically:
+```
+EGL context active — GPU rendering (...)
+```
+OSMesa (`libosmesa6`) is a last-resort CPU fallback used only when EGL
+itself cannot initialise (e.g. `libegl1` not installed).
 
 On **Windows**, GLFW creates an invisible window; a GPU driver is sufficient.
 On **macOS**, a real display connection is required (NSGL does not support
 headless rendering).
-See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.
+See the <a href="DOCKER.md">Docker/Singularity guide</a> for container usage.
 
 ## Command-Line Usage
 
@@ -217,8 +220,8 @@ See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
 
 ## Docker
 
-The Docker image provides a fully headless rendering environment using
-OSMesa (CPU software renderer) — no display server, `xvfb`, or GPU required.
+The Docker image provides a fully headless rendering environment using EGL —
+CPU software rendering by default, GPU rendering with `--gpus all` (NVIDIA).
 See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.
 
 ## API Documentation
