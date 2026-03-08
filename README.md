@@ -38,8 +38,8 @@ CPU software renderer — no GPU or display server required.  The log reports:
 ```
 EGL context active — CPU software rendering (llvmpipe (...), ...)
 ```
-When a GPU is accessible (native install or Singularity with ``--nv``),
-EGL selects it automatically:
+When a GPU is accessible (native install, Docker with `--gpus all`, or
+Singularity with `--nv`), EGL selects it automatically:
 ```
 EGL context active — GPU rendering (...)
 ```
@@ -220,8 +220,8 @@ See `tutorials/whippersnappy_tutorial.ipynb` for complete notebook examples.
 
 ## Docker
 
-The Docker image provides a fully headless rendering environment using
-OSMesa (CPU software renderer) — no display server, `xvfb`, or GPU required.
+The Docker image provides a fully headless rendering environment using EGL —
+CPU software rendering by default, GPU rendering with `--gpus all` (NVIDIA).
 See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.
 
 ## API Documentation

@@ -1,11 +1,15 @@
 # Docker / Singularity Guide
 
 The Docker image provides a fully headless rendering environment using
-**EGL** with Mesa's llvmpipe CPU software renderer — no GPU, display server,
-or `xvfb` required.  This is fast enough for all snapshot and video tasks.
+**EGL** — no display server or `xvfb` required.
 
-For **Singularity/Apptainer**, passing `--nv` enables GPU rendering via EGL
-automatically — no other configuration needed.
+- **CPU rendering (default):** EGL falls back to Mesa's llvmpipe software
+  renderer automatically.  No GPU or special flags needed.
+- **GPU rendering (NVIDIA):** 
+  - For **Docker**, pass `--gpus all` and EGL selects the
+    GPU via the NVIDIA Container Toolkit. 
+  - For **Singularity/Apptainer**, pass `--nv` (NVIDIA) enables GPU
+    rendering via EGL automatically.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -42,6 +46,26 @@ docker run --rm --init \
   -sd /subject \
   -o /output/snap4.png
 ```
+
+### With NVIDIA GPU (faster rendering)
+
+Pass `--gpus all` to let EGL use the GPU via the NVIDIA Container Toolkit:
+
+```bash
+docker run --rm --init \
+  --gpus all \
+  -v /path/to/subject:/subject \
+  -v /path/to/output:/output \
+  --user $(id -u):$(id -g) \
+  whippersnappy \
+  -lh /subject/surf/lh.thickness \
+  -rh /subject/surf/rh.thickness \
+  -sd /subject \
+  -o /output/snap4.png
+```
+
+> **Note:** Requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+> installed on the host (`nvidia-ctk --version` to verify).
 
 ### With an annotation file instead of an overlay
 
@@ -221,10 +245,15 @@ singularity exec --nv \
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Docker rendering** uses **EGL with CPU software rendering** (Mesa llvmpipe)
-  — no GPU or display server required.  The log will show:
+- **Docker CPU rendering** (default — no GPU needed): EGL uses Mesa's llvmpipe
+  software renderer.  The log will show:
   ```
   EGL context active — CPU software rendering (llvmpipe (...), ...)
+  ```
+- **Docker GPU rendering** (`--gpus all`, NVIDIA only): EGL uses the NVIDIA GPU
+  driver injected by the NVIDIA Container Toolkit.  The log will show:
+  ```
+  EGL context active — GPU rendering (...)
   ```
 - **Singularity GPU rendering** with `--nv` uses EGL with the NVIDIA GPU
   driver injected by Singularity.  The log will show:
