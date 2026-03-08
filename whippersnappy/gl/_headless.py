@@ -69,6 +69,21 @@ def _egl_context_works():
         logger.debug("EGL probe: libEGL not loadable.")
         return False
 
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _suppress_stderr():
+        """Suppress C-level stderr (e.g. Mesa/EGL driver warnings)."""
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        saved = os.dup(2)
+        try:
+            os.dup2(devnull, 2)
+            yield
+        finally:
+            os.dup2(saved, 2)
+            os.close(saved)
+            os.close(devnull)
+
     try:
         libegl.eglGetProcAddress.restype  = ctypes.c_void_p
         libegl.eglGetProcAddress.argtypes = [ctypes.c_char_p]
@@ -85,104 +100,85 @@ def _egl_context_works():
         libegl.eglTerminate.restype  = ctypes.c_bool
         libegl.eglTerminate.argtypes = [ctypes.c_void_p]
 
-        _EGL_EXTENSIONS      = 0x3055
-        _EGL_NONE            = 0x3038
-        _EGL_PLATFORM_DEVICE = 0x313F
-
+        _EGL_EXTENSIONS           = 0x3055
+        _EGL_NONE                 = 0x3038
+        _EGL_PLATFORM_DEVICE      = 0x313F
+        _EGL_PLATFORM_SURFACELESS = 0x31DD
 
         client_exts = libegl.eglQueryString(None, _EGL_EXTENSIONS) or b""
         logger.debug("EGL client extensions: %s", client_exts.decode())
 
-        _GetPlatformDisplayEXT = None
-        if b"EGL_EXT_platform_base" in client_exts:
-            addr = libegl.eglGetProcAddress(b"eglGetPlatformDisplayEXT")
-            if addr:
-                _GetPlatformDisplayEXT = ctypes.CFUNCTYPE(
-                    ctypes.c_void_p,
-                    ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int),
-                )(addr)
-
         no_attribs = (ctypes.c_int * 1)(_EGL_NONE)
 
-        # --- Path 1: EGL_EXT_device_enumeration ---
-        def _try_init_silent(dpy):
-            """Call eglInitialize with C-level stderr suppressed."""
+        def _get_proc(signature, name):
+            """Resolve an EGL extension function; return None if unavailable."""
+            addr = libegl.eglGetProcAddress(name)
+            return signature(addr) if addr else None
+
+        def _try_init(dpy):
+            """Try eglInitialize on dpy with stderr suppressed; terminate on success."""
             if not dpy:
                 return False
-            devnull = os.open(os.devnull, os.O_WRONLY)
-            saved = os.dup(2)
-            try:
-                os.dup2(devnull, 2)
-                major, minor = ctypes.c_int(0), ctypes.c_int(0)
+            major, minor = ctypes.c_int(0), ctypes.c_int(0)
+            with _suppress_stderr():
                 ok = libegl.eglInitialize(dpy, ctypes.byref(major), ctypes.byref(minor))
                 libegl.eglTerminate(dpy)
-            finally:
-                os.dup2(saved, 2)
-                os.close(saved)
-                os.close(devnull)
             if ok:
                 logger.debug("EGL probe: eglInitialize OK (EGL %d.%d).",
                              major.value, minor.value)
             return bool(ok)
 
+        # Resolve eglGetPlatformDisplayEXT once; used by paths 1 and 2.
+        _GetPlatformDisplayEXT = None
+        if b"EGL_EXT_platform_base" in client_exts:
+            _GetPlatformDisplayEXT = _get_proc(
+                ctypes.CFUNCTYPE(ctypes.c_void_p,
+                                 ctypes.c_int, ctypes.c_void_p,
+                                 ctypes.POINTER(ctypes.c_int)),
+                b"eglGetPlatformDisplayEXT",
+            )
+
+        # --- Path 1: EGL_EXT_device_enumeration ---
         # Try GPU and software devices; prefer GPU when available natively.
-        if (_GetPlatformDisplayEXT
-                and b"EGL_EXT_device_enumeration" in client_exts):
-            addr = libegl.eglGetProcAddress(b"eglQueryDevicesEXT")
-            if addr:
-                _QueryDevices = ctypes.CFUNCTYPE(
-                    ctypes.c_bool,
-                    ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int),
-                )(addr)
+        if _GetPlatformDisplayEXT and b"EGL_EXT_device_enumeration" in client_exts:
+            _QueryDevices = _get_proc(
+                ctypes.CFUNCTYPE(ctypes.c_bool,
+                                 ctypes.c_int, ctypes.c_void_p,
+                                 ctypes.POINTER(ctypes.c_int)),
+                b"eglQueryDevicesEXT",
+            )
+            if _QueryDevices:
                 n = ctypes.c_int(0)
-                devnull = os.open(os.devnull, os.O_WRONLY)
-                saved = os.dup(2)
-                try:
-                    os.dup2(devnull, 2)
+                with _suppress_stderr():
                     found = _QueryDevices(0, None, ctypes.byref(n))
-                finally:
-                    os.dup2(saved, 2)
-                    os.close(saved)
-                    os.close(devnull)
+                logger.debug("EGL probe: %d EGL device(s) found.", n.value if found else 0)
                 if found and n.value > 0:
-                    logger.debug("EGL probe: %d EGL device(s) found.", n.value)
                     devices = (ctypes.c_void_p * n.value)()
-                    _QueryDevices(n.value, devices, ctypes.byref(n))
+                    with _suppress_stderr():
+                        _QueryDevices(n.value, devices, ctypes.byref(n))
                     for dev in devices:
-                        devnull = os.open(os.devnull, os.O_WRONLY)
-                        saved = os.dup(2)
-                        try:
-                            os.dup2(devnull, 2)
-                            dpy = _GetPlatformDisplayEXT(
-                                _EGL_PLATFORM_DEVICE,
-                                ctypes.c_void_p(dev),
-                                no_attribs,
-                            )
-                        finally:
-                            os.dup2(saved, 2)
-                            os.close(saved)
-                            os.close(devnull)
-                        if _try_init_silent(dpy):
+                        dpy = _GetPlatformDisplayEXT(
+                            _EGL_PLATFORM_DEVICE,
+                            ctypes.c_void_p(dev),
+                            no_attribs,
+                        )
+                        if _try_init(dpy):
                             logger.debug("EGL probe: device enumeration succeeded.")
                             return True
-                else:
-                    logger.debug("EGL probe: device enumeration found 0 devices.")
 
         # --- Path 2: EGL_MESA_platform_surfaceless ---
         # CPU software rendering (llvmpipe) — no GPU needed.
-        _EGL_PLATFORM_SURFACELESS = 0x31DD
         if _GetPlatformDisplayEXT and b"EGL_MESA_platform_surfaceless" in client_exts:
             dpy = _GetPlatformDisplayEXT(
                 _EGL_PLATFORM_SURFACELESS, ctypes.c_void_p(0), no_attribs
             )
-            if _try_init_silent(dpy):
+            if _try_init(dpy):
                 logger.debug("EGL probe: surfaceless platform succeeded (CPU/llvmpipe).")
                 return True
 
         # --- Path 3: EGL_DEFAULT_DISPLAY ---
         # Works only when a display server is reachable (DISPLAY set).
-        dpy = libegl.eglGetDisplay(ctypes.c_void_p(0))
-        if _try_init_silent(dpy):
+        if _try_init(libegl.eglGetDisplay(ctypes.c_void_p(0))):
             logger.debug("EGL probe: EGL_DEFAULT_DISPLAY succeeded.")
             return True
 
