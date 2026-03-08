@@ -25,6 +25,7 @@ reads directly from the OSMesa buffer.
 import ctypes
 import ctypes.util
 import logging
+import os
 
 import OpenGL.GL as gl
 from PIL import Image
@@ -97,6 +98,12 @@ class OSMesaContext:
         self._init_osmesa()
 
     def _init_osmesa(self):
+        # Suppress Mesa's "Failed to create //.cache for shader cache" warning
+        # that appears when $HOME is unset or non-writable (e.g. inside Docker).
+        # Only set if the user has not already configured it explicitly.
+        if "MESA_SHADER_CACHE_DISABLE" not in os.environ:
+            os.environ["MESA_SHADER_CACHE_DISABLE"] = "1"
+
         lib = _load_libosmesa()
         self._libosmesa = lib
 

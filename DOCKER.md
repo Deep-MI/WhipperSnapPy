@@ -1,10 +1,15 @@
-# Docker Guide
+# Docker / Singularity Guide
 
-The Docker image provides a fully headless rendering environment.  By default
-it uses [OSMesa](https://docs.mesa3d.org/osmesa.html) (Mesa's CPU software
-renderer) — no display server, `xvfb`, or GPU required.  If a GPU render
-device is available, pass `--device /dev/dri/renderD128` to enable EGL GPU
-rendering instead; `libegl1` is already included in the image.
+The Docker image provides a fully headless rendering environment using
+**EGL** — no display server or `xvfb` required.
+
+- **CPU rendering (default):** EGL falls back to Mesa's llvmpipe software
+  renderer automatically.  No GPU or special flags needed.
+- **GPU rendering (NVIDIA):** 
+  - For **Docker**, pass `--gpus all` and EGL selects the
+    GPU via the NVIDIA Container Toolkit. 
+  - For **Singularity/Apptainer**, pass `--nv` (NVIDIA) enables GPU
+    rendering via EGL automatically.
 
 The default entry point is `whippersnap4` (four-view batch rendering).
 `whippersnap1` (single-view snapshot and rotation video) can be invoked by
@@ -41,6 +46,26 @@ docker run --rm --init \
   -sd /subject \
   -o /output/snap4.png
 ```
+
+### With NVIDIA GPU (faster rendering)
+
+Pass `--gpus all` to let EGL use the GPU via the NVIDIA Container Toolkit:
+
+```bash
+docker run --rm --init \
+  --gpus all \
+  -v /path/to/subject:/subject \
+  -v /path/to/output:/output \
+  --user $(id -u):$(id -g) \
+  whippersnappy \
+  -lh /subject/surf/lh.thickness \
+  -rh /subject/surf/rh.thickness \
+  -sd /subject \
+  -o /output/snap4.png
+```
+
+> **Note:** Requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+> installed on the host (`nvidia-ctk --version` to verify).
 
 ### With an annotation file instead of an overlay
 
@@ -181,6 +206,37 @@ parent directory to retrieve them on the host.
 
 ---
 
+## Singularity / Apptainer
+
+The same image can be used with Singularity or Apptainer.
+
+**CPU rendering** (default — no GPU needed):
+```bash
+singularity exec \
+  -B /path/to/subject:/subject \
+  -B /path/to/output:/output \
+  whippersnappy.sif \
+  whippersnap4 \
+    -lh /subject/surf/lh.thickness \
+    -rh /subject/surf/rh.thickness \
+    -sd /subject -o /output/snap4.png
+```
+
+**GPU rendering** — pass `--nv` (NVIDIA) or `--rocm` (AMD); EGL selects
+the GPU automatically:
+```bash
+singularity exec --nv \
+  -B /path/to/subject:/subject \
+  -B /path/to/output:/output \
+  whippersnappy.sif \
+  whippersnap4 \
+    -lh /subject/surf/lh.thickness \
+    -rh /subject/surf/rh.thickness \
+    -sd /subject -o /output/snap4.png
+```
+
+---
+
 ## Notes
 
 - The `--init` flag is recommended so that signals (e.g. `Ctrl-C`) are handled
@@ -189,18 +245,22 @@ parent directory to retrieve them on the host.
   not root.
 - The interactive GUI (`whippersnap`) is **not** available in the Docker image —
   it requires a display server and PyQt6, which are not installed.
-- **Default rendering** uses **OSMesa** (Mesa's CPU software renderer, provided
-  by the `libosmesa6` system package). No GPU or `/dev/dri/` device needed.
-- **GPU rendering via EGL** works out of the box — `libegl1` is included in the
-  image.  Pass the render device into the container and WhipperSnapPy will
-  automatically prefer EGL over OSMesa when `/dev/dri/renderD*` is accessible:
-  ```bash
-  docker run --rm --init \
-    --device /dev/dri/renderD128 \
-    -v /path/to/subject:/subject \
-    -v /path/to/output:/output \
-    whippersnappy \
-    -lh /subject/surf/lh.thickness -rh /subject/surf/rh.thickness \
-    -sd /subject -o /output/snap4.png
+- **Docker CPU rendering** (default — no GPU needed): EGL uses Mesa's llvmpipe
+  software renderer.  The log will show:
   ```
+  EGL context active — CPU software rendering (llvmpipe (...), ...)
+  ```
+- **Docker GPU rendering** (`--gpus all`, NVIDIA only): EGL uses the NVIDIA GPU
+  driver injected by the NVIDIA Container Toolkit.  The log will show:
+  ```
+  EGL context active — GPU rendering (...)
+  ```
+- **Singularity GPU rendering** with `--nv` uses EGL with the NVIDIA GPU
+  driver injected by Singularity.  The log will show:
+  ```
+  EGL context active — GPU rendering (...)
+  ```
+
+
+
 

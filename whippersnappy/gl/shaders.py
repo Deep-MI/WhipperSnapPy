@@ -23,6 +23,7 @@ def compile_shader_program(vertex_src, fragment_src):
     return _gl_shaders.compileProgram(
         _gl_shaders.compileShader(vertex_src, gl.GL_VERTEX_SHADER),
         _gl_shaders.compileShader(fragment_src, gl.GL_FRAGMENT_SHADER),
+        validate=False,
     )
 
 
