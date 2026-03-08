@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Tutorials" href="tutorials/index.html"><link rel="prev" title="WhipperSnapPy" href="index.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Docker Guide - WhipperSnapPy</title>
+        <title>Docker / Singularity Guide - WhipperSnapPy</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -193,7 +193,7 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Docker Guide</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Docker / Singularity Guide</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="tutorials/index.html">Tutorials</a><input aria-label="Toggle navigation of Tutorials" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/whippersnappy_tutorial.html">WhipperSnapPy Tutorial</a></li>
 </ul>
@@ -242,13 +242,22 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="docker-guide">
-<h1>Docker Guide<a class="headerlink" href="#docker-guide" title="Link to this heading">¶</a></h1>
-<p>The Docker image provides a fully headless rendering environment.  By default
-it uses <a class="reference external" href="https://docs.mesa3d.org/osmesa.html">OSMesa</a> (Mesa’s CPU software
-renderer) — no display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU required.  If a GPU render
-device is available, pass <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">/dev/dri/renderD128</span></code> to enable EGL GPU
-rendering instead; <code class="docutils literal notranslate"><span class="pre">libegl1</span></code> is already included in the image.</p>
+          <section id="docker-singularity-guide">
+<h1>Docker / Singularity Guide<a class="headerlink" href="#docker-singularity-guide" title="Link to this heading">¶</a></h1>
+<p>The Docker image provides a fully headless rendering environment using
+<strong>EGL</strong> — no display server or <code class="docutils literal notranslate"><span class="pre">xvfb</span></code> required.</p>
+<ul class="simple">
+<li><p><strong>CPU rendering (default):</strong> EGL falls back to Mesa’s llvmpipe software
+renderer automatically.  No GPU or special flags needed.</p></li>
+<li><p><strong>GPU rendering (NVIDIA):</strong></p>
+<ul>
+<li><p>For <strong>Docker</strong>, pass <code class="docutils literal notranslate"><span class="pre">--gpus</span> <span class="pre">all</span></code> and EGL selects the
+GPU via the NVIDIA Container Toolkit.</p></li>
+<li><p>For <strong>Singularity/Apptainer</strong>, pass <code class="docutils literal notranslate"><span class="pre">--nv</span></code> (NVIDIA) enables GPU
+rendering via EGL automatically.</p></li>
+</ul>
+</li>
+</ul>
 <p>The default entry point is <code class="docutils literal notranslate"><span class="pre">whippersnap4</span></code> (four-view batch rendering).
 <code class="docutils literal notranslate"><span class="pre">whippersnap1</span></code> (single-view snapshot and rotation video) can be invoked by
 overriding the entry point.</p>
@@ -278,6 +287,26 @@ as arguments:</p>
 <span class="w">  </span>-o<span class="w"> </span>/output/snap4.png
 </pre></div>
 </div>
+<section id="with-nvidia-gpu-faster-rendering">
+<h3>With NVIDIA GPU (faster rendering)<a class="headerlink" href="#with-nvidia-gpu-faster-rendering" title="Link to this heading">¶</a></h3>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">--gpus</span> <span class="pre">all</span></code> to let EGL use the GPU via the NVIDIA Container Toolkit:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gpus<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/path/to/subject:/subject<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>/path/to/output:/output<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--user<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>:<span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnappy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-lh<span class="w"> </span>/subject/surf/lh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-rh<span class="w"> </span>/subject/surf/rh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-sd<span class="w"> </span>/subject<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-o<span class="w"> </span>/output/snap4.png
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note:</strong> Requires the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html">NVIDIA Container Toolkit</a>
+installed on the host (<code class="docutils literal notranslate"><span class="pre">nvidia-ctk</span> <span class="pre">--version</span></code> to verify).</p>
+</div></blockquote>
+</section>
 <section id="with-an-annotation-file-instead-of-an-overlay">
 <h3>With an annotation file instead of an overlay<a class="headerlink" href="#with-an-annotation-file-instead-of-an-overlay" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span><span class="se">\</span>
@@ -429,6 +458,34 @@ no system ffmpeg is required.</p>
 parent directory to retrieve them on the host.</p>
 </section>
 <hr class="docutils" />
+<section id="singularity-apptainer">
+<h2>Singularity / Apptainer<a class="headerlink" href="#singularity-apptainer" title="Link to this heading">¶</a></h2>
+<p>The same image can be used with Singularity or Apptainer.</p>
+<p><strong>CPU rendering</strong> (default — no GPU needed):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>singularity<span class="w"> </span><span class="nb">exec</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-B<span class="w"> </span>/path/to/subject:/subject<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-B<span class="w"> </span>/path/to/output:/output<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnappy.sif<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnap4<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-lh<span class="w"> </span>/subject/surf/lh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-rh<span class="w"> </span>/subject/surf/rh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-sd<span class="w"> </span>/subject<span class="w"> </span>-o<span class="w"> </span>/output/snap4.png
+</pre></div>
+</div>
+<p><strong>GPU rendering</strong> — pass <code class="docutils literal notranslate"><span class="pre">--nv</span></code> (NVIDIA) or <code class="docutils literal notranslate"><span class="pre">--rocm</span></code> (AMD); EGL selects
+the GPU automatically:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>singularity<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>--nv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-B<span class="w"> </span>/path/to/subject:/subject<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-B<span class="w"> </span>/path/to/output:/output<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnappy.sif<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>whippersnap4<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-lh<span class="w"> </span>/subject/surf/lh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-rh<span class="w"> </span>/subject/surf/rh.thickness<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-sd<span class="w"> </span>/subject<span class="w"> </span>-o<span class="w"> </span>/output/snap4.png
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
 <section id="notes">
 <h2>Notes<a class="headerlink" href="#notes" title="Link to this heading">¶</a></h2>
 <ul>
@@ -438,18 +495,21 @@ correctly inside the container.</p></li>
 not root.</p></li>
 <li><p>The interactive GUI (<code class="docutils literal notranslate"><span class="pre">whippersnap</span></code>) is <strong>not</strong> available in the Docker image —
 it requires a display server and PyQt6, which are not installed.</p></li>
-<li><p><strong>Default rendering</strong> uses <strong>OSMesa</strong> (Mesa’s CPU software renderer, provided
-by the <code class="docutils literal notranslate"><span class="pre">libosmesa6</span></code> system package). No GPU or <code class="docutils literal notranslate"><span class="pre">/dev/dri/</span></code> device needed.</p></li>
-<li><p><strong>GPU rendering via EGL</strong> works out of the box — <code class="docutils literal notranslate"><span class="pre">libegl1</span></code> is included in the
-image.  Pass the render device into the container and WhipperSnapPy will
-automatically prefer EGL over OSMesa when <code class="docutils literal notranslate"><span class="pre">/dev/dri/renderD*</span></code> is accessible:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--init<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--device<span class="w"> </span>/dev/dri/renderD128<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-v<span class="w"> </span>/path/to/subject:/subject<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-v<span class="w"> </span>/path/to/output:/output<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>whippersnappy<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-lh<span class="w"> </span>/subject/surf/lh.thickness<span class="w"> </span>-rh<span class="w"> </span>/subject/surf/rh.thickness<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-sd<span class="w"> </span>/subject<span class="w"> </span>-o<span class="w"> </span>/output/snap4.png
+<li><p><strong>Docker CPU rendering</strong> (default — no GPU needed): EGL uses Mesa’s llvmpipe
+software renderer.  The log will show:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>EGL context active — CPU software rendering (llvmpipe (...), ...)
+</pre></div>
+</div>
+</li>
+<li><p><strong>Docker GPU rendering</strong> (<code class="docutils literal notranslate"><span class="pre">--gpus</span> <span class="pre">all</span></code>, NVIDIA only): EGL uses the NVIDIA GPU
+driver injected by the NVIDIA Container Toolkit.  The log will show:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>EGL context active — GPU rendering (...)
+</pre></div>
+</div>
+</li>
+<li><p><strong>Singularity GPU rendering</strong> with <code class="docutils literal notranslate"><span class="pre">--nv</span></code> uses EGL with the NVIDIA GPU
+driver injected by Singularity.  The log will show:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>EGL context active — GPU rendering (...)
 </pre></div>
 </div>
 </li>
@@ -518,9 +578,10 @@ automatically prefer EGL over OSMesa when <code class="docutils literal notransl
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Docker Guide</a><ul>
+<li><a class="reference internal" href="#">Docker / Singularity Guide</a><ul>
 <li><a class="reference internal" href="#building-the-image">Building the image</a></li>
 <li><a class="reference internal" href="#running-four-view-batch-rendering-whippersnap4">Running — four-view batch rendering (<code class="docutils literal notranslate"><span class="pre">whippersnap4</span></code>)</a><ul>
+<li><a class="reference internal" href="#with-nvidia-gpu-faster-rendering">With NVIDIA GPU (faster rendering)</a></li>
 <li><a class="reference internal" href="#with-an-annotation-file-instead-of-an-overlay">With an annotation file instead of an overlay</a></li>
 <li><a class="reference internal" href="#with-a-caption-and-custom-thresholds">With a caption and custom thresholds</a></li>
 <li><a class="reference internal" href="#all-whippersnap4-options">All <code class="docutils literal notranslate"><span class="pre">whippersnap4</span></code> options</a></li>
@@ -538,6 +599,7 @@ automatically prefer EGL over OSMesa when <code class="docutils literal notransl
 </ul>
 </li>
 <li><a class="reference internal" href="#path-mapping-summary">Path mapping summary</a></li>
+<li><a class="reference internal" href="#singularity-apptainer">Singularity / Apptainer</a></li>
 <li><a class="reference internal" href="#notes">Notes</a></li>
 </ul>
 </li>

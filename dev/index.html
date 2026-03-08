@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Docker Guide" href="DOCKER.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Docker / Singularity Guide" href="DOCKER.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>WhipperSnapPy</title>
@@ -193,7 +193,7 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
-<li class="toctree-l1"><a class="reference internal" href="DOCKER.html">Docker Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="DOCKER.html">Docker / Singularity Guide</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="tutorials/index.html">Tutorials</a><input aria-label="Toggle navigation of Tutorials" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="tutorials/whippersnappy_tutorial.html">WhipperSnapPy Tutorial</a></li>
 </ul>
@@ -268,21 +268,22 @@ triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[notebook]&#39;</span>
 </pre></div>
 </div>
-<p>Off-screen (headless) rendering on <strong>Linux</strong> uses a three-path fallback:</p>
-<ol class="arabic simple">
-<li><p><strong>GLFW invisible window</strong> — used when a display is available (<code class="docutils literal notranslate"><span class="pre">DISPLAY</span></code> set).</p></li>
-<li><p><strong>EGL</strong> (GPU, no display needed) — used when no display is detected and a
-GPU render device (<code class="docutils literal notranslate"><span class="pre">/dev/dri/renderD*</span></code>) is accessible with <code class="docutils literal notranslate"><span class="pre">libEGL</span></code> installed
-(<code class="docutils literal notranslate"><span class="pre">libegl1</span></code> on Debian/Ubuntu).  This is the recommended path for SSH servers
-with a GPU — no <code class="docutils literal notranslate"><span class="pre">DISPLAY</span></code>, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or OSMesa required.</p></li>
-<li><p><strong>OSMesa</strong> (CPU software renderer) — final fallback; requires
-<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">libosmesa6</span></code> (Debian/Ubuntu) or
-<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">dnf</span> <span class="pre">install</span> <span class="pre">mesa-libOSMesa</span></code> (RHEL/Fedora).</p></li>
-</ol>
+<p>Off-screen (headless) rendering on <strong>Linux</strong> uses <strong>EGL</strong> with Mesa’s llvmpipe
+CPU software renderer — no GPU or display server required.  The log reports:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>EGL context active — CPU software rendering (llvmpipe (...), ...)
+</pre></div>
+</div>
+<p>When a GPU is accessible (native install, Docker with <code class="docutils literal notranslate"><span class="pre">--gpus</span> <span class="pre">all</span></code>, or
+Singularity with <code class="docutils literal notranslate"><span class="pre">--nv</span></code>), EGL selects it automatically:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>EGL context active — GPU rendering (...)
+</pre></div>
+</div>
+<p>OSMesa (<code class="docutils literal notranslate"><span class="pre">libosmesa6</span></code>) is a last-resort CPU fallback used only when EGL
+itself cannot initialise (e.g. <code class="docutils literal notranslate"><span class="pre">libegl1</span></code> not installed).</p>
 <p>On <strong>Windows</strong>, GLFW creates an invisible window; a GPU driver is sufficient.
 On <strong>macOS</strong>, a real display connection is required (NSGL does not support
 headless rendering).
-See the <a href="DOCKER.md">Docker guide</a> for headless Linux usage.</p>
+See the <a href="DOCKER.md">Docker/Singularity guide</a> for container usage.</p>
 </section>
 <section id="command-line-usage">
 <h2>Command-Line Usage<a class="headerlink" href="#command-line-usage" title="Link to this heading">¶</a></h2>
@@ -478,8 +479,8 @@ GIfTI functional/label (<code class="docutils literal notranslate"><span class="
 </section>
 <section id="docker">
 <h2>Docker<a class="headerlink" href="#docker" title="Link to this heading">¶</a></h2>
-<p>The Docker image provides a fully headless rendering environment using
-OSMesa (CPU software renderer) — no display server, <code class="docutils literal notranslate"><span class="pre">xvfb</span></code>, or GPU required.
+<p>The Docker image provides a fully headless rendering environment using EGL —
+CPU software rendering by default, GPU rendering with <code class="docutils literal notranslate"><span class="pre">--gpus</span> <span class="pre">all</span></code> (NVIDIA).
 See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
 </section>
 <section id="api-documentation">
@@ -504,7 +505,7 @@ See <a href="DOCKER.md"><strong>DOCKER.md</strong></a> for details.</p>
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Docker Guide</div>
+                <div class="title">Docker / Singularity Guide</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
