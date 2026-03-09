@@ -32,9 +32,12 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install system OSMesa library (Ubuntu)
+      - name: Install system OpenGL/EGL libraries (Ubuntu)
         if: matrix.os == 'ubuntu'
-        run: sudo apt-get install -y --no-install-recommends libosmesa6 libgl1
+        # libegl1:       EGL headless rendering (preferred, no display needed)
+        # libgl1:        OpenGL implementation pulled in by PyOpenGL
+        # libfontconfig1: font discovery used by the caption renderer
+        run: sudo apt-get install -y --no-install-recommends libegl1 libgl1 libfontconfig1
       - name: Install Mesa software OpenGL (Windows)
         if: matrix.os == 'windows'
         # mesa-dist-win (MSVC build) provides software OpenGL 3.3 Core via
@@ -50,8 +53,9 @@ jobs:
           7z e $archive -o"C:\mesa" "x64\*" -y
           echo "C:\mesa" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         # Rendering strategy per platform:
-        #   Ubuntu:  no display → GLFW fails → EGL skipped (no /dev/dri/renderD*)
-        #            → OSMesa headless (libosmesa6) used as final fallback
+        #   Ubuntu:  no display → GLFW fails → EGL
+        #            CI runners have no GPU device so EGL uses CPU software
+        #            rendering (llvmpipe) via EGL_MESA_device_software
         #   macOS:   rendering tests SKIPPED — NSGL requires a real display
         #            connection even for invisible windows; CI runners have none
         #   Windows: Mesa opengl32.dll (MSVC build) on PATH → GLFW invisible
