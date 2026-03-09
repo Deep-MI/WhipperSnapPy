@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'whippersnappy'
-version = '2.1.0-dev'
+version = '2.1.0'
 description = 'A package to plot and capture publication-ready surfaces with overlays, for example, FastSurfer/FreeSurfer brain data.'
 readme = 'README.md'
 license = 'MIT'
