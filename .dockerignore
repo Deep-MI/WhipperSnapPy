@@ -53,8 +53,7 @@ env/
 
 # Docker Files
 .dockerignore
-docker
-docker/Dockerfile
+Dockerfile
 
 # Singularity files
 singularity
