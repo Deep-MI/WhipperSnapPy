@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Docker / Singularity Guide" href="DOCKER.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.2.0 and Furo 2025.12.19 -->
         <title>WhipperSnapPy</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -257,15 +257,15 @@ triangle mesh in OFF, legacy ASCII VTK PolyData, ASCII PLY, or GIfTI
 </pre></div>
 </div>
 <p>For rotation video support (MP4/WebM — GIF works without this):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[video]&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'whippersnappy[video]'</span>
 </pre></div>
 </div>
 <p>For the interactive desktop GUI:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[gui]&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'whippersnappy[gui]'</span>
 </pre></div>
 </div>
 <p>For interactive 3D in Jupyter notebooks:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;whippersnappy[notebook]&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'whippersnappy[notebook]'</span>
 </pre></div>
 </div>
 <p>Off-screen (headless) rendering on <strong>Linux</strong> uses <strong>EGL</strong> with Mesa’s llvmpipe
@@ -311,7 +311,7 @@ whippersnap1<span class="w"> </span>--mesh<span class="w"> </span>surface.surf.g
 <span class="w">             </span>-rh<span class="w"> </span><span class="nv">$RH_OVERLAY</span><span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>-sd<span class="w"> </span><span class="nv">$SUBJECT_DIR</span><span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>--fmax<span class="w"> </span><span class="m">4</span><span class="w"> </span>--fthresh<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-<span class="w">             </span>--caption<span class="w"> </span><span class="s2">&quot;Cortical Thickness&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">             </span>--caption<span class="w"> </span><span class="s2">"Cortical Thickness"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">             </span>-o<span class="w"> </span>snap4.png
 </pre></div>
 </div>
@@ -427,8 +427,8 @@ modify it:</p>
 <span class="n">tilt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pyrr</span><span class="o">.</span><span class="n">Matrix44</span><span class="o">.</span><span class="n">from_x_rotation</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">10</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 <span class="n">mat</span> <span class="o">=</span> <span class="n">tilt</span> <span class="o">@</span> <span class="n">mat</span>
 
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
-<span class="n">snap_rotate</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span> <span class="s1">&#39;rotation.mp4&#39;</span><span class="p">,</span> <span class="n">start_view</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">'lh.white'</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">'lh.thickness'</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
+<span class="n">snap_rotate</span><span class="p">(</span><span class="s1">'lh.white'</span><span class="p">,</span> <span class="s1">'rotation.mp4'</span><span class="p">,</span> <span class="n">start_view</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Supported mesh inputs</strong> (for <code class="docutils literal notranslate"><span class="pre">snap1</span></code>, <code class="docutils literal notranslate"><span class="pre">snap_rotate</span></code>, and <code class="docutils literal notranslate"><span class="pre">plot3d</span></code>):
@@ -444,27 +444,27 @@ GIfTI functional/label (<code class="docutils literal notranslate"><span class="
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">whippersnappy</span><span class="w"> </span><span class="kn">import</span> <span class="n">snap1</span><span class="p">,</span> <span class="n">snap4</span><span class="p">,</span> <span class="n">ViewType</span>
 
 <span class="c1"># FreeSurfer surface with overlay — default left lateral view</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span>
-            <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span>
-            <span class="n">bg_map</span><span class="o">=</span><span class="s1">&#39;lh.curv&#39;</span><span class="p">,</span>
-            <span class="n">roi</span><span class="o">=</span><span class="s1">&#39;lh.cortex.label&#39;</span><span class="p">)</span>
-<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap1.png&#39;</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">'lh.white'</span><span class="p">,</span>
+            <span class="n">overlay</span><span class="o">=</span><span class="s1">'lh.thickness'</span><span class="p">,</span>
+            <span class="n">bg_map</span><span class="o">=</span><span class="s1">'lh.curv'</span><span class="p">,</span>
+            <span class="n">roi</span><span class="o">=</span><span class="s1">'lh.cortex.label'</span><span class="p">)</span>
+<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'snap1.png'</span><span class="p">)</span>
 
 <span class="c1"># Specific view</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;lh.white&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;lh.thickness&#39;</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">ViewType</span><span class="o">.</span><span class="n">FRONT</span><span class="p">)</span>
-<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap1_front.png&#39;</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">'lh.white'</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">'lh.thickness'</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">ViewType</span><span class="o">.</span><span class="n">FRONT</span><span class="p">)</span>
+<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'snap1_front.png'</span><span class="p">)</span>
 
 <span class="c1"># Four-view overview (FreeSurfer subject directory)</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap4</span><span class="p">(</span><span class="n">lh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/lh.thickness&#39;</span><span class="p">,</span>
-            <span class="n">rh_overlay</span><span class="o">=</span><span class="s1">&#39;/path/to/rh.thickness&#39;</span><span class="p">,</span>
-            <span class="n">sdir</span><span class="o">=</span><span class="s1">&#39;/path/to/subject&#39;</span><span class="p">,</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap4</span><span class="p">(</span><span class="n">lh_overlay</span><span class="o">=</span><span class="s1">'/path/to/lh.thickness'</span><span class="p">,</span>
+            <span class="n">rh_overlay</span><span class="o">=</span><span class="s1">'/path/to/rh.thickness'</span><span class="p">,</span>
+            <span class="n">sdir</span><span class="o">=</span><span class="s1">'/path/to/subject'</span><span class="p">,</span>
             <span class="n">colorbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">caption</span><span class="o">=</span><span class="s1">&#39;Cortical Thickness (mm)&#39;</span><span class="p">)</span>
-<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;snap4.png&#39;</span><span class="p">)</span>
+            <span class="n">caption</span><span class="o">=</span><span class="s1">'Cortical Thickness (mm)'</span><span class="p">)</span>
+<span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'snap4.png'</span><span class="p">)</span>
 
 <span class="c1"># OFF / VTK / PLY / GIfTI mesh with a plain-text overlay</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;mesh.off&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;values.txt&#39;</span><span class="p">)</span>
-<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">&#39;surface.surf.gii&#39;</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">&#39;overlay.func.gii&#39;</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">'mesh.off'</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">'values.txt'</span><span class="p">)</span>
+<span class="n">img</span> <span class="o">=</span> <span class="n">snap1</span><span class="p">(</span><span class="s1">'surface.surf.gii'</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="s1">'overlay.func.gii'</span><span class="p">)</span>
 
 <span class="c1"># Array inputs (e.g. from LaPy or trimesh)</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
